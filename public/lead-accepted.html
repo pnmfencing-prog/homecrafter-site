@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lead Accepted — HomeCrafter</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --midnight: #1e1845;
+  --midnight-light: #2a2260;
+  --gold: #c4aa6a;
+  --gold-light: #d4c394;
+  --cream: #faf9f6;
+  --cream-dark: #f0ede6;
+  --text: #2d2d2d;
+  --text-muted: #6b6b6b;
+  --success: #2d8a4e;
+  --success-light: #e8f5e9;
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+  background: var(--cream);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+.header {
+  background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%);
+  padding: 2.5rem 1.5rem 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.header::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(ellipse at 30% 50%, rgba(196,170,106,0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;
+  font-size: 2.2rem;
+  letter-spacing: 0.35em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.header-subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 300;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+}
+
+.gold-rule {
+  width: 60px; height: 1px;
+  background: var(--gold);
+  margin: 1rem auto 0;
+  opacity: 0.5;
+}
+
+.nav {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  padding: 0.85rem 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--cream-dark);
+}
+
+.nav a {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.nav a:hover { color: var(--midnight); }
+.nav a.active { color: var(--gold); }
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--gold);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  transition: color 0.3s;
+  margin-bottom: 1.25rem;
+}
+
+.back-link:hover { color: var(--midnight); }
+
+.container {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+/* Success Banner */
+.success-banner {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 30px rgba(30,24,69,0.06);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  margin-bottom: 1.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.success-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-light), var(--gold));
+}
+
+.checkmark-circle {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--midnight), var(--midnight-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+  animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes scaleIn {
+  0% { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes drawCheck {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.checkmark-circle svg {
+  width: 32px; height: 32px;
+}
+
+.checkmark-circle svg polyline {
+  stroke: var(--gold);
+  stroke-width: 2.5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 24;
+  stroke-dashoffset: 0;
+  animation: drawCheck 0.6s ease 0.3s both;
+}
+
+.success-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  font-size: 1.8rem;
+  color: var(--midnight);
+  margin-bottom: 0.35rem;
+}
+
+.success-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* Info Banners */
+.info-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 10px;
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+.info-banner-purple {
+  background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%);
+  color: var(--gold-light);
+  box-shadow: 0 2px 12px rgba(30,24,69,0.12);
+}
+
+.info-banner-gold {
+  background: rgba(196,170,106,0.12);
+  color: var(--midnight);
+  border: 1px solid rgba(196,170,106,0.25);
+}
+
+.info-banner-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+/* Card */
+.card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 30px rgba(30,24,69,0.06);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--cream-dark);
+}
+
+.card-header h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  font-size: 1.15rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--midnight);
+}
+
+.card-body { padding: 1.5rem; }
+
+/* Contact Details */
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+
+.contact-item:last-child { border-bottom: none; }
+
+.contact-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.1rem;
+}
+
+.contact-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.1rem;
+}
+
+.contact-value {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.contact-value a {
+  color: var(--midnight);
+  text-decoration: none;
+  border-bottom: 1px solid var(--gold-light);
+}
+
+/* Services */
+.services {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.service-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, var(--midnight), var(--midnight-light));
+  color: var(--gold-light);
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.service-badge svg {
+  width: 18px; height: 18px;
+  fill: var(--gold);
+}
+
+/* Notes */
+.notes-text {
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--text);
+  font-style: italic;
+  background: var(--cream);
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  border-left: 3px solid var(--gold);
+}
+
+/* Dossier */
+.dossier-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.dossier-item {
+  text-align: center;
+  padding: 1rem 0.5rem;
+  background: var(--cream);
+  border-radius: 10px;
+}
+
+.dossier-value {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--midnight);
+  line-height: 1.2;
+}
+
+.dossier-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+
+/* Best Practices */
+.tip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+
+.tip-item:last-child { border-bottom: none; }
+
+.tip-number {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--midnight), var(--midnight-light));
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.tip-text {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* Action Buttons */
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.btn {
+  flex: 1;
+  padding: 1rem;
+  border-radius: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+}
+
+.btn-call {
+  background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%);
+  color: var(--gold);
+  box-shadow: 0 4px 16px rgba(30,24,69,0.2);
+}
+
+.btn-call:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(30,24,69,0.3);
+}
+
+.btn-email {
+  background: transparent;
+  color: var(--midnight);
+  border: 1.5px solid var(--midnight);
+}
+
+.btn-email:hover {
+  background: var(--midnight);
+  color: var(--gold);
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  border-top: 1px solid var(--cream-dark);
+  margin-top: 1rem;
+}
+
+.footer-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;
+  font-size: 1.1rem;
+  letter-spacing: 0.3em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.footer-text {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+/* Mobile */
+@media (max-width: 520px) {
+  .header { padding: 2rem 1rem 1.5rem; }
+  .logo { font-size: 1.8rem; }
+  .container { padding: 1.25rem 1rem 2rem; }
+  .card-body { padding: 1.25rem; }
+  .success-title { font-size: 1.5rem; }
+  .dossier-grid { gap: 0.75rem; }
+  .dossier-value { font-size: 1.25rem; }
+  .actions { flex-direction: column; }
+  .contact-value { font-size: 0.88rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">HomeCrafter</div>
+  <div class="header-subtitle">Lead Confirmation</div>
+  <div class="gold-rule"></div>
+</div>
+
+<nav class="nav">
+  <a href="leads-dashboard.html">All Leads</a>
+  <a href="lead-view.html">Lead Detail</a>
+  <a href="ai-assistant.html">AI Assistant</a>
+</nav>
+
+<div class="container">
+
+  <a href="lead-view.html" class="back-link">← Back to Available Leads</a>
+
+  <!-- Success Banner -->
+  <div class="success-banner">
+    <div class="checkmark-circle">
+      <svg viewBox="0 0 24 24"><polyline points="6 12 10 16 18 8"/></svg>
+    </div>
+    <div class="success-title">Lead Purchased</div>
+    <div class="success-subtitle">Homeowner contact details are now available below</div>
+  </div>
+
+  <!-- Competition & Urgency Banners -->
+  <div class="info-banner info-banner-purple">
+    <span class="info-banner-icon">👥</span>
+    <span>You are 1 of 3 contractors who purchased this lead</span>
+  </div>
+
+  <div class="info-banner info-banner-gold">
+    <span class="info-banner-icon">⏳</span>
+    <span>Lead expires in 48 hours — reach out promptly</span>
+  </div>
+
+  <!-- Contact Details -->
+  <div class="card" style="margin-top: 0.75rem;">
+    <div class="card-header">
+      <h2>Homeowner Contact</h2>
+    </div>
+    <div class="card-body">
+      <div class="contact-item">
+        <div class="contact-icon">👤</div>
+        <div>
+          <div class="contact-label">Name</div>
+          <div class="contact-value">James &amp; Patricia Morrison</div>
+        </div>
+      </div>
+      <div class="contact-item">
+        <div class="contact-icon">📞</div>
+        <div>
+          <div class="contact-label">Phone</div>
+          <div class="contact-value"><a href="tel:+17325550847">(732) 555-0847</a></div>
+        </div>
+      </div>
+      <div class="contact-item">
+        <div class="contact-icon">✉️</div>
+        <div>
+          <div class="contact-label">Email</div>
+          <div class="contact-value"><a href="mailto:jmorrison@email.com">jmorrison@email.com</a></div>
+        </div>
+      </div>
+      <div class="contact-item">
+        <div class="contact-icon">📍</div>
+        <div>
+          <div class="contact-label">Address</div>
+          <div class="contact-value">847 Oceanview Drive, Rumson, NJ 07760</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Service Requested -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Service Requested</h2>
+    </div>
+    <div class="card-body">
+      <div class="services">
+        <span class="service-badge">
+          <svg viewBox="0 0 24 24"><path d="M3 3h2v18H3V3zm16 0h2v18h-2V3zM7 4h2v2H7V4zm8 0h2v2h-2V4zM7 8h2v2H7V8zm8 0h2v2h-2V8zm-8 4h2v2H7v-2zm8 0h2v2h-2v-2zm-8 4h2v2H7v-2zm8 0h2v2h-2v-2z"/></svg>
+          FenceCrafter
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Homeowner Notes -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Homeowner Notes</h2>
+    </div>
+    <div class="card-body">
+      <div class="notes-text">"Looking to replace the existing fence with vinyl. Hoping to get it done before summer."</div>
+    </div>
+  </div>
+
+  <!-- Property Dossier -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Property Dossier</h2>
+    </div>
+    <div class="card-body">
+      <div class="dossier-grid">
+        <div class="dossier-item">
+          <div class="dossier-value">$1.25M</div>
+          <div class="dossier-label">Home Value</div>
+        </div>
+        <div class="dossier-item">
+          <div class="dossier-value">3,400</div>
+          <div class="dossier-label">Square Feet</div>
+        </div>
+        <div class="dossier-item">
+          <div class="dossier-value">1998</div>
+          <div class="dossier-label">Year Built</div>
+        </div>
+        <div class="dossier-item">
+          <div class="dossier-value">0.45 ac</div>
+          <div class="dossier-label">Lot Size</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Best Practices -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Best Practices</h2>
+    </div>
+    <div class="card-body">
+      <div class="tip-item">
+        <div class="tip-number">1</div>
+        <div class="tip-text">Respond within <strong>2 hours</strong> for the best results — speed wins jobs</div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-number">2</div>
+        <div class="tip-text">Introduce yourself and highlight your relevant experience</div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-number">3</div>
+        <div class="tip-text">Provide a clear estimate timeline so the homeowner knows what to expect</div>
+      </div>
+      <div class="tip-item">
+        <div class="tip-number">4</div>
+        <div class="tip-text">Be professional — you represent the <strong>HomeCrafter</strong> network</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="actions">
+    <a href="tel:+17325550847" class="btn btn-call">📞 Call Homeowner</a>
+    <a href="mailto:jmorrison@email.com?subject=HomeCrafter%20—%20Your%20Fence%20Project" class="btn btn-email">✉️ Send Email</a>
+  </div>
+
+  <!-- AI Assistant Upsell -->
+  <div style="background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%); border-radius: 14px; padding: 2rem 1.5rem; text-align: center; margin-top: 1.5rem; position: relative; overflow: hidden;">
+    <div style="font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 1.35rem; color: var(--gold); letter-spacing: 0.08em; margin-bottom: 0.5rem;">Never Miss a Follow-Up Again</div>
+    <div style="font-size: 0.82rem; color: rgba(255,255,255,0.6); margin-bottom: 1.25rem;">Let our AI handle communication, scheduling, and proposals — starting at $490/mo</div>
+    <a href="ai-assistant.html" style="display: inline-block; padding: 0.85rem 2rem; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; border: 1.5px solid var(--gold); background: transparent; color: var(--gold); text-decoration: none; transition: all 0.3s;">Learn More</a>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div class="footer-logo">HomeCrafter</div>
+  <div class="footer-text">Connecting homeowners with trusted local professionals</div>
+</div>
+
+</body>
+</html>

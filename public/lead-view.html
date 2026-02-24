@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Lead — HomeCrafter</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --midnight: #1e1845;
+  --midnight-light: #2a2260;
+  --gold: #c4aa6a;
+  --gold-light: #d4c394;
+  --cream: #faf9f6;
+  --cream-dark: #f0ede6;
+  --text: #2d2d2d;
+  --text-muted: #6b6b6b;
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+  background: var(--cream);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+.header {
+  background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%);
+  padding: 2.5rem 1.5rem 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.header::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(ellipse at 30% 50%, rgba(196,170,106,0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;
+  font-size: 2.2rem;
+  letter-spacing: 0.35em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.header-subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 300;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+}
+
+.gold-rule {
+  width: 60px; height: 1px;
+  background: var(--gold);
+  margin: 1rem auto 0;
+  opacity: 0.5;
+}
+
+.nav {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  padding: 0.85rem 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--cream-dark);
+}
+
+.nav a {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.nav a:hover { color: var(--midnight); }
+.nav a.active { color: var(--gold); }
+
+.container {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+/* Urgency Banner */
+.urgency {
+  background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%);
+  border-radius: 10px;
+  padding: 0.85rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 1.75rem;
+  box-shadow: 0 2px 12px rgba(30,24,69,0.12);
+}
+
+.urgency-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.urgency-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+.urgency-text {
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--gold-light);
+}
+
+.urgency-timer {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+/* Card */
+.card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 30px rgba(30,24,69,0.06);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--cream-dark);
+}
+
+.card-header h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  font-size: 1.15rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--midnight);
+}
+
+.card-body { padding: 1.5rem; }
+
+/* Lead Top */
+.lead-top {
+  text-align: center;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--cream-dark);
+}
+
+/* Redacted / Blurred fields */
+.redacted-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.55rem;
+  font-weight: 600;
+  color: var(--midnight);
+  margin-bottom: 0.15rem;
+  filter: blur(6px);
+  user-select: none;
+  pointer-events: none;
+}
+
+.redacted-address {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  filter: blur(5px);
+  user-select: none;
+  pointer-events: none;
+  margin-bottom: 0.25rem;
+}
+
+.location-visible {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.services {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.service-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, var(--midnight), var(--midnight-light));
+  color: var(--gold-light);
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.service-badge svg {
+  width: 18px; height: 18px;
+  fill: var(--gold);
+}
+
+.submitted-date {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+  font-weight: 400;
+}
+
+/* Notes */
+.notes-section {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--cream-dark);
+}
+
+.notes-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+
+.notes-text {
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--text);
+  font-style: italic;
+  background: var(--cream);
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  border-left: 3px solid var(--gold);
+}
+
+/* Property Dossier */
+.dossier-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.dossier-item {
+  text-align: center;
+  padding: 1rem 0.5rem;
+  background: var(--cream);
+  border-radius: 10px;
+}
+
+.dossier-value {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--midnight);
+  line-height: 1.2;
+}
+
+.dossier-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+
+.map-placeholder {
+  background: var(--cream-dark);
+  border-radius: 10px;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  border: 1px dashed rgba(0,0,0,0.1);
+}
+
+.map-placeholder .pin { font-size: 2rem; opacity: 0.4; }
+.map-placeholder .map-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Pricing Section */
+.pricing-section {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 30px rgba(30,24,69,0.06);
+  margin-bottom: 1.5rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.pricing-amount {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--midnight);
+  line-height: 1.1;
+}
+
+.pricing-per {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-bottom: 1.25rem;
+}
+
+.spots-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--cream);
+  padding: 0.6rem 1.25rem;
+  border-radius: 50px;
+  margin-bottom: 0.75rem;
+}
+
+.spots-dots {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.spots-dots .dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--cream-dark);
+  border: 1.5px solid rgba(0,0,0,0.1);
+}
+
+.spots-dots .dot.taken {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.spots-dots .dot.available {
+  background: var(--cream-dark);
+  border: 1.5px solid rgba(0,0,0,0.12);
+}
+
+.spots-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--midnight);
+}
+
+.closing-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  font-style: italic;
+}
+
+.pricing-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn {
+  flex: 1;
+  padding: 1rem;
+  border-radius: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  border: none;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%);
+  color: var(--gold);
+  box-shadow: 0 4px 16px rgba(30,24,69,0.2);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(30,24,69,0.3);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1.5px solid rgba(0,0,0,0.12);
+}
+
+.btn-outline:hover {
+  border-color: rgba(0,0,0,0.25);
+  color: var(--text);
+}
+
+/* Bundle Packages */
+.bundles-section { margin-bottom: 1.5rem; }
+
+.section-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  font-size: 1.5rem;
+  text-align: center;
+  color: var(--midnight);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.3rem;
+}
+
+.section-subtitle {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  font-weight: 400;
+}
+
+.bundles-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+}
+
+.bundle-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.5rem 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 30px rgba(30,24,69,0.06);
+  text-align: center;
+  border: 1.5px solid transparent;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+}
+
+.bundle-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 36px rgba(30,24,69,0.12);
+}
+
+.bundle-card.popular {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, #fff 0%, rgba(196,170,106,0.04) 100%);
+}
+
+.bundle-badge {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  color: var(--midnight);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.85rem;
+  border-radius: 50px;
+  white-space: nowrap;
+}
+
+.bundle-count {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--midnight);
+  margin-bottom: 0.15rem;
+  margin-top: 0.25rem;
+}
+
+.bundle-price {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--midnight);
+  line-height: 1.2;
+}
+
+.bundle-per {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.bundle-save {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--gold);
+  background: rgba(196,170,106,0.12);
+  padding: 0.2rem 0.6rem;
+  border-radius: 50px;
+  letter-spacing: 0.04em;
+}
+
+.bundles-note {
+  text-align: center;
+  margin-top: 1.25rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* Comparison Box */
+.comparison-box {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 30px rgba(30,24,69,0.06);
+  padding: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.comparison-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+}
+
+.comparison-row.bad {
+  background: #fef2f2;
+}
+
+.comparison-row.good {
+  background: linear-gradient(135deg, rgba(30,24,69,0.04), rgba(196,170,106,0.08));
+}
+
+.comparison-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.comparison-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.comparison-math {
+  font-size: 0.92rem;
+  color: var(--text);
+  margin-top: 0.15rem;
+}
+
+.comparison-math strong {
+  color: var(--midnight);
+}
+
+.comparison-vs {
+  text-align: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0.5rem 0;
+}
+
+.comparison-savings {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--gold);
+  padding: 1rem 0 0;
+  letter-spacing: 0.02em;
+}
+
+/* AI Assistant Upsell */
+.ai-section {
+  background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%);
+  border-radius: 14px;
+  padding: 2.25rem 1.75rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-section::before {
+  content: '';
+  position: absolute;
+  top: -50%; right: -30%;
+  width: 200%; height: 200%;
+  background: radial-gradient(ellipse at 70% 30%, rgba(196,170,106,0.06) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.ai-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: var(--gold);
+  text-align: center;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.4rem;
+  position: relative;
+}
+
+.ai-subtitle {
+  text-align: center;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.6);
+  font-weight: 300;
+  margin-bottom: 1.75rem;
+  position: relative;
+}
+
+.ai-features {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 1.75rem;
+  position: relative;
+}
+
+.ai-features li {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.85);
+  padding: 0.45rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.ai-features li::before {
+  content: '✦';
+  position: absolute;
+  left: 0;
+  color: var(--gold);
+  font-size: 0.7rem;
+  top: 0.55rem;
+}
+
+.ai-price {
+  text-align: center;
+  margin-bottom: 1.25rem;
+  position: relative;
+}
+
+.ai-price-amount {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.btn-gold {
+  display: block;
+  width: 100%;
+  padding: 1rem;
+  border-radius: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  border: 1.5px solid var(--gold);
+  background: transparent;
+  color: var(--gold);
+  text-decoration: none;
+  position: relative;
+}
+
+.btn-gold:hover {
+  background: rgba(196,170,106,0.1);
+  transform: translateY(-2px);
+}
+
+.ai-pairing-note {
+  text-align: center;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.4);
+  margin-top: 1rem;
+  font-style: italic;
+  position: relative;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  border-top: 1px solid var(--cream-dark);
+  margin-top: 1rem;
+}
+
+.footer-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;
+  font-size: 1.1rem;
+  letter-spacing: 0.3em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.footer-text {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+/* Mobile */
+@media (max-width: 520px) {
+  .header { padding: 2rem 1rem 1.5rem; }
+  .logo { font-size: 1.8rem; }
+  .container { padding: 1.25rem 1rem 2rem; }
+  .card-body { padding: 1.25rem; }
+  .redacted-name { font-size: 1.3rem; }
+  .dossier-grid { gap: 0.75rem; }
+  .dossier-value { font-size: 1.25rem; }
+  .pricing-actions { flex-direction: column; }
+  .bundles-grid { grid-template-columns: 1fr; max-width: 320px; margin: 0 auto; }
+  .pricing-section { padding: 1.5rem 1.25rem; }
+  .ai-section { padding: 1.75rem 1.25rem; }
+  .urgency { flex-direction: column; text-align: center; gap: 0.5rem; }
+  .urgency-left { justify-content: center; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">HomeCrafter</div>
+  <div class="header-subtitle">New Lead Available</div>
+  <div class="gold-rule"></div>
+</div>
+
+<nav class="nav">
+  <a href="leads-dashboard.html">All Leads</a>
+  <a href="lead-view.html" class="active">Lead Detail</a>
+  <a href="ai-assistant.html">AI Assistant</a>
+</nav>
+
+<div class="container">
+
+  <!-- Urgency -->
+  <div class="urgency">
+    <div class="urgency-left">
+      <span class="urgency-icon">⏱</span>
+      <span class="urgency-text">This lead is available to 4 contractors — claim yours now</span>
+    </div>
+    <div class="urgency-timer">Closes in 47h 23m</div>
+  </div>
+
+  <!-- Lead Summary -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Lead Summary</h2>
+    </div>
+    <div class="card-body">
+      <div class="lead-top">
+        <div class="redacted-name">James &amp; Patricia Morrison</div>
+        <div class="redacted-address">847 Oceanview Drive</div>
+        <div class="location-visible">📍 Rumson, NJ 07760</div>
+        <div class="services">
+          <span class="service-badge">
+            <svg viewBox="0 0 24 24"><path d="M3 3h2v18H3V3zm16 0h2v18h-2V3zM7 4h2v2H7V4zm8 0h2v2h-2V4zM7 8h2v2H7V8zm8 0h2v2h-2V8zm-8 4h2v2H7v-2zm8 0h2v2h-2v-2zm-8 4h2v2H7v-2zm8 0h2v2h-2v-2z"/></svg>
+            FenceCrafter
+          </span>
+        </div>
+      </div>
+
+      <div class="submitted-date">Submitted February 23, 2026</div>
+
+      <div class="notes-section">
+        <div class="notes-label">Homeowner Notes</div>
+        <div class="notes-text">"Looking to replace the existing fence with vinyl. Hoping to get it done before summer."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Property Dossier -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Property Dossier</h2>
+    </div>
+    <div class="card-body">
+      <div class="dossier-grid">
+        <div class="dossier-item">
+          <div class="dossier-value">$1.25M</div>
+          <div class="dossier-label">Home Value</div>
+        </div>
+        <div class="dossier-item">
+          <div class="dossier-value">3,400</div>
+          <div class="dossier-label">Square Feet</div>
+        </div>
+        <div class="dossier-item">
+          <div class="dossier-value">1998</div>
+          <div class="dossier-label">Year Built</div>
+        </div>
+        <div class="dossier-item">
+          <div class="dossier-value">0.45 ac</div>
+          <div class="dossier-label">Lot Size</div>
+        </div>
+      </div>
+      <div class="map-placeholder">
+        <span class="pin">📍</span>
+        <span class="map-label">Rumson, NJ 07760</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lead Pricing -->
+  <div class="pricing-section">
+    <div class="pricing-amount">$65</div>
+    <div class="pricing-per">per lead</div>
+    <div class="spots-indicator">
+      <div class="spots-dots">
+        <span class="dot taken"></span>
+        <span class="dot taken"></span>
+        <span class="dot available"></span>
+        <span class="dot available"></span>
+      </div>
+      <span class="spots-text">2 of 4 purchased</span>
+    </div>
+    <div class="closing-note">Closes after 72 hours or when all 4 spots are filled</div>
+    <div class="pricing-actions">
+      <a href="lead-accepted.html" class="btn btn-primary">Purchase This Lead — $65</a>
+      <button class="btn btn-outline">Pass</button>
+    </div>
+  </div>
+
+  <!-- Subscription vs Per-Lead Comparison -->
+  <div class="bundles-section">
+    <div class="section-title">Stop Paying Per Lead</div>
+    <div class="section-subtitle">Switch to a HomeCrafter subscription — unlimited leads, one flat rate</div>
+
+    <div class="comparison-box">
+      <div class="comparison-row bad">
+        <div class="comparison-icon">💸</div>
+        <div class="comparison-content">
+          <div class="comparison-label">À la carte</div>
+          <div class="comparison-math">10 leads × $65 = <strong>$650/month</strong></div>
+        </div>
+      </div>
+      <div class="comparison-vs">vs</div>
+      <div class="comparison-row good">
+        <div class="comparison-icon">✦</div>
+        <div class="comparison-content">
+          <div class="comparison-label">Starter Plan</div>
+          <div class="comparison-math">Unlimited leads for <strong>$390/month</strong></div>
+        </div>
+      </div>
+      <div class="comparison-savings">That's 40% less — and you get every lead in your zip codes</div>
+    </div>
+
+    <div class="bundles-grid" style="margin-top: 1.5rem;">
+      <div class="bundle-card">
+        <div class="bundle-count">Starter</div>
+        <div class="bundle-price">$390</div>
+        <div class="bundle-per">/month · 5 zip codes</div>
+        <div class="bundle-save">AI-qualified leads</div>
+      </div>
+      <div class="bundle-card popular">
+        <div class="bundle-badge">Most Popular</div>
+        <div class="bundle-count">Pro</div>
+        <div class="bundle-price">$590</div>
+        <div class="bundle-per">/month · 12 zip codes</div>
+        <div class="bundle-save">Priority matching</div>
+      </div>
+      <div class="bundle-card">
+        <div class="bundle-count">Premium</div>
+        <div class="bundle-price">$990</div>
+        <div class="bundle-per">/month · 28 zip codes</div>
+        <div class="bundle-save">Exclusive leads + AI</div>
+      </div>
+    </div>
+    <div class="bundles-note">3 complimentary leads to get started — no commitment</div>
+  </div>
+
+  <!-- AI Assistant Upsell -->
+  <div class="ai-section">
+    <div class="ai-title">Supercharge Your Business</div>
+    <div class="ai-subtitle">Meet your AI assistant — it handles everything so you can focus on the work</div>
+    <ul class="ai-features">
+      <li>Follows up with every lead automatically via text &amp; email</li>
+      <li>Schedules appointments and manages your calendar</li>
+      <li>Handles customer communication 24/7</li>
+      <li>Learns your business — pricing, availability, services</li>
+      <li>Drafts estimates and proposals</li>
+      <li>Represents your company professionally around the clock</li>
+    </ul>
+    <div class="ai-price">
+      <div class="ai-price-amount">Starting at $490/month</div>
+    </div>
+    <a href="ai-assistant.html" class="btn-gold">Learn More</a>
+    <div class="ai-pairing-note">Pair with any lead package for the ultimate growth engine</div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div class="footer-logo">HomeCrafter</div>
+  <div class="footer-text">Connecting homeowners with trusted local professionals</div>
+</div>
+
+</body>
+</html>

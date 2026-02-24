@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Get Started — HomeCrafter AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --midnight: #1e1845;
+  --midnight-light: #2a2260;
+  --gold: #c4aa6a;
+  --gold-light: #d4c394;
+  --cream: #faf9f6;
+  --cream-dark: #f0ede6;
+  --text: #2d2d2d;
+  --text-muted: #6b6b6b;
+}
+body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--text); line-height: 1.7; }
+h1, h2, h3 { font-family: 'Cormorant Garamond', serif; font-weight: 600; color: var(--midnight); }
+nav { background: var(--midnight); padding: 18px 0; text-align: center; }
+nav a { color: var(--gold-light); text-decoration: none; font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 600; letter-spacing: 1px; }
+
+.hero-sm { background: linear-gradient(135deg, var(--midnight), var(--midnight-light)); padding: 50px 24px 60px; text-align: center; position: relative; }
+.hero-sm::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 40px; background: var(--cream); clip-path: ellipse(55% 100% at 50% 100%); }
+.hero-sm h1 { color: #fff; font-size: clamp(1.8rem, 4vw, 2.8rem); margin-bottom: 10px; }
+.hero-sm h1 span { color: var(--gold); }
+.hero-sm p { color: var(--gold-light); font-size: 1rem; font-weight: 300; }
+
+.form-wrap { max-width: 680px; margin: -20px auto 60px; padding: 0 24px; position: relative; z-index: 1; }
+.form-card { background: #fff; border-radius: 20px; padding: 48px 36px; box-shadow: 0 8px 40px rgba(30,24,69,.08); }
+@media(max-width:500px){ .form-card { padding: 32px 20px; } }
+
+label { display: block; font-weight: 600; font-size: .85rem; margin-bottom: 6px; margin-top: 22px; color: var(--midnight); }
+label:first-child { margin-top: 0; }
+input[type="text"], input[type="email"], input[type="tel"], input[type="url"], textarea, select {
+  width: 100%; padding: 12px 16px; border: 1.5px solid #ddd; border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: .9rem; background: var(--cream); transition: border .3s;
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--gold); }
+textarea { resize: vertical; min-height: 90px; }
+
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.checkbox-group label { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; font-size: .88rem; margin: 0; background: var(--cream); padding: 8px 14px; border-radius: 8px; cursor: pointer; border: 1.5px solid #ddd; transition: all .2s; }
+.checkbox-group label:has(input:checked) { border-color: var(--gold); background: rgba(196,170,106,.1); }
+.checkbox-group input { accent-color: var(--gold); }
+
+.radio-group { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.radio-group label { display: flex; align-items: center; gap: 10px; font-weight: 400; font-size: .9rem; margin: 0; background: var(--cream); padding: 14px 18px; border-radius: 10px; cursor: pointer; border: 1.5px solid #ddd; transition: all .2s; }
+.radio-group label:has(input:checked) { border-color: var(--gold); background: rgba(196,170,106,.1); }
+.radio-group input { accent-color: var(--gold); }
+.radio-group .plan-price { margin-left: auto; font-weight: 600; color: var(--midnight); }
+
+.hint { font-size: .78rem; color: var(--text-muted); margin-top: 4px; }
+
+.btn { display: inline-block; background: var(--gold); color: var(--midnight); font-weight: 700; padding: 16px 40px; border-radius: 50px; font-size: 1rem; letter-spacing: .5px; border: none; cursor: pointer; width: 100%; margin-top: 32px; font-family: 'Montserrat', sans-serif; transition: all .3s; }
+.btn:hover { background: var(--midnight); color: var(--gold); }
+
+/* CONFIRMATION */
+.confirmation { display: none; text-align: center; padding: 40px 20px; }
+.confirmation .check { font-size: 4rem; margin-bottom: 16px; }
+.confirmation h2 { font-size: 2rem; margin-bottom: 12px; }
+.confirmation p { color: var(--text-muted); margin-bottom: 8px; }
+.confirmation .cta-link { display: inline-block; margin-top: 24px; color: var(--gold); text-decoration: none; font-weight: 600; }
+
+footer { background: var(--midnight); padding: 32px 24px; text-align: center; color: var(--gold-light); font-size: .82rem; opacity: .7; }
+</style>
+</head>
+<body>
+
+<nav><a href="/">HomeCrafter</a></nav>
+
+<section class="hero-sm">
+  <h1>Launch Your <span>AI Assistant</span></h1>
+  <p>10 minutes is all it takes to get started.</p>
+</section>
+
+<div class="form-wrap">
+  <div class="form-card">
+    <form id="onboardForm">
+      <label>Business Name *</label>
+      <input type="text" name="businessName" required>
+
+      <label>Owner Name *</label>
+      <input type="text" name="ownerName" required>
+
+      <label>Phone Number *</label>
+      <input type="tel" name="phone" required>
+
+      <label>Email *</label>
+      <input type="email" name="email" required>
+
+      <label>Services Offered *</label>
+      <div class="checkbox-group">
+        <label><input type="checkbox" name="services" value="Fencing"> Fencing</label>
+        <label><input type="checkbox" name="services" value="Roofing"> Roofing</label>
+        <label><input type="checkbox" name="services" value="Windows"> Windows</label>
+        <label><input type="checkbox" name="services" value="Siding"> Siding</label>
+        <label><input type="checkbox" name="services" value="Painting"> Painting</label>
+        <label><input type="checkbox" name="services" value="Other"> Other</label>
+      </div>
+
+      <label>Service Area *</label>
+      <input type="text" name="serviceArea" placeholder="Zip codes or counties" required>
+
+      <label>Typical Pricing Ranges</label>
+      <input type="text" name="pricing" placeholder="e.g. $2,500–$8,000 for average fence install">
+      <p class="hint">Optional — helps your assistant give accurate ballpark estimates.</p>
+
+      <label>Business Hours / Availability</label>
+      <input type="text" name="hours" placeholder="e.g. Mon–Fri 8am–5pm, Sat by appointment">
+
+      <label>Current Website URL</label>
+      <input type="url" name="website" placeholder="https://">
+      <p class="hint">Optional — we'll reference it when training your assistant.</p>
+
+      <label>What's your biggest challenge with leads?</label>
+      <textarea name="challenge" placeholder="Tell us what's not working today..."></textarea>
+
+      <label>Select Your Plan *</label>
+      <div class="radio-group">
+        <label><input type="radio" name="plan" value="Essential" required> Essential <span class="plan-price">$490/mo</span></label>
+        <label><input type="radio" name="plan" value="Professional"> Professional <span class="plan-price">$950/mo</span></label>
+      </div>
+
+      <button type="submit" class="btn">Launch My Assistant 🚀</button>
+    </form>
+
+    <div class="confirmation" id="confirmation">
+      <div class="check">✨</div>
+      <h2>You're All Set!</h2>
+      <p>We've received your information and our team is already getting to work.</p>
+      <p>Expect to hear from us within <strong>24 hours</strong> with next steps.</p>
+      <a href="ai-welcome.html" class="cta-link">See What Happens Next →</a>
+    </div>
+  </div>
+</div>
+
+<footer>&copy; 2026 HomeCrafter. All rights reserved.</footer>
+
+<script>
+// Pre-select plan from URL param
+const params = new URLSearchParams(location.search);
+const plan = params.get('plan');
+if (plan) {
+  const radio = document.querySelector(`input[name="plan"][value="${plan.charAt(0).toUpperCase()+plan.slice(1)}"]`);
+  if (radio) radio.checked = true;
+}
+
+document.getElementById('onboardForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    businessName: form.businessName.value,
+    ownerName: form.ownerName.value,
+    phone: form.phone.value,
+    email: form.email.value,
+    services: [...form.querySelectorAll('input[name="services"]:checked')].map(c => c.value),
+    serviceArea: form.serviceArea.value,
+    pricing: form.pricing.value,
+    hours: form.hours.value,
+    website: form.website.value,
+    challenge: form.challenge.value,
+    plan: form.plan.value
+  };
+  try {
+    const res = await fetch('/api/ai-onboard', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+    if (!res.ok) throw new Error('Server error');
+    form.style.display = 'none';
+    document.getElementById('confirmation').style.display = 'block';
+  } catch(err) {
+    alert('Something went wrong. Please try again or email us directly.');
+  }
+});
+</script>
+</body>
+</html>

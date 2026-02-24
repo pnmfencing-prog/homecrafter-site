@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Assistant — HomeCrafter</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --midnight: #1e1845;
+  --midnight-light: #2a2260;
+  --gold: #c4aa6a;
+  --gold-light: #d4c394;
+  --cream: #faf9f6;
+  --cream-dark: #f0ede6;
+  --text: #2d2d2d;
+  --text-muted: #6b6b6b;
+}
+body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--text); line-height: 1.7; }
+h1, h2, h3, h4 { font-family: 'Cormorant Garamond', serif; font-weight: 600; color: var(--midnight); }
+.container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+/* NAV */
+nav { background: var(--midnight); padding: 18px 0; text-align: center; }
+nav a { color: var(--gold-light); text-decoration: none; font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 600; letter-spacing: 1px; }
+
+/* HERO */
+.hero { background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%); padding: 80px 24px 90px; text-align: center; position: relative; overflow: hidden; }
+.hero::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 60px; background: var(--cream); clip-path: ellipse(55% 100% at 50% 100%); }
+.hero h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); color: #fff; margin-bottom: 20px; line-height: 1.2; }
+.hero h1 span { color: var(--gold); }
+.hero p { color: var(--gold-light); font-size: 1.15rem; max-width: 600px; margin: 0 auto 36px; font-weight: 300; }
+.btn { display: inline-block; background: var(--gold); color: var(--midnight); font-weight: 600; padding: 16px 40px; border-radius: 50px; text-decoration: none; font-size: 1rem; letter-spacing: .5px; transition: all .3s; border: 2px solid var(--gold); }
+.btn:hover { background: transparent; color: var(--gold); }
+.btn-outline { background: transparent; color: var(--gold); border: 2px solid var(--gold); }
+.btn-outline:hover { background: var(--gold); color: var(--midnight); }
+
+/* SECTIONS */
+section { padding: 80px 0; }
+section:nth-child(even) { background: var(--cream-dark); }
+.section-title { text-align: center; font-size: clamp(1.8rem, 4vw, 2.6rem); margin-bottom: 16px; }
+.section-sub { text-align: center; color: var(--text-muted); max-width: 600px; margin: 0 auto 50px; font-size: 1rem; }
+
+/* FEATURES */
+.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px; }
+.feature-card { background: #fff; border-radius: 16px; padding: 36px 28px; text-align: center; box-shadow: 0 4px 24px rgba(30,24,69,.06); transition: transform .3s; }
+.feature-card:hover { transform: translateY(-4px); }
+.feature-icon { font-size: 2.4rem; margin-bottom: 16px; }
+.feature-card h3 { font-size: 1.35rem; margin-bottom: 10px; }
+.feature-card p { color: var(--text-muted); font-size: .92rem; }
+
+/* HOW IT WORKS */
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 40px; text-align: center; }
+.step-num { width: 56px; height: 56px; border-radius: 50%; background: var(--midnight); color: var(--gold); font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 18px; }
+.steps h3 { font-size: 1.3rem; margin-bottom: 8px; }
+.steps p { color: var(--text-muted); font-size: .92rem; }
+
+/* SOCIAL PROOF */
+.proof { background: var(--midnight); color: #fff; padding: 60px 24px; text-align: center; }
+.proof blockquote { font-family: 'Cormorant Garamond', serif; font-size: clamp(1.3rem, 3vw, 1.8rem); font-style: italic; max-width: 700px; margin: 0 auto 16px; line-height: 1.5; }
+.proof cite { color: var(--gold-light); font-style: normal; font-size: .95rem; }
+
+/* PRICING */
+.pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px; }
+.price-card { background: #fff; border-radius: 16px; padding: 40px 28px; text-align: center; box-shadow: 0 4px 24px rgba(30,24,69,.06); position: relative; border: 2px solid transparent; transition: border .3s; }
+.price-card.featured { border-color: var(--gold); }
+.price-card.featured::before { content: 'Most Popular'; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--gold); color: var(--midnight); font-size: .75rem; font-weight: 700; padding: 4px 18px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; }
+.price-card h3 { font-size: 1.5rem; margin-bottom: 6px; }
+.price-amount { font-family: 'Cormorant Garamond', serif; font-size: 3rem; font-weight: 700; color: var(--midnight); margin: 12px 0 4px; }
+.price-amount span { font-size: 1rem; font-weight: 400; color: var(--text-muted); }
+.onboarding-fee { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; margin-bottom: 8px; font-style: italic; }
+.annual-onboard { color: var(--gold) !important; font-style: normal !important; font-weight: 600 !important; }
+.annual-note { font-size: 0.72rem; color: var(--gold); font-weight: 500; margin-bottom: 8px; }
+.billing-toggle { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 2rem; }
+.toggle-label { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); transition: color 0.3s; }
+.toggle-label.active { color: var(--midnight); font-weight: 600; }
+.toggle-switch { position: relative; width: 52px; height: 28px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--cream-dark); border-radius: 28px; transition: 0.3s; border: 1.5px solid rgba(0,0,0,0.1); }
+.toggle-slider::before { content: ''; position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+.toggle-switch input:checked + .toggle-slider { background: var(--midnight); border-color: var(--midnight); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(24px); }
+.save-badge { background: linear-gradient(135deg, var(--gold), var(--gold-light)); color: var(--midnight); font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 50px; letter-spacing: 0.04em; vertical-align: middle; }
+.price-card ul { list-style: none; text-align: left; margin: 24px 0 30px; }
+.price-card li { padding: 8px 0; font-size: .9rem; color: var(--text-muted); border-bottom: 1px solid var(--cream-dark); }
+.price-card li::before { content: '✓'; color: var(--gold); font-weight: 700; margin-right: 10px; }
+
+/* FAQ */
+.faq-item { max-width: 720px; margin: 0 auto 20px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(30,24,69,.04); }
+.faq-q { padding: 20px 28px; cursor: pointer; font-weight: 600; font-size: .95rem; display: flex; justify-content: space-between; align-items: center; }
+.faq-q::after { content: '+'; font-size: 1.4rem; color: var(--gold); transition: transform .3s; }
+.faq-item.open .faq-q::after { transform: rotate(45deg); }
+.faq-a { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+.faq-a-inner { padding: 0 28px 20px; color: var(--text-muted); font-size: .9rem; line-height: 1.7; }
+.faq-item.open .faq-a { max-height: 300px; }
+
+/* CTA */
+.cta-section { background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%); padding: 80px 24px; text-align: center; }
+.cta-section h2 { color: #fff; font-size: clamp(1.8rem, 4vw, 2.6rem); margin-bottom: 16px; }
+.cta-section p { color: var(--gold-light); margin-bottom: 32px; font-size: 1.05rem; }
+
+/* FOOTER */
+footer { background: var(--midnight); padding: 32px 24px; text-align: center; color: var(--gold-light); font-size: .82rem; opacity: .7; }
+</style>
+</head>
+<body>
+
+<nav><a href="/">HomeCrafter</a></nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <h1>Meet Your <span>AI Assistant</span></h1>
+    <p>Never miss another lead. Your tireless digital representative follows up, schedules, and closes — so you can focus on the work you love.</p>
+    <a href="ai-onboarding.html" class="btn">Get Started</a>
+  </div>
+</section>
+
+<!-- WHAT IT DOES -->
+<section>
+  <div class="container">
+    <h2 class="section-title">What Your AI Assistant Does</h2>
+    <p class="section-sub">Six powerful capabilities working around the clock to grow your business.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <h3>Instant Lead Follow-Up</h3>
+        <p>Responds to every lead within minutes via text and email — before they call someone else.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📅</div>
+        <h3>Appointment Scheduling</h3>
+        <p>Books estimates and consultations directly on your calendar. No back-and-forth needed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌙</div>
+        <h3>24/7 Customer Communication</h3>
+        <p>Nights, weekends, holidays — your assistant handles inquiries while you rest.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧠</div>
+        <h3>Learns Your Business</h3>
+        <p>Knows your pricing, services, availability, and service area. Answers like you would.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <h3>Drafts Estimates &amp; Proposals</h3>
+        <p>Generates professional estimates based on your pricing structure and project details.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🤝</div>
+        <h3>Professional Representation</h3>
+        <p>Communicates with the warmth and professionalism your brand deserves.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section>
+  <div class="container">
+    <h2 class="section-title">How It Works</h2>
+    <p class="section-sub">From setup to your first converted lead — in under a week.</p>
+    <div class="steps">
+      <div>
+        <div class="step-num">1</div>
+        <h3>Tell Us About Your Business</h3>
+        <p>A quick 10-minute onboarding form. Your services, pricing, availability — everything your assistant needs to represent you.</p>
+      </div>
+      <div>
+        <div class="step-num">2</div>
+        <h3>We Build &amp; Train Your Assistant</h3>
+        <p>Our team configures a custom AI trained on your business. We test it thoroughly before it goes live.</p>
+      </div>
+      <div>
+        <div class="step-num">3</div>
+        <h3>Leads Convert on Autopilot</h3>
+        <p>Your assistant engages every lead, schedules appointments, and keeps your pipeline full — automatically.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SOCIAL PROOF -->
+<div class="proof">
+  <div class="container">
+    <blockquote>"Built by a contractor, for contractors. We use this exact system to run our own fencing company — and it changed everything."</blockquote>
+    <cite>— The HomeCrafter Team</cite>
+  </div>
+</div>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="container">
+    <h2 class="section-title">Simple, Transparent Pricing</h2>
+    <p class="section-sub">Simple pricing. Powerful results.</p>
+
+    <div class="billing-toggle">
+      <span class="toggle-label" id="monthlyLabel">Monthly</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="billingToggle">
+        <span class="toggle-slider"></span>
+      </label>
+      <span class="toggle-label" id="annualLabel">Annual <span class="save-badge">Save up to 25%</span></span>
+    </div>
+
+    <div class="pricing-grid">
+      <div class="price-card">
+        <h3>Essential</h3>
+        <div class="price-amount monthly-price">$490<span>/mo</span></div>
+        <div class="price-amount annual-price" style="display:none;">$415<span>/mo</span></div>
+        <div class="onboarding-fee monthly-onboard">$450 one-time onboarding fee</div>
+        <div class="onboarding-fee annual-onboard" style="display:none;">✓ Onboarding fee waived</div>
+        <div class="annual-note annual-price" style="display:none;">Billed annually at $4,980 — save $1,430/yr</div>
+        <ul>
+          <li>AI lead follow-up (text + email)</li>
+          <li>Lead management dashboard</li>
+          <li>24/7 customer communication</li>
+          <li>Monthly performance reports</li>
+        </ul>
+        <a href="ai-onboarding.html?plan=essential" class="btn btn-outline">Get Started</a>
+      </div>
+      <div class="price-card featured">
+        <h3>Professional</h3>
+        <div class="price-amount monthly-price">$950<span>/mo</span></div>
+        <div class="price-amount annual-price" style="display:none;">$800<span>/mo</span></div>
+        <div class="onboarding-fee monthly-onboard">$250 one-time onboarding fee</div>
+        <div class="onboarding-fee annual-onboard" style="display:none;">✓ Onboarding fee waived</div>
+        <div class="annual-note annual-price" style="display:none;">Billed annually at $9,600 — save $2,050/yr</div>
+        <ul>
+          <li>Everything in Essential</li>
+          <li>Appointment scheduling</li>
+          <li>Estimate &amp; proposal drafts</li>
+          <li>CRM integration</li>
+          <li>Priority response times</li>
+          <li>Dedicated account manager</li>
+        </ul>
+        <a href="ai-onboarding.html?plan=professional" class="btn">Get Started</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section>
+  <div class="container">
+    <h2 class="section-title">Frequently Asked Questions</h2>
+    <p class="section-sub">Everything you need to know before getting started.</p>
+
+    <div class="faq-item">
+      <div class="faq-q">How does the AI know about my business?</div>
+      <div class="faq-a"><div class="faq-a-inner">During onboarding, you provide details about your services, pricing, service area, and availability. We use this to train your assistant so it responds accurately — just like you would.</div></div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Will leads know they're talking to an AI?</div>
+      <div class="faq-a"><div class="faq-a-inner">Your assistant introduces itself as a representative of your company. The communication is warm, professional, and natural. Most leads won't notice a difference — they'll just appreciate the fast response.</div></div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Can I customize what the assistant says?</div>
+      <div class="faq-a"><div class="faq-a-inner">Absolutely. During setup we tailor tone, messaging, and responses to match your brand. You can request changes at any time, and the Professional plan includes ongoing optimization.</div></div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">What if a lead has a complex question?</div>
+      <div class="faq-a"><div class="faq-a-inner">Your assistant handles the vast majority of inquiries. For anything outside its scope, it gracefully hands off to you with full context — so you step in informed, not blind.</div></div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Is there a contract or commitment?</div>
+      <div class="faq-a"><div class="faq-a-inner">Monthly plans have no commitment — cancel anytime. Annual plans lock in a lower rate with onboarding fees waived, billed once per year. Either way, no hidden fees.</div></div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">How quickly can I get started?</div>
+      <div class="faq-a"><div class="faq-a-inner">Most assistants are live within 3–4 business days after you complete the onboarding form. You'll get a test interaction to review before anything goes live.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <h2>Ready to Never Miss a Lead Again?</h2>
+    <p>Join the contractors who are closing more jobs with less effort.</p>
+    <a href="ai-onboarding.html" class="btn">Get Started Today</a>
+  </div>
+</section>
+
+<footer>&copy; 2026 HomeCrafter. All rights reserved.</footer>
+
+<script>
+document.querySelectorAll('.faq-q').forEach(q => {
+  q.addEventListener('click', () => q.parentElement.classList.toggle('open'));
+});
+
+const toggle = document.getElementById('billingToggle');
+const monthlyLabel = document.getElementById('monthlyLabel');
+const annualLabel = document.getElementById('annualLabel');
+
+function updatePricing() {
+  const isAnnual = toggle.checked;
+  document.querySelectorAll('.monthly-price, .monthly-onboard').forEach(el => el.style.display = isAnnual ? 'none' : '');
+  document.querySelectorAll('.annual-price, .annual-onboard').forEach(el => el.style.display = isAnnual ? '' : 'none');
+  monthlyLabel.classList.toggle('active', !isAnnual);
+  annualLabel.classList.toggle('active', isAnnual);
+}
+
+toggle.addEventListener('change', updatePricing);
+monthlyLabel.classList.add('active');
+</script>
+</body>
+</html>
