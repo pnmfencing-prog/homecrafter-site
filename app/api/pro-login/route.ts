@@ -4,12 +4,15 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hc-pro-secret-change-in-production';
 
-// Demo accounts — swap with DB lookup later
+// Accounts — swap with DB lookup later
 const USERS: Record<string, { passwordHash: string; name: string }> = {
   'demo@homecrafter.ai': {
-    // bcrypt hash of "HomeCrafter2026"
     passwordHash: '$2b$12$AUSyUxpfPhHgz39TQQKqne99lDjKoaJVab/YrYiYfQaC9Fh8mwzxm',
     name: 'Demo Contractor',
+  },
+  'dan.pnmfencing@gmail.com': {
+    passwordHash: '$2b$12$qzE.CmmFDVxd9vcP4PXcuuUXriit4sNZDcg1hFxfNqDrlWMWp9SRC',
+    name: 'Dan Mahler',
   },
 };
 
