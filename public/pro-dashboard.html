@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2a; }
+body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2a; visibility: hidden; }
 
 /* PRO NAV */
 .pro-topnav {
@@ -117,14 +117,22 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
 </div>
 
 <script>
-// Auth check
-if (!localStorage.getItem('hc_pro_token')) {
-  window.location.href = '/pro-login.html';
-}
-const name = localStorage.getItem('hc_pro_name');
-if (name) document.getElementById('welcomeText').textContent = 'Welcome Back, ' + name;
+// Server-side session validation
+(async () => {
+  const token = localStorage.getItem('hc_pro_token');
+  if (!token) { window.location.href = '/pro-login.html'; return; }
+  try {
+    const res = await fetch('/api/pro-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+    const data = await res.json();
+    if (!data.valid) { localStorage.removeItem('hc_pro_token'); localStorage.removeItem('hc_pro_name'); window.location.href = '/pro-login.html'; return; }
+    if (data.name) { localStorage.setItem('hc_pro_name', data.name); document.getElementById('welcomeText').textContent = 'Welcome Back, ' + data.name; }
+    document.body.style.visibility = 'visible';
+  } catch { window.location.href = '/pro-login.html'; }
+})();
 
-function logout() {
+async function logout() {
+  const token = localStorage.getItem('hc_pro_token');
+  if (token) { try { await fetch('/api/pro-session', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) }); } catch {} }
   localStorage.removeItem('hc_pro_token');
   localStorage.removeItem('hc_pro_name');
   window.location.href = '/pro-login.html';

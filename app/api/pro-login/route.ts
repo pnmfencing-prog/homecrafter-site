@@ -1,19 +1,59 @@
 import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'hc-pro-secret-change-in-production';
+
+// Demo accounts — swap with DB lookup later
+const USERS: Record<string, { passwordHash: string; name: string }> = {
+  'demo@homecrafter.ai': {
+    // bcrypt hash of "HomeCrafter2026"
+    passwordHash: '$2b$12$AUSyUxpfPhHgz39TQQKqne99lDjKoaJVab/YrYiYfQaC9Fh8mwzxm',
+    name: 'Demo Contractor',
+  },
+};
 
 export async function POST(request: Request) {
-  const { email, password } = await request.json();
+  try {
+    const { email, password } = await request.json();
 
-  // Demo credentials — replace with real DB auth later
-  if (email === 'demo@homecrafter.ai' && password === 'HomeCrafter2026') {
-    return NextResponse.json({
-      success: true,
-      token: 'demo-token',
-      name: 'Demo Contractor',
-    });
+    if (!email || !password) {
+      return NextResponse.json(
+        { success: false, message: 'Email and password required' },
+        { status: 400 }
+      );
+    }
+
+    const user = USERS[email.toLowerCase()];
+    if (!user) {
+      // Constant-time: still run bcrypt compare to prevent timing attacks
+      await bcrypt.compare(password, '$2b$12$invalidhashplaceholderxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+      return NextResponse.json(
+        { success: false, message: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+
+    // Issue JWT token (expires in 7 days)
+    const token = jwt.sign(
+      { email: email.toLowerCase(), name: user.name },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    return NextResponse.json({ success: true, token, name: user.name });
+  } catch {
+    return NextResponse.json(
+      { success: false, message: 'Server error' },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json(
-    { success: false, message: 'Invalid credentials' },
-    { status: 401 }
-  );
 }
