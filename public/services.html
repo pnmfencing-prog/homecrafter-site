@@ -679,14 +679,20 @@ body {
 <script>
 const params = new URLSearchParams(window.location.search);
 const name = params.get('name');
-const addr = params.get('addr');
+const addr = params.get('addr') || params.get('address');
 const uid = params.get('uid');
+const email = params.get('email');
+const phone = params.get('phone');
 
 if (name) {
   document.getElementById('ownerSection').style.display = 'block';
   document.getElementById('greetingText').textContent = 'Welcome, ' + name;
   if (addr) document.getElementById('addressText').textContent = addr;
+  document.getElementById('formName').value = name;
 }
+if (addr) document.getElementById('formAddress').value = addr;
+if (email) document.getElementById('formEmail').value = email;
+if (phone) document.getElementById('formPhone').value = phone;
 
 document.getElementById('serviceForm').addEventListener('submit', async function(e) {
   e.preventDefault();
