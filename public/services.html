@@ -457,8 +457,13 @@ body {
 .footer a { color: #b8ae9e; text-decoration: none; }
 .footer a:hover { color: #8a7e6e; }
 .pro-nav { position: absolute; top: 16px; right: 20px; z-index: 10; }
-.pro-nav a { color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.06em; transition: color 0.3s; }
-.pro-nav a:hover { color: #c4aa6a; }
+.pro-nav a {
+  color: #d4c394; text-decoration: none; font-size: 0.82rem; font-weight: 600;
+  letter-spacing: 0.08em; transition: all 0.3s;
+  border: 1.5px solid rgba(212,195,148,0.5); border-radius: 20px;
+  padding: 6px 18px; display: inline-block;
+}
+.pro-nav a:hover { background: rgba(212,195,148,0.15); border-color: #d4c394; color: #fff; }
 .pro-link { text-align: center; padding: 20px; background: var(--midnight, #1e1845); }
 .pro-link a { color: #c4aa6a; text-decoration: none; font-size: 0.82rem; font-weight: 500; letter-spacing: 0.04em; }
 .pro-link span { font-weight: 600; }
@@ -479,7 +484,7 @@ body {
 
 <div class="hero">
   <div class="pro-nav">
-    <a href="/ai-assistant.html">For Pros →</a>
+    <a href="/pro-login.html">For Pros →</a>
   </div>
   <div class="hero-pre">◆ &nbsp; Since 2006 &nbsp; ◆</div>
   <div class="hero-logo">HOMECRAFTER</div>
@@ -654,7 +659,7 @@ body {
 </div>
 
 <div class="pro-link">
-  <a href="/ai-assistant.html">Are you a contractor? <span>Join our network →</span></a>
+  <a href="/pro-login.html">Are you a contractor? <span>Join our network →</span></a>
 </div>
 
 <div class="footer">

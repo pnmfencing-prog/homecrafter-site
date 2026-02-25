@@ -107,7 +107,16 @@ footer { background: var(--midnight); padding: 32px 24px; text-align: center; co
 </head>
 <body>
 
-<nav><a href="/">HomeCrafter</a></nav>
+<nav style="background:#1e1845;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+  <a href="/services.html" style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;letter-spacing:3px;color:#d4c394;text-decoration:none">HOMECRAFTER</a>
+  <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+    <a href="/lead-view.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">Leads</a>
+    <a href="/lead-bundles.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">Bundles</a>
+    <a href="/ai-assistant.html" style="color:#d4c394;text-decoration:none;font-size:12px;font-weight:500">AI Assistant</a>
+    <a href="/pro-dashboard.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">Dashboard</a>
+    <a href="#" onclick="localStorage.removeItem('hc_pro_token');localStorage.removeItem('hc_pro_name');window.location.href='/pro-login.html'" style="color:rgba(255,255,255,.5);text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);padding:5px 14px;border-radius:3px">Logout</a>
+  </div>
+</nav>
 
 <!-- HERO -->
 <section class="hero">

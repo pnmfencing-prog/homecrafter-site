@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Dashboard — HomeCrafter</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2a; }
+
+/* PRO NAV */
+.pro-topnav {
+  background: #1e1845; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+}
+.pro-topnav .brand {
+  font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 600;
+  letter-spacing: 3px; color: #d4c394; text-decoration: none;
+}
+.pro-topnav .nav-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.pro-topnav .nav-links a {
+  color: rgba(255,255,255,0.7); text-decoration: none; font-size: 12px; font-weight: 500;
+  letter-spacing: 0.5px; transition: color 0.3s;
+}
+.pro-topnav .nav-links a:hover { color: #d4c394; }
+.pro-topnav .nav-links a.active { color: #d4c394; }
+.pro-topnav .logout-btn {
+  color: rgba(255,255,255,0.5); text-decoration: none; font-size: 11px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase; transition: color 0.3s; cursor: pointer;
+  background: none; border: 1px solid rgba(255,255,255,0.2); padding: 5px 14px; border-radius: 3px;
+}
+.pro-topnav .logout-btn:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+.gold-trim { height: 1px; background: linear-gradient(90deg, transparent 5%, #c4aa6a 50%, transparent 95%); }
+
+/* WELCOME */
+.welcome { text-align: center; padding: 48px 24px 16px; }
+.welcome h1 {
+  font-family: 'Cormorant Garamond', serif; font-size: 36px; color: #1e1845;
+  font-weight: 500; font-style: italic; margin-bottom: 6px;
+}
+.welcome .sub { font-size: 12px; color: #b8b0a4; font-weight: 500; letter-spacing: 0.5px; }
+.welcome-rule { width: 40px; height: 1px; background: #d4c394; margin: 22px auto 0; }
+
+/* CARDS */
+.cards { max-width: 640px; margin: 0 auto; padding: 40px 24px 64px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card {
+  background: white; border: 1px solid #eae7e1; border-radius: 4px;
+  padding: 32px 24px; text-align: center; text-decoration: none;
+  transition: all 0.35s; display: block;
+}
+.card:hover { border-color: #c4aa6a; box-shadow: 0 4px 20px rgba(30,24,69,0.08); transform: translateY(-2px); }
+.card-icon { font-size: 32px; margin-bottom: 14px; }
+.card-title {
+  font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 600;
+  color: #1e1845; margin-bottom: 6px;
+}
+.card-desc { font-size: 11px; color: #b8b0a4; font-weight: 500; line-height: 1.6; }
+
+.footer { text-align: center; padding: 24px 20px; }
+.footer p { font-size: 10px; color: #c8c0b4; letter-spacing: 1px; font-weight: 500; }
+.footer a { color: #b8ae9e; text-decoration: none; }
+
+@media (max-width: 500px) {
+  .cards { grid-template-columns: 1fr; }
+  .welcome h1 { font-size: 28px; }
+  .pro-topnav { padding: 12px 16px; }
+  .pro-topnav .nav-links { gap: 14px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="pro-topnav">
+  <a href="/services.html" class="brand">HOMECRAFTER</a>
+  <div class="nav-links">
+    <a href="/lead-view.html">Leads</a>
+    <a href="/lead-bundles.html">Bundles</a>
+    <a href="/ai-assistant.html">AI Assistant</a>
+    <a href="/pro-dashboard.html" class="active">Dashboard</a>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</nav>
+<div class="gold-trim"></div>
+
+<div class="welcome">
+  <h1 id="welcomeText">Welcome Back</h1>
+  <div class="sub">Your HomeCrafter Pro Hub</div>
+  <div class="welcome-rule"></div>
+</div>
+
+<div class="cards">
+  <a href="/lead-view.html" class="card">
+    <div class="card-icon">📋</div>
+    <div class="card-title">Browse Leads</div>
+    <div class="card-desc">View available leads in your area</div>
+  </a>
+  <a href="/lead-bundles.html" class="card">
+    <div class="card-icon">💎</div>
+    <div class="card-title">Lead Bundles</div>
+    <div class="card-desc">Pricing & purchase options</div>
+  </a>
+  <a href="/ai-assistant.html" class="card">
+    <div class="card-icon">🤖</div>
+    <div class="card-title">AI Assistant</div>
+    <div class="card-desc">Your digital sales representative</div>
+  </a>
+  <a href="/leads-dashboard.html" class="card">
+    <div class="card-icon">📊</div>
+    <div class="card-title">My Leads</div>
+    <div class="card-desc">Track your accepted leads</div>
+  </a>
+</div>
+
+<div class="footer">
+  <p><a href="/services.html">homecrafter.ai</a></p>
+</div>
+
+<script>
+// Auth check
+if (!localStorage.getItem('hc_pro_token')) {
+  window.location.href = '/pro-login.html';
+}
+const name = localStorage.getItem('hc_pro_name');
+if (name) document.getElementById('welcomeText').textContent = 'Welcome Back, ' + name;
+
+function logout() {
+  localStorage.removeItem('hc_pro_token');
+  localStorage.removeItem('hc_pro_name');
+  window.location.href = '/pro-login.html';
+}
+</script>
+</body>
+</html>

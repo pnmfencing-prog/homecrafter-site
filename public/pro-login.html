@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Login — HomeCrafter</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2a; min-height: 100vh; display: flex; flex-direction: column; }
+
+.hero {
+  background: linear-gradient(175deg, #0c0a1a 0%, #171330 30%, #1e1845 55%, #2a2260 80%, #3d3480 100%);
+  color: white; text-align: center; padding: 48px 24px 40px; position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 25% 60%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 40% 15%, rgba(255,255,255,0.35), transparent),
+    radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 85% 55%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1.5px 1.5px at 50% 5%, rgba(255,215,100,0.5), transparent);
+}
+.hero-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 42px; font-weight: 600; letter-spacing: 8px; position: relative;
+  background: linear-gradient(180deg, #fff 20%, #d4c394 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  text-decoration: none; display: inline-block;
+}
+.hero-sub { font-size: 10px; font-weight: 600; letter-spacing: 5px; text-transform: uppercase; color: rgba(212,195,148,0.6); margin-top: 8px; position: relative; }
+.gold-trim { height: 1px; background: linear-gradient(90deg, transparent 5%, #c4aa6a 50%, transparent 95%); }
+
+.login-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 48px 24px; }
+.login-card {
+  width: 100%; max-width: 400px; background: white; border: 1px solid #eae7e1;
+  border-radius: 4px; padding: 44px 36px; text-align: center;
+}
+.login-card h2 {
+  font-family: 'Cormorant Garamond', serif; font-size: 28px; color: #1e1845;
+  font-weight: 500; margin-bottom: 6px;
+}
+.login-card .subtitle { font-size: 12px; color: #b8b0a4; margin-bottom: 32px; font-weight: 500; letter-spacing: 0.5px; }
+
+.field { margin-bottom: 18px; text-align: left; }
+.field label {
+  display: block; font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 3px; color: #c4aa6a; margin-bottom: 8px;
+}
+.field input {
+  width: 100%; padding: 14px 18px; border: 1px solid #eae7e1; border-radius: 4px;
+  font-size: 14px; font-family: 'Montserrat', sans-serif; font-weight: 400;
+  background: #faf9f6; transition: all 0.3s;
+}
+.field input:focus { outline: none; border-color: #c4aa6a; box-shadow: 0 0 0 3px rgba(196,170,106,0.08); }
+
+.login-btn {
+  width: 100%; padding: 16px; border: none; border-radius: 4px;
+  font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700;
+  cursor: pointer; letter-spacing: 3px; text-transform: uppercase;
+  background: #1e1845; color: #d4c394; transition: all 0.35s; margin-top: 8px;
+}
+.login-btn:hover { background: #2a2260; box-shadow: 0 8px 32px rgba(30,24,69,0.2); transform: translateY(-1px); }
+
+.error-msg { color: #a0522d; font-size: 12px; margin-top: 12px; display: none; font-weight: 600; letter-spacing: 0.5px; }
+.contact-link { margin-top: 24px; font-size: 12px; color: #b8b0a4; }
+.contact-link a { color: #c4aa6a; text-decoration: none; font-weight: 600; }
+.contact-link a:hover { text-decoration: underline; }
+
+.footer { text-align: center; padding: 24px 20px; }
+.footer p { font-size: 10px; color: #c8c0b4; letter-spacing: 1px; font-weight: 500; }
+.footer a { color: #b8ae9e; text-decoration: none; }
+
+@media (max-width: 500px) {
+  .hero-logo { font-size: clamp(24px, 7vw, 36px); letter-spacing: 4px; }
+  .login-card { padding: 32px 24px; }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <a href="/services.html" class="hero-logo">HOMECRAFTER</a>
+  <div class="hero-sub">◆ &nbsp; Pro Portal &nbsp; ◆</div>
+</div>
+<div class="gold-trim"></div>
+
+<div class="login-wrap">
+  <div class="login-card">
+    <h2>Welcome Back</h2>
+    <div class="subtitle">Sign in to your pro account</div>
+    <form id="loginForm">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="you@company.com" required>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
+      <div class="error-msg" id="errorMsg"></div>
+    </form>
+    <div class="contact-link">Don't have an account? <a href="mailto:pros@homecrafter.ai">Contact us</a></div>
+  </div>
+</div>
+
+<div class="footer">
+  <p><a href="/services.html">homecrafter.ai</a></p>
+</div>
+
+<script>
+// Redirect if already logged in
+if (localStorage.getItem('hc_pro_token')) {
+  window.location.href = '/pro-dashboard.html';
+}
+
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  const errEl = document.getElementById('errorMsg');
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  errEl.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/pro-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      localStorage.setItem('hc_pro_token', data.token);
+      localStorage.setItem('hc_pro_name', data.name);
+      window.location.href = '/pro-dashboard.html';
+    } else {
+      errEl.textContent = data.message || 'Invalid credentials';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Sign In';
+    }
+  } catch(err) {
+    // Fallback client-side check
+    if (email === 'demo@homecrafter.ai' && password === 'HomeCrafter2026') {
+      localStorage.setItem('hc_pro_token', 'demo-token');
+      localStorage.setItem('hc_pro_name', 'Demo Contractor');
+      window.location.href = '/pro-dashboard.html';
+    } else {
+      errEl.textContent = 'Invalid credentials';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Sign In';
+    }
+  }
+});
+</script>
+</body>
+</html>
