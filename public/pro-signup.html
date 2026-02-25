@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Sign Up — HomeCrafter</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2a; min-height: 100vh; display: flex; flex-direction: column; }
+
+.hero {
+  background: linear-gradient(175deg, #0c0a1a 0%, #171330 30%, #1e1845 55%, #2a2260 80%, #3d3480 100%);
+  color: white; text-align: center; padding: 48px 24px 40px; position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 25% 60%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 40% 15%, rgba(255,255,255,0.35), transparent),
+    radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 85% 55%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1.5px 1.5px at 50% 5%, rgba(255,215,100,0.5), transparent);
+}
+.hero-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 42px; font-weight: 600; letter-spacing: 8px; position: relative;
+  background: linear-gradient(180deg, #fff 20%, #d4c394 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  text-decoration: none; display: inline-block;
+}
+.hero-sub { font-size: 10px; font-weight: 600; letter-spacing: 5px; text-transform: uppercase; color: rgba(212,195,148,0.6); margin-top: 8px; position: relative; }
+.gold-trim { height: 1px; background: linear-gradient(90deg, transparent 5%, #c4aa6a 50%, transparent 95%); }
+
+.signup-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 36px 24px; }
+.signup-card {
+  width: 100%; max-width: 440px; background: white; border: 1px solid #eae7e1;
+  border-radius: 4px; padding: 40px 36px; text-align: center;
+}
+.signup-card h2 {
+  font-family: 'Cormorant Garamond', serif; font-size: 28px; color: #1e1845;
+  font-weight: 500; margin-bottom: 6px;
+}
+.signup-card .subtitle { font-size: 12px; color: #b8b0a4; margin-bottom: 28px; font-weight: 500; letter-spacing: 0.5px; }
+
+.field { margin-bottom: 16px; text-align: left; }
+.field label {
+  display: block; font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 3px; color: #c4aa6a; margin-bottom: 8px;
+}
+.field input, .field select {
+  width: 100%; padding: 14px 18px; border: 1px solid #eae7e1; border-radius: 4px;
+  font-size: 14px; font-family: 'Montserrat', sans-serif; font-weight: 400;
+  background: #faf9f6; transition: all 0.3s; -webkit-appearance: none;
+}
+.field input:focus, .field select:focus { outline: none; border-color: #c4aa6a; box-shadow: 0 0 0 3px rgba(196,170,106,0.08); }
+.field select { color: #2a2a2a; cursor: pointer; }
+
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+
+.signup-btn {
+  width: 100%; padding: 16px; border: none; border-radius: 4px;
+  font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700;
+  cursor: pointer; letter-spacing: 3px; text-transform: uppercase;
+  background: #1e1845; color: #d4c394; transition: all 0.35s; margin-top: 8px;
+}
+.signup-btn:hover { background: #2a2260; box-shadow: 0 8px 32px rgba(30,24,69,0.2); transform: translateY(-1px); }
+.signup-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.msg { font-size: 12px; margin-top: 12px; font-weight: 600; letter-spacing: 0.5px; display: none; }
+.msg.error { color: #a0522d; }
+.msg.success { color: #2a7d4f; }
+
+.login-link { margin-top: 24px; font-size: 12px; color: #b8b0a4; }
+.login-link a { color: #c4aa6a; text-decoration: none; font-weight: 600; }
+.login-link a:hover { text-decoration: underline; }
+
+.footer { text-align: center; padding: 24px 20px; }
+.footer p { font-size: 10px; color: #c8c0b4; letter-spacing: 1px; font-weight: 500; }
+.footer a { color: #b8ae9e; text-decoration: none; }
+
+@media (max-width: 500px) {
+  .hero-logo { font-size: clamp(24px, 7vw, 36px); letter-spacing: 4px; }
+  .signup-card { padding: 28px 20px; }
+  .field-row { flex-direction: column; gap: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <a href="/services.html" class="hero-logo">HOMECRAFTER</a>
+  <div class="hero-sub">◆ &nbsp; Pro Portal &nbsp; ◆</div>
+</div>
+<div class="gold-trim"></div>
+
+<div class="signup-wrap">
+  <div class="signup-card">
+    <h2>Join HomeCrafter</h2>
+    <div class="subtitle">Create your pro account to start receiving leads</div>
+    <form id="signupForm">
+      <div class="field-row">
+        <div class="field">
+          <label>First Name</label>
+          <input type="text" id="firstName" placeholder="John" required>
+        </div>
+        <div class="field">
+          <label>Last Name</label>
+          <input type="text" id="lastName" placeholder="Smith" required>
+        </div>
+      </div>
+      <div class="field">
+        <label>Company Name</label>
+        <input type="text" id="company" placeholder="Smith Roofing LLC" required>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="you@company.com" required>
+      </div>
+      <div class="field">
+        <label>Phone</label>
+        <input type="tel" id="phone" placeholder="(732) 555-1234" required>
+      </div>
+      <div class="field">
+        <label>Primary Service</label>
+        <select id="service" required>
+          <option value="" disabled selected>Select your trade</option>
+          <option value="fencing">Fencing</option>
+          <option value="roofing">Roofing</option>
+          <option value="windows">Windows</option>
+          <option value="siding">Siding</option>
+          <option value="painting">Painting</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Service Area (Zip Code)</label>
+        <input type="text" id="zip" placeholder="07701" required pattern="[0-9]{5}" maxlength="5">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" required minlength="8">
+      </div>
+      <div class="field">
+        <label>Confirm Password</label>
+        <input type="password" id="confirmPassword" placeholder="••••••••" required minlength="8">
+      </div>
+      <button type="submit" class="signup-btn" id="signupBtn">Create Account</button>
+      <div class="msg" id="msgEl"></div>
+    </form>
+    <div class="login-link">Already have an account? <a href="/pro-login.html">Sign in</a></div>
+  </div>
+</div>
+
+<div class="footer">
+  <p><a href="/services.html">homecrafter.ai</a></p>
+</div>
+
+<script>
+document.getElementById('signupForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('signupBtn');
+  const msgEl = document.getElementById('msgEl');
+  const pw = document.getElementById('password').value;
+  const cpw = document.getElementById('confirmPassword').value;
+
+  if (pw !== cpw) {
+    msgEl.className = 'msg error';
+    msgEl.textContent = 'Passwords do not match';
+    msgEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Creating account...';
+  msgEl.style.display = 'none';
+
+  const data = {
+    firstName: document.getElementById('firstName').value,
+    lastName: document.getElementById('lastName').value,
+    company: document.getElementById('company').value,
+    email: document.getElementById('email').value,
+    phone: document.getElementById('phone').value,
+    service: document.getElementById('service').value,
+    zip: document.getElementById('zip').value,
+    password: pw
+  };
+
+  try {
+    const res = await fetch('/api/pro-signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (result.success) {
+      msgEl.className = 'msg success';
+      msgEl.textContent = 'Account created! Redirecting to login...';
+      msgEl.style.display = 'block';
+      setTimeout(() => { window.location.href = '/pro-login.html'; }, 2000);
+    } else {
+      msgEl.className = 'msg error';
+      msgEl.textContent = result.message || 'Something went wrong';
+      msgEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Create Account';
+    }
+  } catch(err) {
+    msgEl.className = 'msg error';
+    msgEl.textContent = 'Unable to connect. Please try again.';
+    msgEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Create Account';
+  }
+});
+</script>
+</body>
+</html>
