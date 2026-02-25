@@ -414,6 +414,11 @@ body {
 }
 .cta-btn:active { transform: translateY(0); }
 .cta-btn:disabled { background: #ddd; color: #aaa; box-shadow: none; transform: none; }
+.sms-consent { margin: 1rem 0; }
+.consent-label { display: flex; align-items: flex-start; gap: 10px; font-size: 0.7rem; color: #8a8278; line-height: 1.5; cursor: pointer; }
+.consent-label input[type="checkbox"] { margin-top: 3px; flex-shrink: 0; accent-color: #c4aa6a; }
+.consent-label a { color: #c4aa6a; text-decoration: none; }
+.consent-label a:hover { text-decoration: underline; }
 
 /* ASSURANCE */
 .assurance {
@@ -604,6 +609,13 @@ body {
       <div class="notes-section">
         <label>Share Your Vision</label>
         <textarea id="notes" placeholder="Tell us about your project — timeline, style, special requests..."></textarea>
+      </div>
+
+      <div class="sms-consent">
+        <label class="consent-label">
+          <input type="checkbox" id="smsConsent" checked>
+          <span>By submitting, I agree to receive SMS/text messages from HomeCrafter regarding my project. Message & data rates may apply. Reply STOP to unsubscribe at any time. <a href="/privacy-policy.html" target="_blank">Privacy Policy</a> · <a href="/terms-and-conditions.html" target="_blank">Terms</a></span>
+        </label>
       </div>
 
       <button type="submit" class="cta-btn" id="submitBtn">Request Complimentary Estimate</button>
