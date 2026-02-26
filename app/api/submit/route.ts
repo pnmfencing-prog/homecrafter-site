@@ -4,7 +4,7 @@ import { sendLeadNotification, sendHomeownerConfirmation } from '@/lib/email';
 // Test contractor mapping — swap with DB later
 const TEST_CONTRACTORS: Record<string, { email: string; name: string }> = {
   // Default test contractor for all services
-  default: { email: 'jamholdinglimited@gmail.com', name: 'Test Contractor' },
+  default: { email: 'jamholdinglimited@icloud.com', name: 'Test Contractor' },
 };
 
 export async function POST(req: NextRequest) {
