@@ -464,7 +464,7 @@ body {
     <a href="/lead-bundles.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">Bundles</a>
     <a href="/ai-assistant.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">AI Assistant</a>
     <a href="/pro-dashboard.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">Dashboard</a>
-    <a href="#" onclick="fetch('/api/pro-session',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:localStorage.getItem('hc_pro_token')})}).catch(()=>{});localStorage.removeItem('hc_pro_token');localStorage.removeItem('hc_pro_name');window.location.href='/pro-login.html'" style="color:rgba(255,255,255,.5);text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);padding:5px 14px;border-radius:3px">Logout</a>
+    <span id="nav-auth"></span>
   </div>
 </div>
 
@@ -826,6 +826,7 @@ body {
 </div>
 
 <script>
+// Filter pills
 document.querySelectorAll('.filter-pill').forEach(pill => {
   pill.addEventListener('click', () => {
     document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
@@ -840,6 +841,28 @@ document.querySelectorAll('.filter-pill').forEach(pill => {
     });
   });
 });
+
+// View Details → requires login
+document.querySelectorAll('.card-link').forEach(link => {
+  link.addEventListener('click', (e) => {
+    const token = localStorage.getItem('hc_pro_token');
+    if (!token) {
+      e.preventDefault();
+      window.location.href = '/pro-login.html?redirect=' + encodeURIComponent(link.getAttribute('href'));
+    }
+  });
+});
+
+// Update nav: show login/signup if not logged in, logout if logged in
+const token = localStorage.getItem('hc_pro_token');
+const navAuth = document.getElementById('nav-auth');
+if (navAuth) {
+  if (token) {
+    navAuth.innerHTML = '<a href="#" onclick="fetch(\'/api/pro-session\',{method:\'DELETE\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({token:localStorage.getItem(\'hc_pro_token\')})}).catch(()=>{});localStorage.removeItem(\'hc_pro_token\');localStorage.removeItem(\'hc_pro_name\');window.location.href=\'/pro-login.html\'" style="color:rgba(255,255,255,.5);text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);padding:5px 14px;border-radius:3px">Logout</a>';
+  } else {
+    navAuth.innerHTML = '<a href="/pro-login.html" style="color:#c4aa6a;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid #c4aa6a;padding:5px 14px;border-radius:3px">Login</a> <a href="/pro-signup.html" style="color:#fff;background:#c4aa6a;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:5px 14px;border-radius:3px;margin-left:8px">Sign Up</a>';
+  }
+}
 </script>
 
 </body>

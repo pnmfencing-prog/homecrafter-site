@@ -121,7 +121,10 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
   try {
     const res = await fetch('/api/pro-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
     const data = await res.json();
-    if (data.valid) window.location.href = '/pro-dashboard.html';
+    if (data.valid) {
+      const redir = new URLSearchParams(window.location.search).get('redirect');
+      window.location.href = redir || '/pro-dashboard.html';
+    }
     else { localStorage.removeItem('hc_pro_token'); localStorage.removeItem('hc_pro_name'); }
   } catch {}
 })();
@@ -146,7 +149,8 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     if (data.success) {
       localStorage.setItem('hc_pro_token', data.token);
       localStorage.setItem('hc_pro_name', data.name);
-      window.location.href = '/pro-dashboard.html';
+      const redir = new URLSearchParams(window.location.search).get('redirect');
+      window.location.href = redir || '/pro-dashboard.html';
     } else {
       errEl.textContent = data.message || 'Invalid credentials';
       errEl.style.display = 'block';

@@ -906,5 +906,11 @@ body {
   <div class="footer-text" style="margin-top:6px;font-size:0.6rem;color:rgba(107,107,107,0.5)">Owned and operated by Fence Crafters LLC</div>
 </div>
 
+<script>
+// Require login to view lead details
+if (!localStorage.getItem('hc_pro_token')) {
+  window.location.href = '/pro-login.html?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+}
+</script>
 </body>
 </html>
