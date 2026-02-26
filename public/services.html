@@ -634,6 +634,11 @@ body {
         <textarea id="notes" placeholder="Tell us about your project — timeline, style, special requests..."></textarea>
       </div>
 
+      <!-- Honeypot - hidden from real users, bots will fill it -->
+      <div style="position:absolute;left:-9999px;top:-9999px" aria-hidden="true">
+        <input type="text" id="website_url" name="website_url" tabindex="-1" autocomplete="off">
+      </div>
+
       <div class="sms-consent">
         <label class="consent-label">
           <input type="checkbox" id="smsConsent" checked>
@@ -710,7 +715,7 @@ document.getElementById('serviceForm').addEventListener('submit', async function
     phone: document.getElementById('formPhone').value || '',
     address: document.getElementById('formAddress').value || addr || '',
     uid: uid || '',
-    notes: document.getElementById('notes').value, submitted: new Date().toISOString()
+    notes: document.getElementById('notes').value, website_url: document.getElementById('website_url').value, submitted: new Date().toISOString()
   };
   try {
     const res = await fetch('/api/submit', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });

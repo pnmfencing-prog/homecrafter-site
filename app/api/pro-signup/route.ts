@@ -1,12 +1,23 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { appendFileSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { rateLimit } from '@/lib/rate-limit';
+import { escapeHtml } from '@/lib/sanitize';
 
 const SIGNUPS_FILE = join(process.cwd(), 'pro-signups.json');
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 3 signups per IP per hour
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    if (!rateLimit(`signup:${ip}`, 3, 60 * 60 * 1000)) {
+      return NextResponse.json(
+        { success: false, message: 'Too many signup attempts. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
     const { firstName, lastName, company, email, phone, service, zip, password } = await request.json();
 
     // Validate required fields

@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { rateLimit } from '@/lib/rate-limit';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hc-pro-secret-change-in-production';
 
@@ -16,8 +17,17 @@ const USERS: Record<string, { passwordHash: string; name: string }> = {
   },
 };
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 login attempts per IP per 15 minutes
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    if (!rateLimit(`login:${ip}`, 5, 15 * 60 * 1000)) {
+      return NextResponse.json(
+        { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' },
+        { status: 429 }
+      );
+    }
+
     const { email, password } = await request.json();
 
     if (!email || !password) {
