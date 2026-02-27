@@ -12,7 +12,7 @@ const SERVICE_NAMES: Record<string, string> = {
   locksmith: 'LockCrafter', housekeeper: 'CleanCrafter',
   woodflooring: 'FloorCrafter', carpet: 'CarpetCrafter', hvac: 'HVACCrafter',
   landscaping: 'LawnCrafter', irrigation: 'LawnCrafter',
-  concrete: 'ConcreteCrafter', kitchen: 'KitchenCrafter', bathroom: 'BathCrafter',
+  concrete: 'ConcreteCrafter', kitchen: 'RemodelCrafter', bathroom: 'RemodelCrafter',
   gutters: 'GutterCrafter', pestcontrol: 'PestCrafter', handyman: 'HandyCrafter'
 };
 
@@ -32,8 +32,8 @@ const SERVICE_TO_CATEGORY: Record<string, string[]> = {
   landscaping: ['landscaping', 'irrigation'],
   irrigation: ['landscaping', 'irrigation'],
   concrete: ['concrete'],
-  kitchen: ['kitchen'],
-  bathroom: ['bathroom'],
+  kitchen: ['kitchen', 'bathroom'],
+  bathroom: ['kitchen', 'bathroom'],
   gutters: ['gutters'],
   pestcontrol: ['pestcontrol'],
   handyman: ['handyman'],

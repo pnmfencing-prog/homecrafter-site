@@ -590,11 +590,6 @@ body {
   <div class="section-subtitle">Purchase individual leads by service</div>
   <div class="alacarte-grid">
     <div class="alacarte-card">
-      <div class="alacarte-icon">🛁</div>
-      <div class="alacarte-name">BathCrafter</div>
-      <div class="alacarte-price">$80<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
       <div class="alacarte-icon">🧶</div>
       <div class="alacarte-name">CarpetCrafter</div>
       <div class="alacarte-price">$55<span class="alacarte-unit">/lead</span></div>
@@ -635,11 +630,6 @@ body {
       <div class="alacarte-price">$66<span class="alacarte-unit">/lead</span></div>
     </div>
     <div class="alacarte-card">
-      <div class="alacarte-icon">🍳</div>
-      <div class="alacarte-name">KitchenCrafter</div>
-      <div class="alacarte-price">$80<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
       <div class="alacarte-icon">🌿</div>
       <div class="alacarte-name">LawnCrafter</div>
       <div class="alacarte-price">$54<span class="alacarte-unit">/lead</span></div>
@@ -658,6 +648,11 @@ body {
       <div class="alacarte-icon">🐛</div>
       <div class="alacarte-name">PestCrafter</div>
       <div class="alacarte-price">$48<span class="alacarte-unit">/lead</span></div>
+    </div>
+    <div class="alacarte-card">
+      <div class="alacarte-icon">🏗️</div>
+      <div class="alacarte-name">RemodelCrafter</div>
+      <div class="alacarte-price">$80<span class="alacarte-unit">/lead</span></div>
     </div>
     <div class="alacarte-card">
       <div class="alacarte-icon">🏠</div>
@@ -684,7 +679,6 @@ body {
     <div class="bundle-selector">
       <select id="bundleSelect">
         <option value="">— Choose a trade —</option>
-        <option value="bathcrafter">BathCrafter — $80/lead</option>
         <option value="carpetcrafter">CarpetCrafter — $55/lead</option>
         <option value="cleancrafter">CleanCrafter — $45/lead</option>
         <option value="concretecrafter">ConcreteCrafter — $54/lead</option>
@@ -694,11 +688,11 @@ body {
         <option value="guttercrafter">GutterCrafter — $45/lead</option>
         <option value="handycrafter">HandyCrafter — $40/lead</option>
         <option value="hvaccrafter">HVACCrafter — $66/lead</option>
-        <option value="kitchencrafter">KitchenCrafter — $80/lead</option>
         <option value="lawncrafter">LawnCrafter (Landscape + Irrigation) — $54/lead</option>
         <option value="lockcrafter">LockCrafter — $24/lead</option>
         <option value="paintcrafter">PaintCrafter — $49/lead</option>
         <option value="pestcrafter">PestCrafter — $48/lead</option>
+        <option value="remodelcrafter">RemodelCrafter (Kitchen + Bath) — $80/lead</option>
       </select>
     </div>
 
@@ -776,7 +770,6 @@ body {
 
 <script>
 var trades = {
-  bathcrafter:     { name: 'BathCrafter Bundle', subtitle: 'Bathroom Remodel — $80/lead à la carte', price: 80 },
   carpetcrafter:   { name: 'CarpetCrafter Bundle', subtitle: 'Carpet — $55/lead à la carte', price: 55 },
   cleancrafter:    { name: 'CleanCrafter Bundle', subtitle: 'Housekeeping — $45/lead à la carte', price: 45 },
   concretecrafter: { name: 'ConcreteCrafter Bundle', subtitle: 'Concrete — $54/lead à la carte', price: 54 },
@@ -786,11 +779,11 @@ var trades = {
   guttercrafter:   { name: 'GutterCrafter Bundle', subtitle: 'Gutters — $45/lead à la carte', price: 45 },
   handycrafter:    { name: 'HandyCrafter Bundle', subtitle: 'Handyman — $40/lead à la carte', price: 40 },
   hvaccrafter:     { name: 'HVACCrafter Bundle', subtitle: 'HVAC — $66/lead à la carte', price: 66 },
-  kitchencrafter:  { name: 'KitchenCrafter Bundle', subtitle: 'Kitchen Remodel — $80/lead à la carte', price: 80 },
   lawncrafter:     { name: 'LawnCrafter Bundle', subtitle: 'Landscaping + Irrigation — $54/lead à la carte', price: 54 },
   lockcrafter:     { name: 'LockCrafter Bundle', subtitle: 'Locksmith — $24/lead à la carte', price: 24 },
   paintcrafter:    { name: 'Painting Bundle', subtitle: 'PaintCrafter — $49/lead à la carte', price: 49 },
-  pestcrafter:     { name: 'PestCrafter Bundle', subtitle: 'Pest Control — $48/lead à la carte', price: 48 }
+  pestcrafter:     { name: 'PestCrafter Bundle', subtitle: 'Pest Control — $48/lead à la carte', price: 48 },
+  remodelcrafter:  { name: 'RemodelCrafter Bundle', subtitle: 'Kitchen + Bathroom Remodeling — $80/lead à la carte', price: 80 }
 };
 
 function fmt(n) {
