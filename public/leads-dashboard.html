@@ -865,17 +865,20 @@ document.querySelectorAll('.card-link').forEach(link => {
   });
 });
 
-// Update nav: show login/signup if not logged in, logout if logged in
-const token = localStorage.getItem('hc_pro_token');
-const navAuth = document.getElementById('nav-auth');
-if (navAuth) {
-  if (token) {
-    navAuth.innerHTML = '<a href="#" onclick="fetch(\'/api/pro-session\',{method:\'DELETE\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({token:localStorage.getItem(\'hc_pro_token\')})}).catch(()=>{});localStorage.removeItem(\'hc_pro_token\');localStorage.removeItem(\'hc_pro_name\');window.location.href=\'/pro-login.html\'" style="color:rgba(255,255,255,.5);text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);padding:5px 14px;border-radius:3px">Logout</a>';
-  } else {
-    navAuth.innerHTML = '<a href="/pro-login.html" style="color:#c4aa6a;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid #c4aa6a;padding:5px 14px;border-radius:3px">Login</a> <a href="/pro-signup.html" style="color:#fff;background:#c4aa6a;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:5px 14px;border-radius:3px;margin-left:8px">Sign Up</a>';
-  }
-}
+// nav-auth handled by standard script below
 </script>
 
+<script>
+(function(){
+  var t = localStorage.getItem('hc_pro_token');
+  var el = document.getElementById('nav-auth');
+  if (!el) return;
+  if (t) {
+    el.innerHTML = '<a href="#" onclick="localStorage.removeItem('hc_pro_token');localStorage.removeItem('hc_pro_name');window.location.href='/pro-login.html'" style="color:rgba(255,255,255,.5);text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);padding:5px 14px;border-radius:3px">Logout</a>';
+  } else {
+    el.innerHTML = '<a href="/pro-login.html" style="color:#c4aa6a;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid #c4aa6a;padding:5px 14px;border-radius:3px">Login</a>';
+  }
+})();
+</script>
 </body>
 </html>
