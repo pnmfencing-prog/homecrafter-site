@@ -26,12 +26,11 @@ nav { background: var(--midnight); padding: 18px 0; text-align: center; }
 nav a { color: var(--gold-light); text-decoration: none; font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 600; letter-spacing: 1px; }
 
 /* HERO */
-.hero { background: linear-gradient(180deg, var(--midnight) 0%, var(--midnight) 45%, var(--cream) 45%); padding: 40px 24px 60px; text-align: center; position: relative; overflow: hidden; }
-.hero::after { display: none; }
-.hero .container { position: relative; z-index: 2; }
-.hero h1 { font-size: clamp(2.4rem, 5vw, 3.6rem); color: #2d2d2d; margin-bottom: 20px; line-height: 1.2; }
-.hero h1 span { color: #b8975a; }
-.hero p { color: #4a4a4a; font-size: 1.2rem; max-width: 600px; margin: 0 auto 36px; font-weight: 400; }
+.hero-dark { background: linear-gradient(135deg,#1e1845,#2a2260); padding: 48px 24px 52px; text-align: center; }
+.hero-dark h1 { font-family: 'Cormorant Garamond', serif; font-size: clamp(2.2rem, 5vw, 3.4rem); color: #fff; margin: 0; line-height: 1.2; font-weight: 400; }
+.hero-dark h1 span { color: var(--gold); }
+.hero-light { background: var(--cream); padding: 40px 24px 56px; text-align: center; }
+.hero-light p { color: #4a4a4a; font-size: 1.2rem; max-width: 600px; margin: 0 auto 32px; font-weight: 400; }
 .btn { display: inline-block; background: var(--gold); color: var(--midnight); font-weight: 600; padding: 16px 40px; border-radius: 50px; text-decoration: none; font-size: 1rem; letter-spacing: .5px; transition: all .3s; border: 2px solid var(--gold); }
 .btn:hover { background: transparent; color: var(--gold); }
 .btn-outline { background: transparent; color: var(--gold); border: 2px solid var(--gold); }
@@ -119,17 +118,17 @@ footer { background: var(--midnight); padding: 32px 24px; text-align: center; co
 </nav>
 
 <!-- HERO -->
-<div style="background:linear-gradient(135deg,#1e1845,#2a2260);padding:40px 24px;text-align:center">
-  <div style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(1.6rem,5vw,2.2rem);letter-spacing:clamp(0.15em,2vw,0.35em);color:#c4aa6a;text-transform:uppercase;margin-bottom:0.4rem">HomeCrafter</div>
-  <div style="font-family:'Montserrat',sans-serif;font-weight:300;font-size:0.8rem;letter-spacing:0.2em;color:rgba(255,255,255,0.6);text-transform:uppercase">Premium Lead Marketplace</div>
-  <div style="width:40px;height:2px;background:#c4aa6a;margin:16px auto 0"></div>
+<div style="background:linear-gradient(135deg,#1e1845,#2a2260);padding:32px 24px 12px;text-align:center">
+  <div style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(1.3rem,4vw,1.8rem);letter-spacing:clamp(0.12em,1.5vw,0.3em);color:#c4aa6a;text-transform:uppercase;margin-bottom:0.4rem">HomeCrafter</div>
+  <div style="font-family:'Montserrat',sans-serif;font-weight:300;font-size:0.7rem;letter-spacing:0.18em;color:rgba(255,255,255,0.5);text-transform:uppercase">Premium Lead Marketplace</div>
+  <div style="width:40px;height:2px;background:#c4aa6a;margin:14px auto 0"></div>
 </div>
-<section class="hero">
-  <div class="container">
-    <h1>Meet Your <span>AI Assistant</span></h1>
-    <p>Never miss another lead. Your tireless digital representative follows up, schedules, and closes — so you can focus on the work you love.</p>
-    <a href="ai-onboarding.html" class="btn">Get Started</a>
-  </div>
+<section class="hero-dark">
+  <h1>Meet Your <span>AI Assistant</span></h1>
+</section>
+<section class="hero-light">
+  <p>Never miss another lead. Your tireless digital representative follows up, schedules, and closes — so you can focus on the work you love.</p>
+  <a href="ai-onboarding.html" class="btn">Get Started</a>
 </section>
 
 <!-- WHAT IT DOES -->
