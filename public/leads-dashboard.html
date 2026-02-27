@@ -848,9 +848,9 @@ document.getElementById('myLeadsLink').addEventListener('click', (e) => {
   e.preventDefault();
   const token = localStorage.getItem('hc_pro_token');
   if (token) {
-    window.location.href = '/pro-dashboard.html';
+    window.location.href = '/my-leads.html';
   } else {
-    window.location.href = '/pro-login.html?redirect=/pro-dashboard.html';
+    window.location.href = '/pro-login.html?redirect=/my-leads.html';
   }
 });
 

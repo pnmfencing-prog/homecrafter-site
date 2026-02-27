@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Leads — HomeCrafter</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --midnight: #1e1845; --gold: #c4aa6a; --gold-light: #d4c394; --cream: #faf9f6; --text: #2d2d2d; --text-muted: #6b6b6b; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Montserrat',sans-serif; background:var(--cream); color:var(--text); }
+
+.header { background: linear-gradient(135deg, #1e1845, #2a2260); padding: 40px 24px; text-align: center; }
+.logo { font-family:'Cormorant Garamond',serif; font-weight:300; font-size:2rem; letter-spacing:0.3em; color:var(--gold); text-transform:uppercase; margin-bottom:0.3rem; }
+.header-sub { font-size:0.75rem; letter-spacing:0.15em; color:rgba(255,255,255,0.5); text-transform:uppercase; }
+
+.container { max-width:700px; margin:0 auto; padding:32px 20px; }
+
+.empty-state { text-align:center; padding:60px 24px; }
+.empty-icon { font-size:48px; margin-bottom:16px; }
+.empty-title { font-family:'Cormorant Garamond',serif; font-size:1.6rem; color:var(--midnight); margin-bottom:8px; }
+.empty-text { font-size:0.9rem; color:var(--text-muted); line-height:1.6; margin-bottom:24px; }
+.cta-btn { display:inline-block; background:var(--midnight); color:var(--gold); font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase; padding:14px 32px; border-radius:6px; text-decoration:none; }
+.cta-btn:hover { opacity:0.9; }
+
+.footer { text-align:center; padding:32px 20px; }
+.footer p { font-size:0.7rem; color:var(--text-muted); }
+.footer a { color:var(--text-muted); text-decoration:none; }
+
+@media (max-width:600px) { .logo { font-size:1.5rem; letter-spacing:0.15em; } }
+</style>
+</head>
+<body>
+
+<div style="background:#1e1845;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+  <a href="/services.html" style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;letter-spacing:3px;color:#d4c394;text-decoration:none">HOMECRAFTER</a>
+  <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+    <a href="/leads-dashboard.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">Leads</a>
+    <a href="/lead-bundles.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">Bundles</a>
+    <a href="/ai-assistant.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">AI Assistant</a>
+    <a href="/pro-dashboard.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">My Dashboard</a>
+    <a href="#" onclick="localStorage.removeItem('hc_pro_token');localStorage.removeItem('hc_pro_name');window.location.href='/pro-login.html'" style="color:rgba(255,255,255,.5);text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);padding:5px 14px;border-radius:3px">Logout</a>
+  </div>
+</div>
+
+<div class="header">
+  <div class="logo">My Leads</div>
+  <div class="header-sub">Your Purchased Leads</div>
+</div>
+
+<div class="container">
+  <div class="empty-state">
+    <div class="empty-icon">📭</div>
+    <div class="empty-title">No Leads Yet</div>
+    <div class="empty-text">When you purchase leads, they'll appear here with full contact details.<br>Browse available leads to get started.</div>
+    <a href="/leads-dashboard.html" class="cta-btn">Browse Leads</a>
+  </div>
+</div>
+
+<div class="footer">
+  <p><a href="https://homecrafter.ai">homecrafter.ai</a></p>
+  <p style="margin-top:6px;font-size:0.6rem;color:rgba(107,107,107,0.5)">Owned and operated by Fence Crafters LLC</p>
+</div>
+
+<script>
+// Require login
+if (!localStorage.getItem('hc_pro_token')) {
+  window.location.href = '/pro-login.html?redirect=/my-leads.html';
+}
+</script>
+</body>
+</html>
