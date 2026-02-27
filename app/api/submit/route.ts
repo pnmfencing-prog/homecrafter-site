@@ -133,10 +133,16 @@ export async function POST(req: NextRequest) {
 
     console.log(`Matched ${matchedContractors.length} contractors for lead #${leadId} (zip: ${zip}, geo: ${!!coords})`);
 
+    // TODO: Remove test mode once Stripe billing is live
+    const TEST_MODE = true;
+    const TEST_EMAIL = 'jamholdinglimited@icloud.com';
+
     // Send lead notification to matched contractors
     for (const contractor of matchedContractors) {
       try {
-        await sendLeadNotification(contractor.email, contractor.name, lead);
+        const sendTo = TEST_MODE ? TEST_EMAIL : contractor.email;
+        const sendName = TEST_MODE ? 'HomeCrafter Team (Test)' : contractor.name;
+        await sendLeadNotification(sendTo, sendName, lead);
         
         if (leadId) {
           await sql`
