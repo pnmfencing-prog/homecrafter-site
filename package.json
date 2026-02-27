@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
     "bcryptjs": "^3.0.3",
     "csv-parse": "^6.1.0",
     "jsonwebtoken": "^9.0.3",

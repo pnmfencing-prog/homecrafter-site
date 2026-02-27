@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 import { rateLimit } from '@/lib/rate-limit';
 import { sanitizeCsvField } from '@/lib/sanitize';
-
-const aiOnboardFile = path.join(process.cwd(), 'ai-onboard-submissions.csv');
-
-function ensureCSV() {
-  if (!fs.existsSync(aiOnboardFile)) {
-    fs.writeFileSync(aiOnboardFile, 'timestamp,businessName,ownerName,phone,email,services,serviceArea,pricing,hours,website,challenge,plan\n');
-  }
-}
+import sql from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,26 +12,25 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await req.json();
-    ensureCSV();
 
-    const csvLine = [
-      new Date().toISOString(),
-      sanitizeCsvField(data.businessName || ''),
-      sanitizeCsvField(data.ownerName || ''),
-      sanitizeCsvField(data.phone || ''),
-      sanitizeCsvField(data.email || ''),
-      sanitizeCsvField((data.services || []).join('; ')),
-      sanitizeCsvField(data.serviceArea || ''),
-      sanitizeCsvField(data.pricing || ''),
-      sanitizeCsvField(data.hours || ''),
-      sanitizeCsvField(data.website || ''),
-      sanitizeCsvField((data.challenge || '').replace(/[\n\r,]/g, ' ')),
-      sanitizeCsvField(data.plan || '')
-    ].map((f: string) => `"${String(f).replace(/"/g, '""')}"`).join(',') + '\n';
+    await sql`
+      INSERT INTO ai_onboard (business_name, owner_name, phone, email, services, service_area, pricing, hours, website, challenge, plan)
+      VALUES (
+        ${sanitizeCsvField(data.businessName || '')},
+        ${sanitizeCsvField(data.ownerName || '')},
+        ${sanitizeCsvField(data.phone || '')},
+        ${sanitizeCsvField(data.email || '')},
+        ${sanitizeCsvField((data.services || []).join('; '))},
+        ${sanitizeCsvField(data.serviceArea || '')},
+        ${sanitizeCsvField(data.pricing || '')},
+        ${sanitizeCsvField(data.hours || '')},
+        ${sanitizeCsvField(data.website || '')},
+        ${sanitizeCsvField(data.challenge || '')},
+        ${sanitizeCsvField(data.plan || '')}
+      )
+    `;
 
-    fs.appendFileSync(aiOnboardFile, csvLine);
-    console.log(`AI onboard: ${sanitizeCsvField(data.businessName)} - ${sanitizeCsvField(data.plan)}`);
-
+    console.log(`AI onboard: ${data.businessName} - ${data.plan}`);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error('AI onboard error:', e);

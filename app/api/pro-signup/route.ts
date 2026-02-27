@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { appendFileSync, existsSync, readFileSync } from 'fs';
-import { join } from 'path';
 import { rateLimit } from '@/lib/rate-limit';
-import { escapeHtml } from '@/lib/sanitize';
-
-const SIGNUPS_FILE = join(process.cwd(), 'pro-signups.json');
+import sql from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,51 +31,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check for existing email
+    const existing = await sql`SELECT id FROM pro_accounts WHERE email = ${email.toLowerCase()}`;
+    if (existing.length > 0) {
+      return NextResponse.json(
+        { success: false, message: 'An account with this email already exists' },
+        { status: 409 }
+      );
+    }
+
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const signup = {
-      firstName,
-      lastName,
-      company,
-      email: email.toLowerCase(),
-      phone,
-      service,
-      zip,
-      passwordHash,
-      createdAt: new Date().toISOString(),
-      status: 'pending' // Admin reviews and activates accounts
-    };
+    // Insert into database
+    await sql`
+      INSERT INTO pro_accounts (first_name, last_name, company, email, phone, password_hash, service, zip, status)
+      VALUES (${firstName}, ${lastName}, ${company}, ${email.toLowerCase()}, ${phone}, ${passwordHash}, ${service}, ${zip}, 'pending')
+    `;
 
-    // For now, store signups in a JSON file (swap with DB later)
-    // Note: On Vercel serverless this won't persist — need DB for production
-    // But the signup data is also logged for review
-    try {
-      let signups: any[] = [];
-      if (existsSync(SIGNUPS_FILE)) {
-        signups = JSON.parse(readFileSync(SIGNUPS_FILE, 'utf-8'));
-      }
-      // Check for existing email
-      if (signups.some((s: any) => s.email === email.toLowerCase())) {
-        return NextResponse.json(
-          { success: false, message: 'An account with this email already exists' },
-          { status: 409 }
-        );
-      }
-      signups.push(signup);
-      appendFileSync(SIGNUPS_FILE, ''); // ensure file exists
-      require('fs').writeFileSync(SIGNUPS_FILE, JSON.stringify(signups, null, 2));
-    } catch (fsErr) {
-      // If filesystem fails (serverless), still return success
-      // The signup was validated and hashed — we'll capture it via logs
-      console.log('Pro signup (fs unavailable):', JSON.stringify({ ...signup, passwordHash: '[redacted]' }));
-    }
+    console.log(`New pro signup: ${firstName} ${lastName} - ${company} (${email})`);
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Account created successfully' 
-    });
-  } catch {
+    return NextResponse.json({ success: true, message: 'Account created successfully' });
+  } catch (e) {
+    console.error('Signup error:', e);
     return NextResponse.json(
       { success: false, message: 'Server error' },
       { status: 500 }
