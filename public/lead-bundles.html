@@ -616,92 +616,6 @@ body {
     <div class="bundles-note">Use your bundle credits whenever you're ready</div>
   </div>
 
-  <!-- À la carte -->
-  <div class="section-title">À La Carte Leads</div>
-  <div class="section-subtitle">Purchase individual leads by service</div>
-  <div class="alacarte-grid">
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🧶</div>
-      <div class="alacarte-name">CarpetCrafter</div>
-      <div class="alacarte-price">$55<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🧹</div>
-      <div class="alacarte-name">CleanCrafter</div>
-      <div class="alacarte-price">$45<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🧱</div>
-      <div class="alacarte-name">ConcreteCrafter</div>
-      <div class="alacarte-price">$54<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🏡</div>
-      <div class="alacarte-name">FenceCrafter</div>
-      <div class="alacarte-price">$45<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🪵</div>
-      <div class="alacarte-name">FloorCrafter</div>
-      <div class="alacarte-price">$55<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🔧</div>
-      <div class="alacarte-name">HandyCrafter</div>
-      <div class="alacarte-price">$40<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">❄️</div>
-      <div class="alacarte-name">HVACCrafter</div>
-      <div class="alacarte-price">$66<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🌿</div>
-      <div class="alacarte-name">LandscapeCrafter</div>
-      <div class="alacarte-price">$54<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🔐</div>
-      <div class="alacarte-name">LockCrafter</div>
-      <div class="alacarte-price">$24<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🎨</div>
-      <div class="alacarte-name">PaintCrafter</div>
-      <div class="alacarte-price">$49<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🐛</div>
-      <div class="alacarte-name">PestCrafter</div>
-      <div class="alacarte-price">$48<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🏗️</div>
-      <div class="alacarte-name">KitchenCrafter / BathroomCrafter</div>
-      <div class="alacarte-price">$80<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🏠</div>
-      <div class="alacarte-name">RoofCrafter</div>
-      <div class="alacarte-price">$65<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🛡️</div>
-      <div class="alacarte-name">SecureCrafter</div>
-      <div class="alacarte-price">$55<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">📐</div>
-      <div class="alacarte-name">SidingCrafter</div>
-      <div class="alacarte-price">$65<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🪟</div>
-      <div class="alacarte-name">WindowCrafter</div>
-      <div class="alacarte-price">$65<span class="alacarte-unit">/lead</span></div>
-    </div>
-  </div>
-
   <!-- How It Works -->
   <div class="how-section">
     <div class="section-title">How It Works</div>
@@ -794,7 +708,7 @@ function renderBundle(key) {
   var t = trades[key];
   if (!t) return;
   document.getElementById('bundleTitle').textContent = t.name;
-  document.getElementById('bundleSubtitle').textContent = t.subtitle;
+  document.getElementById('bundleSubtitle').innerHTML = t.subtitle.replace(/(\$\d+\/lead à la carte)/, '<strong style="color:#1e1845">$1</strong>');
 
   var tiers = [
     { count: 10, discount: 0.10, label: 'Save 10%', popular: false },
