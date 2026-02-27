@@ -7,7 +7,7 @@ const SERVICE_NAMES: Record<string, string> = {
   siding: 'SidingCrafter', painting: 'PaintCrafter', paint: 'PaintCrafter',
   locksmith: 'LockCrafter', housekeeper: 'CleanCrafter',
   woodflooring: 'FloorCrafter', carpet: 'CarpetCrafter', hvac: 'HVACCrafter',
-  landscaping: 'LawnCrafter', irrigation: 'LawnCrafter',
+  landscaping: 'LandscapeCrafter', irrigation: 'LandscapeCrafter',
   concrete: 'ConcreteCrafter', kitchen: 'KitchenCrafter', bathroom: 'BathroomCrafter',
   pestcontrol: 'PestCrafter', handyman: 'HandyCrafter', security: 'SecureCrafter'
 };
