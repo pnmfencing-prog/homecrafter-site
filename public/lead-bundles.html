@@ -611,7 +611,7 @@ body {
     </div>
 
     <div id="bundleTitle" class="section-title" style="font-size:1.4rem;"></div>
-    <div id="bundleSubtitle" class="section-subtitle"></div>
+    <div id="bundleSubtitle" class="section-subtitle" style="font-size:1.05rem;color:#444;margin-top:0.3rem"></div>
     <div class="bundles-grid" id="bundleCards"></div>
     <div class="bundles-note">Use your bundle credits whenever you're ready</div>
   </div>
@@ -708,7 +708,7 @@ function renderBundle(key) {
   var t = trades[key];
   if (!t) return;
   document.getElementById('bundleTitle').textContent = t.name;
-  document.getElementById('bundleSubtitle').innerHTML = t.subtitle.replace(/(\$\d+\/lead à la carte)/, '<strong style="color:#1e1845">$1</strong>');
+  document.getElementById('bundleSubtitle').innerHTML = t.subtitle.replace(/(\$\d+\/lead à la carte)/, '<strong style="color:#1e1845;font-size:1.1em;font-weight:700">$1</strong>');
 
   var tiers = [
     { count: 10, discount: 0.10, label: 'Save 10%', popular: false },
