@@ -64,24 +64,20 @@ export async function sendLeadNotification(contractorEmail: string, contractorNa
   </div>
   <div class="body">
     <div class="badge">🔔 New Lead</div>
-    <p class="lead-name">${lead.homeownerName}</p>
-    <p class="lead-address">📍 ${lead.address}</p>
+    <p class="lead-name" style="font-size:18px;color:#1e1845;font-weight:600;margin:0 0 4px;">New ${serviceList} Project</p>
+    <p class="lead-address">📍 ${lead.address ? lead.address.replace(/.*,?\s*(\w+),?\s*[A-Z]{2}\s*\d{5}.*/, '$1 area') : 'New Jersey'}</p>
     <div class="detail-grid">
       <div class="detail-row">
         <div class="detail-label">Services</div>
         <div class="detail-value">${serviceList}</div>
       </div>
       <div class="detail-row">
-        <div class="detail-label">Email</div>
-        <div class="detail-value"><a href="mailto:${lead.homeownerEmail}" style="color:#1e1845">${lead.homeownerEmail}</a></div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Phone</div>
-        <div class="detail-value"><a href="tel:${lead.homeownerPhone}" style="color:#1e1845">${lead.homeownerPhone}</a></div>
-      </div>
-      <div class="detail-row">
         <div class="detail-label">Submitted</div>
         <div class="detail-value">${new Date(lead.submitted).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Contact</div>
+        <div class="detail-value" style="color:#b8b0a4;font-style:italic;">🔒 Purchase lead to unlock contact details</div>
       </div>
     </div>
     ${lead.notes ? `
@@ -90,7 +86,7 @@ export async function sendLeadNotification(contractorEmail: string, contractorNa
       <div class="notes-text">"${lead.notes}"</div>
     </div>` : ''}
     <div class="cta">
-      <a href="https://homecrafter.ai/pro-login.html">View in Dashboard</a>
+      <a href="https://homecrafter.ai/leads-dashboard.html">Unlock This Lead</a>
     </div>
   </div>
   <div class="footer">
@@ -103,7 +99,7 @@ export async function sendLeadNotification(contractorEmail: string, contractorNa
   await transporter.sendMail({
     from: '"HomeCrafter" <trent@homecrafter.ai>',
     to: contractorEmail,
-    subject: `New ${serviceList} Lead — ${lead.address}`,
+    subject: `New ${serviceList} Lead Available — HomeCrafter`,
     html,
   });
 }
