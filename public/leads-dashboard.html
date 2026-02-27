@@ -476,6 +476,7 @@ body {
 
 <nav class="nav">
   <a href="leads-dashboard.html" class="active">Leads</a>
+  <a href="#" id="myLeadsLink">My Leads</a>
   <a href="ai-assistant.html">AI Assistant</a>
 </nav>
 
@@ -840,6 +841,17 @@ document.querySelectorAll('.filter-pill').forEach(pill => {
       }
     });
   });
+});
+
+// My Leads → requires login
+document.getElementById('myLeadsLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  const token = localStorage.getItem('hc_pro_token');
+  if (token) {
+    window.location.href = '/pro-dashboard.html';
+  } else {
+    window.location.href = '/pro-login.html?redirect=/pro-dashboard.html';
+  }
 });
 
 // View Details → requires login
