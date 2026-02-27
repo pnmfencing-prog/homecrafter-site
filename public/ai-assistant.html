@@ -114,7 +114,7 @@ footer { background: var(--midnight); padding: 32px 24px; text-align: center; co
     <a href="/lead-bundles.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">Bundles</a>
     <a href="/ai-assistant.html" style="color:#d4c394;text-decoration:none;font-size:12px;font-weight:500">AI Assistant</a>
     <a href="/pro-dashboard.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">My Dashboard</a>
-    <a href="#" onclick="fetch('/api/pro-session',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:localStorage.getItem('hc_pro_token')})}).catch(()=>{});localStorage.removeItem('hc_pro_token');localStorage.removeItem('hc_pro_name');window.location.href='/pro-login.html'" style="color:rgba(255,255,255,.5);text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);padding:5px 14px;border-radius:3px">Logout</a>
+    <span id="nav-auth"></span>
   </div>
 </nav>
 
@@ -319,6 +319,18 @@ function updatePricing() {
 
 toggle.addEventListener('change', updatePricing);
 monthlyLabel.classList.add('active');
+</script>
+<script>
+(function(){
+  var token = localStorage.getItem('hc_pro_token');
+  var el = document.getElementById('nav-auth');
+  if (!el) return;
+  if (token) {
+    el.innerHTML = '<a href="#" onclick="localStorage.removeItem(\"hc_pro_token\");localStorage.removeItem(\"hc_pro_name\");window.location.href=\"/pro-login.html\"" style="color:rgba(255,255,255,.5);text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);padding:5px 14px;border-radius:3px">Logout</a>';
+  } else {
+    el.innerHTML = '<a href="/pro-login.html" style="color:#c4aa6a;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid #c4aa6a;padding:5px 14px;border-radius:3px">Login</a>';
+  }
+})();
 </script>
 </body>
 </html>
