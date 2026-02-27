@@ -3,6 +3,7 @@ import { sendLeadNotification, sendHomeownerConfirmation } from '@/lib/email';
 import { rateLimit } from '@/lib/rate-limit';
 import { escapeHtml } from '@/lib/sanitize';
 import sql from '@/lib/db';
+import { getZipCoords } from '@/lib/geo';
 
 // Service name mapping
 const SERVICE_NAMES: Record<string, string> = {
@@ -13,11 +14,15 @@ const SERVICE_NAMES: Record<string, string> = {
 // Category mapping for DB queries
 const SERVICE_TO_CATEGORY: Record<string, string[]> = {
   fencing: ['fencing'],
-  roofing: ['roofing', 'roofing,siding', 'roofing, siding'],
-  windows: ['windows', 'siding,windows', 'windows, siding', 'siding,siding,windows'],
-  siding: ['siding', 'roofing,siding', 'roofing, siding', 'siding,windows', 'windows, siding', 'siding,siding,windows'],
+  roofing: ['roofing'],
+  windows: ['windows'],
+  siding: ['siding'],
   painting: ['paint'],
+  paint: ['paint'],
 };
+
+const RADIUS_MILES = 30;
+const MAX_CONTRACTORS = 3;
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     const submitted = data.submitted || new Date().toISOString();
 
-    // Extract zip from address (basic regex for 5-digit zip)
+    // Extract zip from address
     const zipMatch = (data.address || '').match(/\b(\d{5})\b/);
     const zip = zipMatch ? zipMatch[1] : '';
 
@@ -58,7 +63,7 @@ export async function POST(req: NextRequest) {
     `;
     const leadId = leadResult[0]?.id;
 
-    console.log(`New lead #${leadId}: ${escapeHtml(data.name)} - ${data.services.join(', ')}`);
+    console.log(`New lead #${leadId}: ${escapeHtml(data.name)} - ${data.services.join(', ')} - zip: ${zip}`);
 
     const lead = {
       homeownerName: escapeHtml(data.name || ''),
@@ -83,31 +88,56 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Find matching contractors from DB (up to 3 per service)
+    // 2. Find matching contractors by category + geo proximity
     const allCategories: string[] = [];
     for (const svc of data.services) {
-      const cats = SERVICE_TO_CATEGORY[svc] || [svc];
+      const cats = SERVICE_TO_CATEGORY[svc.toLowerCase()] || [svc.toLowerCase()];
       allCategories.push(...cats);
     }
 
-    // Query contractors that match the categories and have email
-    const matchedContractors = await sql`
-      SELECT DISTINCT ON (email) id, name, email, category
-      FROM contractors
-      WHERE category = ANY(${allCategories})
-        AND email IS NOT NULL 
-        AND email != ''
-        AND active = true
-      ORDER BY email, rating DESC NULLS LAST
-      LIMIT 3
-    `;
+    let matchedContractors: any[] = [];
+    const coords = zip ? getZipCoords(zip) : null;
+
+    if (coords) {
+      // Geo-matched query: Haversine formula via subquery, within 30 miles
+      matchedContractors = await sql`
+        SELECT * FROM (
+          SELECT id, name, email, category,
+            (3958.8 * 2 * ASIN(SQRT(
+              POWER(SIN(RADIANS(lat - ${coords.lat}) / 2), 2) +
+              COS(RADIANS(${coords.lat})) * COS(RADIANS(lat)) *
+              POWER(SIN(RADIANS(lng - ${coords.lng}) / 2), 2)
+            ))) AS distance_miles
+          FROM contractors
+          WHERE category = ANY(${allCategories})
+            AND email IS NOT NULL AND email != ''
+            AND active = true
+            AND lat IS NOT NULL
+        ) sub
+        WHERE distance_miles <= ${RADIUS_MILES}
+        ORDER BY distance_miles ASC, rating DESC NULLS LAST
+        LIMIT ${MAX_CONTRACTORS}
+      `;
+    } else {
+      // No zip or unknown zip — fall back to category-only match
+      matchedContractors = await sql`
+        SELECT DISTINCT ON (email) id, name, email, category
+        FROM contractors
+        WHERE category = ANY(${allCategories})
+          AND email IS NOT NULL AND email != ''
+          AND active = true
+        ORDER BY email, rating DESC NULLS LAST
+        LIMIT ${MAX_CONTRACTORS}
+      `;
+    }
+
+    console.log(`Matched ${matchedContractors.length} contractors for lead #${leadId} (zip: ${zip}, geo: ${!!coords})`);
 
     // Send lead notification to matched contractors
     for (const contractor of matchedContractors) {
       try {
         await sendLeadNotification(contractor.email, contractor.name, lead);
         
-        // Record the assignment
         if (leadId) {
           await sql`
             INSERT INTO lead_assignments (lead_id, contractor_id, status)
@@ -121,7 +151,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // If no contractors matched (no emails in DB), send to fallback
+    // Fallback if no contractors matched
     if (matchedContractors.length === 0) {
       try {
         await sendLeadNotification('jamholdinglimited@icloud.com', 'HomeCrafter Team', lead);

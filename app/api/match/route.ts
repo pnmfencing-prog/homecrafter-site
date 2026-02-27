@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { rateLimit } from '@/lib/rate-limit';
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { matchContractors } = require('../../../lib/matcher');
+import sql from '@/lib/db';
+import { getZipCoords } from '@/lib/geo';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hc-pro-secret-change-in-production';
+const RADIUS_MILES = 30;
 
 export async function GET(req: NextRequest) {
-  // Rate limit: 10 requests per IP per minute (even for auth'd users)
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   if (!rateLimit(`match:${ip}`, 10, 60 * 1000)) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
   }
 
-  // Require auth — only logged-in contractors can query matches
   const authHeader = req.headers.get('authorization');
   const token = authHeader?.replace('Bearer ', '');
   if (!token) {
@@ -29,26 +27,73 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const zip = searchParams.get('zip');
   const services = searchParams.get('services')
-    ? searchParams.get('services')!.split(',').map(s => s.trim())
+    ? searchParams.get('services')!.split(',').map(s => s.trim().toLowerCase())
     : [];
-  const maxResults = Math.min(parseInt(searchParams.get('max') || '3') || 3, 10); // Cap at 10
+  const maxResults = Math.min(parseInt(searchParams.get('max') || '3') || 3, 10);
 
   if (!zip || !/^\d{5}$/.test(zip)) {
     return NextResponse.json({ error: 'Valid 5-digit zip required' }, { status: 400 });
   }
 
-  const result = matchContractors(zip, services, maxResults);
-  
-  // Strip sensitive fields — only return what contractors need to see
-  if (result.results) {
-    result.results = result.results.map((r: any) => ({
-      name: r.name,
-      category: r.category,
-      distance: r.distance,
-      rating: r.rating,
-      reviews: r.reviews,
-    }));
+  const coords = getZipCoords(zip);
+  if (!coords) {
+    return NextResponse.json({ error: `Unknown zip code: ${zip}`, results: [] });
   }
 
-  return NextResponse.json(result);
+  const baseQuery = `
+    SELECT * FROM (
+      SELECT name, category, rating, reviews,
+        (3958.8 * 2 * ASIN(SQRT(
+          POWER(SIN(RADIANS(lat - ${coords.lat}) / 2), 2) +
+          COS(RADIANS(${coords.lat})) * COS(RADIANS(lat)) *
+          POWER(SIN(RADIANS(lng - ${coords.lng}) / 2), 2)
+        ))) AS distance
+      FROM contractors
+      WHERE active = true AND lat IS NOT NULL
+  `;
+
+  const rows = services.length > 0
+    ? await sql`
+        SELECT * FROM (
+          SELECT name, category, rating, reviews,
+            (3958.8 * 2 * ASIN(SQRT(
+              POWER(SIN(RADIANS(lat - ${coords.lat}) / 2), 2) +
+              COS(RADIANS(${coords.lat})) * COS(RADIANS(lat)) *
+              POWER(SIN(RADIANS(lng - ${coords.lng}) / 2), 2)
+            ))) AS distance
+          FROM contractors
+          WHERE category = ANY(${services})
+            AND active = true AND lat IS NOT NULL
+        ) sub
+        WHERE distance <= ${RADIUS_MILES}
+        ORDER BY distance ASC, rating DESC NULLS LAST
+        LIMIT ${maxResults}
+      `
+    : await sql`
+        SELECT * FROM (
+          SELECT name, category, rating, reviews,
+            (3958.8 * 2 * ASIN(SQRT(
+              POWER(SIN(RADIANS(lat - ${coords.lat}) / 2), 2) +
+              COS(RADIANS(${coords.lat})) * COS(RADIANS(lat)) *
+              POWER(SIN(RADIANS(lng - ${coords.lng}) / 2), 2)
+            ))) AS distance
+          FROM contractors
+          WHERE active = true AND lat IS NOT NULL
+        ) sub
+        WHERE distance <= ${RADIUS_MILES}
+        ORDER BY distance ASC, rating DESC NULLS LAST
+        LIMIT ${maxResults}
+      `;
+
+  return NextResponse.json({
+    origin: { zip, ...coords },
+    totalMatches: rows.length,
+    results: rows.map((r: any) => ({
+      name: r.name,
+      category: r.category,
+      distance: Math.round(parseFloat(r.distance) * 10) / 10,
+      rating: r.rating,
+      reviews: r.reviews,
+    })),
+  });
 }
