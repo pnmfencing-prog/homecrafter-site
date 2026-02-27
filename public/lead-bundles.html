@@ -247,31 +247,34 @@ body {
   margin-top: 0.8rem;
 }
 
-/* Bundle selector dropdown */
-.bundle-selector {
-  text-align: center;
+/* Bundle selector pills */
+.bundle-pills {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   margin-bottom: 1.5rem;
 }
-.bundle-selector select {
-  padding: 0.65rem 2.4rem 0.65rem 1.2rem;
-  border-radius: 8px;
-  border: 2px solid var(--gold);
+.bundle-pill {
+  padding: 0.5rem 1.1rem;
+  border-radius: 50px;
+  border: 1.5px solid var(--cream-dark);
   background: #fff;
   font-family: 'Montserrat', sans-serif;
-  font-size: 0.85rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  color: var(--midnight);
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
   cursor: pointer;
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url('data:image/svg+xml;utf8,<svg fill="%231e1845" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 18px;
-  transition: border-color 0.3s;
+  transition: all 0.3s;
 }
-.bundle-selector select:hover {
+.bundle-pill:hover {
+  border-color: var(--gold-light);
+  color: var(--midnight);
+}
+.bundle-pill.active {
+  background: linear-gradient(135deg, var(--midnight), var(--midnight-light));
+  color: var(--gold);
   border-color: var(--midnight);
 }
 
@@ -676,24 +679,21 @@ body {
     <div class="section-title">Bundle Packs</div>
     <div class="section-subtitle">Select a trade to view discounted bundles</div>
 
-    <div class="bundle-selector">
-      <select id="bundleSelect">
-        <option value="">— Choose a trade —</option>
-        <option value="carpetcrafter">CarpetCrafter — $55/lead</option>
-        <option value="cleancrafter">CleanCrafter — $45/lead</option>
-        <option value="concretecrafter">ConcreteCrafter — $54/lead</option>
-        <option value="exterior" selected>Exterior (Roof · Siding · Window) — $65/lead</option>
-        <option value="fencecrafter">FenceCrafter — $45/lead</option>
-        <option value="floorcrafter">FloorCrafter — $55/lead</option>
-        <option value="guttercrafter">GutterCrafter — $45/lead</option>
-        <option value="handycrafter">HandyCrafter — $40/lead</option>
-        <option value="hvaccrafter">HVACCrafter — $66/lead</option>
-        <option value="lawncrafter">LawnCrafter (Landscape + Irrigation) — $54/lead</option>
-        <option value="lockcrafter">LockCrafter — $24/lead</option>
-        <option value="paintcrafter">PaintCrafter — $49/lead</option>
-        <option value="pestcrafter">PestCrafter — $48/lead</option>
-        <option value="remodelcrafter">RemodelCrafter (Kitchen + Bath) — $80/lead</option>
-      </select>
+    <div class="bundle-pills">
+      <button class="bundle-pill" data-bundle="carpetcrafter">CarpetCrafter</button>
+      <button class="bundle-pill" data-bundle="cleancrafter">CleanCrafter</button>
+      <button class="bundle-pill" data-bundle="concretecrafter">ConcreteCrafter</button>
+      <button class="bundle-pill active" data-bundle="exterior">Exterior</button>
+      <button class="bundle-pill" data-bundle="fencecrafter">FenceCrafter</button>
+      <button class="bundle-pill" data-bundle="floorcrafter">FloorCrafter</button>
+      <button class="bundle-pill" data-bundle="guttercrafter">GutterCrafter</button>
+      <button class="bundle-pill" data-bundle="handycrafter">HandyCrafter</button>
+      <button class="bundle-pill" data-bundle="hvaccrafter">HVACCrafter</button>
+      <button class="bundle-pill" data-bundle="lawncrafter">LawnCrafter</button>
+      <button class="bundle-pill" data-bundle="lockcrafter">LockCrafter</button>
+      <button class="bundle-pill" data-bundle="paintcrafter">PaintCrafter</button>
+      <button class="bundle-pill" data-bundle="pestcrafter">PestCrafter</button>
+      <button class="bundle-pill" data-bundle="remodelcrafter">RemodelCrafter</button>
     </div>
 
     <div id="bundleTitle" class="section-title" style="font-size:1.4rem;"></div>
@@ -753,7 +753,7 @@ body {
   <div class="final-cta">
     <h2>Ready to Grow?</h2>
     <div class="cta-buttons">
-      <a href="#bundles" class="btn-gold" onclick="document.getElementById('bundleSelect').focus();window.scrollTo({top:document.querySelector('.bundle-selector').offsetTop-80,behavior:'smooth'});return false;">Buy a Bundle</a>
+      <a href="#bundles" class="btn-gold" onclick="window.scrollTo({top:document.querySelector('.bundle-pills').offsetTop-80,behavior:'smooth'});return false;">Buy a Bundle</a>
       <a href="ai-assistant.html" class="btn-outline">Explore AI Assistant</a>
     </div>
   </div>
@@ -817,8 +817,12 @@ function renderBundle(key) {
   document.getElementById('bundleCards').innerHTML = html;
 }
 
-document.getElementById('bundleSelect').addEventListener('change', function() {
-  if (this.value) renderBundle(this.value);
+document.querySelectorAll('.bundle-pill').forEach(function(pill) {
+  pill.addEventListener('click', function() {
+    document.querySelectorAll('.bundle-pill').forEach(function(p) { p.classList.remove('active'); });
+    pill.classList.add('active');
+    renderBundle(pill.dataset.bundle);
+  });
 });
 
 // Show Exterior bundle by default
