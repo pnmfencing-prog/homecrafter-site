@@ -47,28 +47,41 @@ export async function GET(req: NextRequest) {
         LIMIT ${limit}
       `;
 
-  const results = leads.map((l: any) => {
+  // Split multi-service leads into one entry per service
+  const results: any[] = [];
+  leads.forEach((l: any) => {
     const svcs = l.services || [];
-    const primaryService = svcs[0] || 'unknown';
-    const serviceName = SERVICE_NAMES[primaryService] || SERVICE_NAMES[primaryService.toLowerCase()] || primaryService;
-    const price = SERVICE_PRICES[primaryService] || SERVICE_PRICES[primaryService.toLowerCase()] || 45;
     const hoursAgo = Math.round((Date.now() - new Date(l.submitted_at).getTime()) / 3600000);
-    const hoursLeft = Math.max(0, 72 - hoursAgo); // 72h window
+    const hoursLeft = Math.max(0, 72 - hoursAgo);
+    const noteText = l.notes ? (l.notes.length > 80 ? l.notes.slice(0, 80) + '...' : l.notes) : '';
 
-    return {
-      id: l.id,
-      zip: l.zip || 'NJ',
-      services: svcs.map((s: string) => SERVICE_NAMES[s] || SERVICE_NAMES[s.toLowerCase()] || s),
-      servicePrimary: SERVICE_NAMES[primaryService] || SERVICE_NAMES[primaryService.toLowerCase()] || primaryService,
-      notes: l.notes ? (l.notes.length > 80 ? l.notes.slice(0, 80) + '...' : l.notes) : '',
-      price,
-      spots: { taken: parseInt(l.assignments) || 0, total: 3 },
-      hoursLeft,
-      isNew: hoursAgo <= 6,
-      isClosing: hoursLeft <= 12 && hoursLeft > 0,
-      submitted: l.submitted_at,
-    };
+    // If filtering by category, only show that specific service entry
+    const servicesToShow = category ? [category] : svcs;
+
+    servicesToShow.forEach((svc: string) => {
+      const svcLower = svc.toLowerCase();
+      const serviceName = SERVICE_NAMES[svc] || SERVICE_NAMES[svcLower] || svc;
+      const price = SERVICE_PRICES[svc] || SERVICE_PRICES[svcLower] || 45;
+
+      results.push({
+        id: `${l.id}-${svcLower}`,
+        leadId: l.id,
+        zip: l.zip || 'NJ',
+        services: [serviceName],
+        servicePrimary: serviceName,
+        notes: noteText,
+        price,
+        spots: { taken: parseInt(l.assignments) || 0, total: 3 },
+        hoursLeft,
+        isNew: hoursAgo <= 6,
+        isClosing: hoursLeft <= 12 && hoursLeft > 0,
+        submitted: l.submitted_at,
+      });
+    });
   });
+
+  // Sort by newest first
+  results.sort((a, b) => new Date(b.submitted).getTime() - new Date(a.submitted).getTime());
 
   return NextResponse.json({ leads: results, total: results.length });
 }
