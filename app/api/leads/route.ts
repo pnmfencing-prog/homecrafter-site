@@ -1,0 +1,66 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit } from '@/lib/rate-limit';
+import sql from '@/lib/db';
+
+const SERVICE_NAMES: Record<string, string> = {
+  fencing: 'FenceCrafter', roofing: 'RoofCrafter', windows: 'WindowCrafter',
+  siding: 'SidingCrafter', painting: 'PaintCrafter', paint: 'PaintCrafter'
+};
+
+const SERVICE_PRICES: Record<string, number> = {
+  fencing: 45, roofing: 65, windows: 65, siding: 65, painting: 49, paint: 49
+};
+
+export async function GET(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  if (!rateLimit(`leads:${ip}`, 20, 60 * 1000)) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const category = searchParams.get('category'); // filter by service
+  const limit = Math.min(parseInt(searchParams.get('limit') || '20') || 20, 50);
+
+  // Fetch recent leads (public browsing — no contact details)
+  const leads = category
+    ? await sql`
+        SELECT id, zip, services, notes, submitted_at,
+          (SELECT COUNT(*) FROM lead_assignments WHERE lead_id = leads.id) as assignments
+        FROM leads
+        WHERE ${category} = ANY(services)
+        ORDER BY submitted_at DESC
+        LIMIT ${limit}
+      `
+    : await sql`
+        SELECT id, zip, services, notes, submitted_at,
+          (SELECT COUNT(*) FROM lead_assignments WHERE lead_id = leads.id) as assignments
+        FROM leads
+        ORDER BY submitted_at DESC
+        LIMIT ${limit}
+      `;
+
+  const results = leads.map((l: any) => {
+    const svcs = l.services || [];
+    const primaryService = svcs[0] || 'unknown';
+    const serviceName = SERVICE_NAMES[primaryService] || primaryService;
+    const price = SERVICE_PRICES[primaryService] || 45;
+    const hoursAgo = Math.round((Date.now() - new Date(l.submitted_at).getTime()) / 3600000);
+    const hoursLeft = Math.max(0, 72 - hoursAgo); // 72h window
+
+    return {
+      id: l.id,
+      zip: l.zip || 'NJ',
+      services: svcs.map((s: string) => SERVICE_NAMES[s] || s),
+      servicePrimary: serviceName,
+      notes: l.notes ? (l.notes.length > 80 ? l.notes.slice(0, 80) + '...' : l.notes) : '',
+      price,
+      spots: { taken: parseInt(l.assignments) || 0, total: 3 },
+      hoursLeft,
+      isNew: hoursAgo <= 6,
+      isClosing: hoursLeft <= 12 && hoursLeft > 0,
+      submitted: l.submitted_at,
+    };
+  });
+
+  return NextResponse.json({ leads: results, total: results.length });
+}
