@@ -8,15 +8,15 @@ const SERVICE_NAMES: Record<string, string> = {
   locksmith: 'LockCrafter', housekeeper: 'CleanCrafter',
   woodflooring: 'FloorCrafter', carpet: 'CarpetCrafter', hvac: 'HVACCrafter',
   landscaping: 'LawnCrafter', irrigation: 'LawnCrafter',
-  concrete: 'ConcreteCrafter', kitchen: 'RemodelCrafter', bathroom: 'RemodelCrafter',
-  gutters: 'GutterCrafter', pestcontrol: 'PestCrafter', handyman: 'HandyCrafter'
+  concrete: 'ConcreteCrafter', kitchen: 'KitchenCrafter', bathroom: 'BathroomCrafter',
+  pestcontrol: 'PestCrafter', handyman: 'HandyCrafter', security: 'SecureCrafter'
 };
 
 const SERVICE_PRICES: Record<string, number> = {
   fencing: 45, roofing: 65, windows: 65, siding: 65, painting: 49, paint: 49,
   locksmith: 24, housekeeper: 45, woodflooring: 55, carpet: 55, hvac: 66,
   landscaping: 54, irrigation: 54, concrete: 54, kitchen: 80, bathroom: 80,
-  gutters: 45, pestcontrol: 48, handyman: 40
+  pestcontrol: 48, handyman: 40, security: 55
 };
 
 export async function GET(req: NextRequest) {

@@ -618,11 +618,6 @@ body {
       <div class="alacarte-price">$55<span class="alacarte-unit">/lead</span></div>
     </div>
     <div class="alacarte-card">
-      <div class="alacarte-icon">🌧️</div>
-      <div class="alacarte-name">GutterCrafter</div>
-      <div class="alacarte-price">$45<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
       <div class="alacarte-icon">🔧</div>
       <div class="alacarte-name">HandyCrafter</div>
       <div class="alacarte-price">$40<span class="alacarte-unit">/lead</span></div>
@@ -654,13 +649,18 @@ body {
     </div>
     <div class="alacarte-card">
       <div class="alacarte-icon">🏗️</div>
-      <div class="alacarte-name">RemodelCrafter</div>
+      <div class="alacarte-name">KitchenCrafter / BathroomCrafter</div>
       <div class="alacarte-price">$80<span class="alacarte-unit">/lead</span></div>
     </div>
     <div class="alacarte-card">
       <div class="alacarte-icon">🏠</div>
       <div class="alacarte-name">RoofCrafter</div>
       <div class="alacarte-price">$65<span class="alacarte-unit">/lead</span></div>
+    </div>
+    <div class="alacarte-card">
+      <div class="alacarte-icon">🛡️</div>
+      <div class="alacarte-name">SecureCrafter</div>
+      <div class="alacarte-price">$55<span class="alacarte-unit">/lead</span></div>
     </div>
     <div class="alacarte-card">
       <div class="alacarte-icon">📐</div>
@@ -686,14 +686,14 @@ body {
       <button class="bundle-pill active" data-bundle="exterior">Exterior</button>
       <button class="bundle-pill" data-bundle="fencecrafter">FenceCrafter</button>
       <button class="bundle-pill" data-bundle="floorcrafter">FloorCrafter</button>
-      <button class="bundle-pill" data-bundle="guttercrafter">GutterCrafter</button>
       <button class="bundle-pill" data-bundle="handycrafter">HandyCrafter</button>
       <button class="bundle-pill" data-bundle="hvaccrafter">HVACCrafter</button>
       <button class="bundle-pill" data-bundle="lawncrafter">LawnCrafter</button>
       <button class="bundle-pill" data-bundle="lockcrafter">LockCrafter</button>
       <button class="bundle-pill" data-bundle="paintcrafter">PaintCrafter</button>
       <button class="bundle-pill" data-bundle="pestcrafter">PestCrafter</button>
-      <button class="bundle-pill" data-bundle="remodelcrafter">RemodelCrafter</button>
+      <button class="bundle-pill" data-bundle="remodelcrafter">Kitchen & Bath</button>
+      <button class="bundle-pill" data-bundle="securecrafter">SecureCrafter</button>
     </div>
 
     <div id="bundleTitle" class="section-title" style="font-size:1.4rem;"></div>
@@ -776,14 +776,14 @@ var trades = {
   exterior:        { name: 'Exterior Bundle', subtitle: 'RoofCrafter · SidingCrafter · WindowCrafter — $65/lead à la carte', price: 65 },
   fencecrafter:    { name: 'Fencing Bundle', subtitle: 'FenceCrafter — $45/lead à la carte', price: 45 },
   floorcrafter:    { name: 'FloorCrafter Bundle', subtitle: 'Wood Flooring — $55/lead à la carte', price: 55 },
-  guttercrafter:   { name: 'GutterCrafter Bundle', subtitle: 'Gutters — $45/lead à la carte', price: 45 },
   handycrafter:    { name: 'HandyCrafter Bundle', subtitle: 'Handyman — $40/lead à la carte', price: 40 },
   hvaccrafter:     { name: 'HVACCrafter Bundle', subtitle: 'HVAC — $66/lead à la carte', price: 66 },
   lawncrafter:     { name: 'LawnCrafter Bundle', subtitle: 'Landscaping + Irrigation — $54/lead à la carte', price: 54 },
   lockcrafter:     { name: 'LockCrafter Bundle', subtitle: 'Locksmith — $24/lead à la carte', price: 24 },
   paintcrafter:    { name: 'Painting Bundle', subtitle: 'PaintCrafter — $49/lead à la carte', price: 49 },
   pestcrafter:     { name: 'PestCrafter Bundle', subtitle: 'Pest Control — $48/lead à la carte', price: 48 },
-  remodelcrafter:  { name: 'RemodelCrafter Bundle', subtitle: 'Kitchen + Bathroom Remodeling — $80/lead à la carte', price: 80 }
+  remodelcrafter:  { name: 'Kitchen & Bath Bundle', subtitle: 'KitchenCrafter + BathroomCrafter — $80/lead à la carte', price: 80 },
+  securecrafter:   { name: 'SecureCrafter Bundle', subtitle: 'Alarm Systems & Video Surveillance — $55/lead à la carte', price: 55 }
 };
 
 function fmt(n) {

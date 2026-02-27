@@ -12,8 +12,9 @@ const SERVICE_NAMES: Record<string, string> = {
   locksmith: 'LockCrafter', housekeeper: 'CleanCrafter',
   woodflooring: 'FloorCrafter', carpet: 'CarpetCrafter', hvac: 'HVACCrafter',
   landscaping: 'LawnCrafter', irrigation: 'LawnCrafter',
-  concrete: 'ConcreteCrafter', kitchen: 'RemodelCrafter', bathroom: 'RemodelCrafter',
-  gutters: 'GutterCrafter', pestcontrol: 'PestCrafter', handyman: 'HandyCrafter'
+  concrete: 'ConcreteCrafter', kitchen: 'KitchenCrafter', bathroom: 'BathroomCrafter',
+  pestcontrol: 'PestCrafter', handyman: 'HandyCrafter',
+  security: 'SecureCrafter'
 };
 
 // Category mapping for DB queries
@@ -34,9 +35,9 @@ const SERVICE_TO_CATEGORY: Record<string, string[]> = {
   concrete: ['concrete'],
   kitchen: ['kitchen', 'bathroom'],
   bathroom: ['kitchen', 'bathroom'],
-  gutters: ['gutters'],
   pestcontrol: ['pestcontrol'],
   handyman: ['handyman'],
+  security: ['security'],
 };
 
 const RADIUS_MILES = 30;
