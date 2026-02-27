@@ -4,11 +4,19 @@ import sql from '@/lib/db';
 
 const SERVICE_NAMES: Record<string, string> = {
   fencing: 'FenceCrafter', roofing: 'RoofCrafter', windows: 'WindowCrafter',
-  siding: 'SidingCrafter', painting: 'PaintCrafter', paint: 'PaintCrafter'
+  siding: 'SidingCrafter', painting: 'PaintCrafter', paint: 'PaintCrafter',
+  locksmith: 'LockCrafter', housekeeper: 'CleanCrafter',
+  woodflooring: 'FloorCrafter', carpet: 'CarpetCrafter', hvac: 'HVACCrafter',
+  landscaping: 'LawnCrafter', irrigation: 'LawnCrafter',
+  concrete: 'ConcreteCrafter', kitchen: 'KitchenCrafter', bathroom: 'BathCrafter',
+  gutters: 'GutterCrafter', pestcontrol: 'PestCrafter', handyman: 'HandyCrafter'
 };
 
 const SERVICE_PRICES: Record<string, number> = {
-  fencing: 45, roofing: 65, windows: 65, siding: 65, painting: 49, paint: 49
+  fencing: 45, roofing: 65, windows: 65, siding: 65, painting: 49, paint: 49,
+  locksmith: 24, housekeeper: 45, woodflooring: 55, carpet: 55, hvac: 66,
+  landscaping: 54, irrigation: 54, concrete: 54, kitchen: 80, bathroom: 80,
+  gutters: 45, pestcontrol: 48, handyman: 40
 };
 
 export async function GET(req: NextRequest) {

@@ -8,7 +8,12 @@ import { getZipCoords } from '@/lib/geo';
 // Service name mapping
 const SERVICE_NAMES: Record<string, string> = {
   fencing: 'FenceCrafter', roofing: 'RoofCrafter', windows: 'WindowCrafter',
-  siding: 'SidingCrafter', painting: 'PaintCrafter', paint: 'PaintCrafter'
+  siding: 'SidingCrafter', painting: 'PaintCrafter', paint: 'PaintCrafter',
+  locksmith: 'LockCrafter', housekeeper: 'CleanCrafter',
+  woodflooring: 'FloorCrafter', carpet: 'CarpetCrafter', hvac: 'HVACCrafter',
+  landscaping: 'LawnCrafter', irrigation: 'LawnCrafter',
+  concrete: 'ConcreteCrafter', kitchen: 'KitchenCrafter', bathroom: 'BathCrafter',
+  gutters: 'GutterCrafter', pestcontrol: 'PestCrafter', handyman: 'HandyCrafter'
 };
 
 // Category mapping for DB queries
@@ -19,6 +24,19 @@ const SERVICE_TO_CATEGORY: Record<string, string[]> = {
   siding: ['siding'],
   painting: ['paint'],
   paint: ['paint'],
+  locksmith: ['locksmith'],
+  housekeeper: ['housekeeper'],
+  woodflooring: ['woodflooring'],
+  carpet: ['carpet'],
+  hvac: ['hvac'],
+  landscaping: ['landscaping', 'irrigation'],
+  irrigation: ['landscaping', 'irrigation'],
+  concrete: ['concrete'],
+  kitchen: ['kitchen'],
+  bathroom: ['bathroom'],
+  gutters: ['gutters'],
+  pestcontrol: ['pestcontrol'],
+  handyman: ['handyman'],
 };
 
 const RADIUS_MILES = 30;

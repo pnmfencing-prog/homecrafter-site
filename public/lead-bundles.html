@@ -7,520 +7,104 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 :root {
-  --midnight: #1e1845;
-  --midnight-light: #2a2260;
-  --gold: #c4aa6a;
-  --gold-light: #d4c394;
-  --cream: #faf9f6;
-  --cream-dark: #f0ede6;
-  --text: #2d2d2d;
-  --text-muted: #6b6b6b;
+  --midnight: #1e1845; --midnight-light: #2a2260; --gold: #c4aa6a; --gold-light: #d4c394;
+  --cream: #faf9f6; --cream-dark: #f0ede6; --text: #2d2d2d; --text-muted: #6b6b6b;
 }
+body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--text); line-height: 1.6; min-height: 100vh; }
 
-body {
-  font-family: 'Montserrat', sans-serif;
-  background: var(--cream);
-  color: var(--text);
-  line-height: 1.6;
-  min-height: 100vh;
-}
+.header { background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%); padding: 2.5rem 1.5rem 2rem; text-align: center; position: relative; overflow: hidden; }
+.header::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at 30% 50%, rgba(196,170,106,0.08) 0%, transparent 60%); pointer-events: none; }
+.logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 2.2rem; letter-spacing: 0.35em; color: var(--gold); text-transform: uppercase; margin-bottom: 0.4rem; }
+.header-subtitle { font-weight: 300; font-size: 0.8rem; letter-spacing: 0.2em; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+.gold-rule { width: 60px; height: 1px; background: var(--gold); margin: 1rem auto 0; opacity: 0.5; }
 
-/* Header */
-.header {
-  background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%);
-  padding: 2.5rem 1.5rem 2rem;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-}
-.header::before {
-  content: '';
-  position: absolute;
-  top: -50%; left: -50%;
-  width: 200%; height: 200%;
-  background: radial-gradient(ellipse at 30% 50%, rgba(196,170,106,0.08) 0%, transparent 60%);
-  pointer-events: none;
-}
-.logo {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 300;
-  font-size: 2.2rem;
-  letter-spacing: 0.35em;
-  color: var(--gold);
-  text-transform: uppercase;
-  margin-bottom: 0.4rem;
-}
-.header-subtitle {
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 300;
-  font-size: 0.8rem;
-  letter-spacing: 0.2em;
-  color: rgba(255,255,255,0.6);
-  text-transform: uppercase;
-}
-.gold-rule {
-  width: 60px; height: 1px;
-  background: var(--gold);
-  margin: 1rem auto 0;
-  opacity: 0.5;
-}
-
-/* Nav */
-.nav {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  padding: 0.85rem 1.5rem;
-  background: #fff;
-  border-bottom: 1px solid var(--cream-dark);
-  flex-wrap: wrap;
-}
-.nav a {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  text-decoration: none;
-  transition: color 0.3s;
-}
+.nav { display: flex; justify-content: center; gap: 1.5rem; padding: 0.85rem 1.5rem; background: #fff; border-bottom: 1px solid var(--cream-dark); flex-wrap: wrap; }
+.nav a { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); text-decoration: none; transition: color 0.3s; }
 .nav a:hover { color: var(--midnight); }
 .nav a.active { color: var(--gold); }
 
-/* Container */
-.container {
-  max-width: 780px;
-  margin: 0 auto;
-  padding: 2rem 1.25rem 3rem;
-}
+.container { max-width: 780px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
 
-/* Hero */
-.hero {
-  text-align: center;
-  margin-bottom: 3rem;
-}
-.hero h1 {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 600;
-  font-size: 2.4rem;
-  color: var(--midnight);
-  margin-bottom: 0.5rem;
-}
-.hero p {
-  font-weight: 300;
-  font-size: 1.05rem;
-  color: var(--text-muted);
-  letter-spacing: 0.02em;
-}
+.hero { text-align: center; margin-bottom: 3rem; }
+.hero h1 { font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 2.4rem; color: var(--midnight); margin-bottom: 0.5rem; }
+.hero p { font-weight: 300; font-size: 1.05rem; color: var(--text-muted); letter-spacing: 0.02em; }
 
-/* Section titles */
-.section-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 600;
-  font-size: 1.6rem;
-  color: var(--midnight);
-  text-align: center;
-  margin-bottom: 0.4rem;
-}
-.section-subtitle {
-  text-align: center;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  font-weight: 300;
-  margin-bottom: 1.5rem;
-}
+.section-title { font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 1.6rem; color: var(--midnight); text-align: center; margin-bottom: 0.4rem; }
+.section-subtitle { text-align: center; font-size: 0.85rem; color: var(--text-muted); font-weight: 300; margin-bottom: 1.5rem; }
 
 /* À la carte grid */
-.alacarte-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 3rem;
-}
-.alacarte-card {
-  background: #fff;
-  border: 1px solid var(--cream-dark);
-  border-radius: 12px;
-  padding: 1.4rem 1.2rem;
-  text-align: center;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.alacarte-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(30,24,69,0.08);
-}
-.alacarte-icon {
-  font-size: 1.8rem;
-  margin-bottom: 0.5rem;
-}
-.alacarte-name {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--midnight);
-  margin-bottom: 0.3rem;
-}
-.alacarte-price {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 700;
-  font-size: 1.5rem;
-  color: var(--gold);
-}
-.alacarte-unit {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  font-weight: 400;
-}
+.alacarte-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.8rem; margin-bottom: 3rem; }
+.alacarte-card { background: #fff; border: 1px solid var(--cream-dark); border-radius: 12px; padding: 1.2rem 1rem; text-align: center; transition: transform 0.2s, box-shadow 0.2s; }
+.alacarte-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(30,24,69,0.08); }
+.alacarte-icon { font-size: 1.6rem; margin-bottom: 0.4rem; }
+.alacarte-name { font-weight: 600; font-size: 0.78rem; color: var(--midnight); margin-bottom: 0.2rem; }
+.alacarte-price { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 1.3rem; color: var(--gold); }
+.alacarte-unit { font-size: 0.65rem; color: var(--text-muted); font-weight: 400; }
 
-/* Bundle packs */
+/* Bundle selector */
+.bundle-selector { text-align: center; margin-bottom: 1.5rem; }
+.bundle-selector select {
+  padding: 0.7rem 2.5rem 0.7rem 1.2rem; border-radius: 50px; border: 2px solid var(--gold);
+  background: #fff; font-family: 'Montserrat', sans-serif; font-size: 0.85rem; font-weight: 600;
+  color: var(--midnight); cursor: pointer; outline: none; transition: all 0.3s;
+  appearance: none; -webkit-appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%231e1845" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat; background-position: right 14px center; background-size: 18px;
+}
+.bundle-selector select:hover { border-color: var(--midnight); }
+
+/* Bundle cards */
 .bundles-section { margin-bottom: 3rem; }
-.bundles-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-.bundle-card {
-  background: #fff;
-  border: 1px solid var(--cream-dark);
-  border-radius: 14px;
-  padding: 1.8rem 1.4rem;
-  text-align: center;
-  position: relative;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.bundle-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(30,24,69,0.08);
-}
-.bundle-card.popular {
-  border: 2px solid var(--gold);
-  background: linear-gradient(180deg, rgba(196,170,106,0.04) 0%, #fff 40%);
-}
-.bundle-badge {
-  position: absolute;
-  top: -11px; left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, var(--gold), var(--gold-light));
-  color: #fff;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 0.3rem 1rem;
-  border-radius: 20px;
-  white-space: nowrap;
-}
-.bundle-count {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 600;
-  font-size: 1.3rem;
-  color: var(--midnight);
-  margin-bottom: 0.3rem;
-}
-.bundle-price {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 700;
-  font-size: 2.2rem;
-  color: var(--gold);
-}
-.bundle-per {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin-bottom: 0.3rem;
-}
-.bundle-save {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--midnight-light);
-  background: rgba(196,170,106,0.12);
-  display: inline-block;
-  padding: 0.2rem 0.7rem;
-  border-radius: 20px;
-}
-.bundles-note {
-  text-align: center;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-style: italic;
-  margin-top: 0.8rem;
-}
-
-/* Subscription comparison */
-.comparison-section {
-  background: linear-gradient(135deg, var(--midnight) 0%, var(--midnight-light) 100%);
-  border-radius: 16px;
-  padding: 2.5rem 1.5rem;
-  margin-bottom: 3rem;
-  color: #fff;
-  text-align: center;
-}
-.comparison-section .section-title {
-  color: var(--gold-light);
-  margin-bottom: 0.6rem;
-}
-.comparison-math {
-  background: rgba(255,255,255,0.08);
-  border-radius: 10px;
-  padding: 1.2rem;
-  margin: 1.2rem auto;
-  max-width: 500px;
-  font-size: 0.88rem;
-  line-height: 1.8;
-}
-.comparison-math .vs {
-  display: block;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1rem;
-  color: var(--gold);
-  margin: 0.4rem 0;
-}
-.comparison-math .highlight {
-  color: var(--gold-light);
-  font-weight: 600;
-}
-.sub-tiers {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 0.8rem;
-  margin: 1.5rem 0 1rem;
-}
-.sub-tier {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 10px;
-  padding: 1.2rem 1rem;
-}
-.sub-tier.highlighted {
-  border-color: var(--gold);
-  background: rgba(196,170,106,0.1);
-}
-.sub-tier-name {
-  font-weight: 600;
-  font-size: 0.85rem;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.2rem;
-}
-.sub-tier-price {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 700;
-  font-size: 1.6rem;
-  color: var(--gold);
-}
-.sub-tier-per {
-  font-size: 0.7rem;
-  opacity: 0.6;
-}
-.sub-tier-desc {
-  font-size: 0.75rem;
-  opacity: 0.7;
-  margin-top: 0.3rem;
-}
-.comparison-free {
-  font-size: 0.82rem;
-  color: var(--gold-light);
-  margin: 1rem 0;
-  font-weight: 500;
-}
-
-/* Buttons */
-.btn-gold {
-  display: inline-block;
-  background: linear-gradient(135deg, var(--gold), var(--gold-light));
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 0.85rem 2rem;
-  border-radius: 8px;
-  text-decoration: none;
-  transition: transform 0.2s, box-shadow 0.2s;
-  border: none;
-  cursor: pointer;
-}
-.btn-gold:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(196,170,106,0.35);
-}
-.btn-outline {
-  display: inline-block;
-  background: transparent;
-  color: var(--gold);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 0.8rem 2rem;
-  border-radius: 8px;
-  border: 2px solid var(--gold);
-  text-decoration: none;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-.btn-outline:hover {
-  background: var(--gold);
-  color: #fff;
-}
-.btn-outline-white {
-  display: inline-block;
-  background: transparent;
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 0.8rem 2rem;
-  border-radius: 8px;
-  border: 2px solid rgba(255,255,255,0.3);
-  text-decoration: none;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-.btn-outline-white:hover {
-  background: rgba(255,255,255,0.1);
-  border-color: rgba(255,255,255,0.6);
-}
+.bundles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
+.bundle-card { background: #fff; border: 1px solid var(--cream-dark); border-radius: 14px; padding: 1.8rem 1.4rem; text-align: center; position: relative; transition: transform 0.2s, box-shadow 0.2s; }
+.bundle-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(30,24,69,0.08); }
+.bundle-card.popular { border: 2px solid var(--gold); background: linear-gradient(180deg, rgba(196,170,106,0.04) 0%, #fff 40%); }
+.bundle-badge { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--gold), var(--gold-light)); color: #fff; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.3rem 1rem; border-radius: 20px; white-space: nowrap; }
+.bundle-count { font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 1.3rem; color: var(--midnight); margin-bottom: 0.3rem; }
+.bundle-price { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 2.2rem; color: var(--gold); }
+.bundle-per { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.3rem; }
+.bundle-save { font-size: 0.75rem; font-weight: 600; color: var(--midnight-light); background: rgba(196,170,106,0.12); display: inline-block; padding: 0.2rem 0.7rem; border-radius: 20px; }
+.bundles-note { text-align: center; font-size: 0.8rem; color: var(--text-muted); font-style: italic; margin-top: 0.8rem; }
+#bundle-title { font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 1.4rem; color: var(--midnight); text-align: center; margin-bottom: 0.3rem; }
+#bundle-subtitle { text-align: center; font-size: 0.82rem; color: var(--text-muted); font-weight: 300; margin-bottom: 1.5rem; }
 
 /* How it works */
 .how-section { margin-bottom: 3rem; }
-.steps {
-  display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-  margin-top: 1.5rem;
-}
-.step {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  background: #fff;
-  border-radius: 12px;
-  padding: 1.2rem;
-  border: 1px solid var(--cream-dark);
-}
-.step-num {
-  flex-shrink: 0;
-  width: 38px; height: 38px;
-  background: linear-gradient(135deg, var(--midnight), var(--midnight-light));
-  color: var(--gold);
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 700;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-}
-.step-text {
-  font-size: 0.88rem;
-}
-.step-text strong {
-  display: block;
-  color: var(--midnight);
-  margin-bottom: 0.15rem;
-}
-.how-note {
-  text-align: center;
-  margin-top: 1.2rem;
-  background: rgba(196,170,106,0.1);
-  border-radius: 10px;
-  padding: 1rem;
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: var(--midnight);
-}
+.steps { display: flex; flex-direction: column; gap: 1.2rem; margin-top: 1.5rem; }
+.step { display: flex; align-items: flex-start; gap: 1rem; background: #fff; border-radius: 12px; padding: 1.2rem; border: 1px solid var(--cream-dark); }
+.step-num { flex-shrink: 0; width: 38px; height: 38px; background: linear-gradient(135deg, var(--midnight), var(--midnight-light)); color: var(--gold); font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.step-text { font-size: 0.88rem; }
+.step-text strong { display: block; color: var(--midnight); margin-bottom: 0.15rem; }
+.how-note { text-align: center; margin-top: 1.2rem; background: rgba(196,170,106,0.1); border-radius: 10px; padding: 1rem; font-size: 0.82rem; font-weight: 500; color: var(--midnight); }
 
 /* FAQ */
 .faq-section { margin-bottom: 3rem; }
-.faq-item {
-  background: #fff;
-  border: 1px solid var(--cream-dark);
-  border-radius: 10px;
-  margin-bottom: 0.6rem;
-  overflow: hidden;
-}
-.faq-q {
-  padding: 1rem 1.2rem;
-  font-weight: 600;
-  font-size: 0.88rem;
-  color: var(--midnight);
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  user-select: none;
-}
-.faq-q::after {
-  content: '+';
-  font-size: 1.2rem;
-  color: var(--gold);
-  font-weight: 300;
-  transition: transform 0.2s;
-}
-.faq-item.open .faq-q::after {
-  content: '−';
-}
-.faq-a {
-  padding: 0 1.2rem 1rem;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  line-height: 1.7;
-  display: none;
-}
+.faq-item { background: #fff; border: 1px solid var(--cream-dark); border-radius: 10px; margin-bottom: 0.6rem; overflow: hidden; }
+.faq-q { padding: 1rem 1.2rem; font-weight: 600; font-size: 0.88rem; color: var(--midnight); cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+.faq-q::after { content: '+'; font-size: 1.2rem; color: var(--gold); font-weight: 300; transition: transform 0.2s; }
+.faq-item.open .faq-q::after { content: '−'; }
+.faq-a { padding: 0 1.2rem 1rem; font-size: 0.82rem; color: var(--text-muted); line-height: 1.7; display: none; }
 .faq-item.open .faq-a { display: block; }
 
 /* Final CTA */
-.final-cta {
-  text-align: center;
-  padding: 2.5rem 1.5rem;
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid var(--cream-dark);
-  margin-bottom: 2rem;
-}
-.final-cta h2 {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 600;
-  font-size: 1.8rem;
-  color: var(--midnight);
-  margin-bottom: 1rem;
-}
-.final-cta .cta-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
+.final-cta { text-align: center; padding: 2.5rem 1.5rem; background: #fff; border-radius: 16px; border: 1px solid var(--cream-dark); margin-bottom: 2rem; }
+.final-cta h2 { font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 1.8rem; color: var(--midnight); margin-bottom: 1rem; }
+.btn-gold { display: inline-block; background: linear-gradient(135deg, var(--gold), var(--gold-light)); color: #fff; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.85rem 2rem; border-radius: 8px; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s; border: none; cursor: pointer; }
+.btn-gold:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(196,170,106,0.35); }
+.btn-outline { display: inline-block; background: transparent; color: var(--gold); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.8rem 2rem; border-radius: 8px; border: 2px solid var(--gold); text-decoration: none; transition: all 0.2s; cursor: pointer; }
+.btn-outline:hover { background: var(--gold); color: #fff; }
+.cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
 
-/* Footer */
-.footer {
-  text-align: center;
-  padding: 2rem 1.5rem;
-  border-top: 1px solid var(--cream-dark);
-}
-.footer-logo {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 300;
-  font-size: 1.2rem;
-  letter-spacing: 0.3em;
-  color: var(--gold);
-  text-transform: uppercase;
-  margin-bottom: 0.3rem;
-}
-.footer-text {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  letter-spacing: 0.05em;
-}
+.footer { text-align: center; padding: 2rem 1.5rem; border-top: 1px solid var(--cream-dark); }
+.footer-logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.2rem; letter-spacing: 0.3em; color: var(--gold); text-transform: uppercase; margin-bottom: 0.3rem; }
+.footer-text { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.05em; }
 
 @media (max-width: 600px) {
   .logo { font-size: 1.6rem; letter-spacing: 0.15em; }
   .hero h1 { font-size: 1.8rem; }
   .alacarte-grid { grid-template-columns: repeat(2, 1fr); }
   .bundles-grid { grid-template-columns: 1fr; }
-  .sub-tiers { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -529,7 +113,7 @@ body {
 <div style="background:#1e1845;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
   <a href="/services.html" style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;letter-spacing:3px;color:#d4c394;text-decoration:none">HOMECRAFTER</a>
   <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
-        <a href="/leads-dashboard.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">Leads</a>
+    <a href="/leads-dashboard.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">Leads</a>
     <a href="/lead-bundles.html" style="color:#d4c394;text-decoration:none;font-size:12px;font-weight:500">Bundles</a>
     <a href="/ai-assistant.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">AI Assistant</a>
     <a href="/pro-dashboard.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;font-weight:500">My Dashboard</a>
@@ -551,7 +135,6 @@ body {
 
 <div class="container">
 
-  <!-- Hero -->
   <div class="hero">
     <h1>Lead Bundles</h1>
     <p>Buy leads on your terms — credits never expire</p>
@@ -561,112 +144,54 @@ body {
   <div class="section-title">À La Carte Leads</div>
   <div class="section-subtitle">Purchase individual leads by service</div>
   <div class="alacarte-grid">
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🏡</div>
-      <div class="alacarte-name">FenceCrafter</div>
-      <div class="alacarte-price">$45<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🏠</div>
-      <div class="alacarte-name">RoofCrafter</div>
-      <div class="alacarte-price">$65<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🪟</div>
-      <div class="alacarte-name">WindowCrafter</div>
-      <div class="alacarte-price">$65<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🧱</div>
-      <div class="alacarte-name">SidingCrafter</div>
-      <div class="alacarte-price">$65<span class="alacarte-unit">/lead</span></div>
-    </div>
-    <div class="alacarte-card">
-      <div class="alacarte-icon">🎨</div>
-      <div class="alacarte-name">PaintCrafter</div>
-      <div class="alacarte-price">$49<span class="alacarte-unit">/lead</span></div>
-    </div>
+    <div class="alacarte-card"><div class="alacarte-icon">🛁</div><div class="alacarte-name">BathCrafter</div><div class="alacarte-price">$80<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🧶</div><div class="alacarte-name">CarpetCrafter</div><div class="alacarte-price">$55<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🧹</div><div class="alacarte-name">CleanCrafter</div><div class="alacarte-price">$45<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🧱</div><div class="alacarte-name">ConcreteCrafter</div><div class="alacarte-price">$54<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🏡</div><div class="alacarte-name">FenceCrafter</div><div class="alacarte-price">$45<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🪵</div><div class="alacarte-name">FloorCrafter</div><div class="alacarte-price">$55<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🌧️</div><div class="alacarte-name">GutterCrafter</div><div class="alacarte-price">$45<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🔧</div><div class="alacarte-name">HandyCrafter</div><div class="alacarte-price">$40<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">❄️</div><div class="alacarte-name">HVACCrafter</div><div class="alacarte-price">$66<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🍳</div><div class="alacarte-name">KitchenCrafter</div><div class="alacarte-price">$80<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🌿</div><div class="alacarte-name">LawnCrafter</div><div class="alacarte-price">$54<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🔐</div><div class="alacarte-name">LockCrafter</div><div class="alacarte-price">$24<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🎨</div><div class="alacarte-name">PaintCrafter</div><div class="alacarte-price">$49<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🐛</div><div class="alacarte-name">PestCrafter</div><div class="alacarte-price">$48<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🏠</div><div class="alacarte-name">RoofCrafter</div><div class="alacarte-price">$65<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">📐</div><div class="alacarte-name">SidingCrafter</div><div class="alacarte-price">$65<span class="alacarte-unit">/lead</span></div></div>
+    <div class="alacarte-card"><div class="alacarte-icon">🪟</div><div class="alacarte-name">WindowCrafter</div><div class="alacarte-price">$65<span class="alacarte-unit">/lead</span></div></div>
   </div>
 
-  <!-- Exterior Bundle -->
-  <div class="bundles-section">
-    <div class="section-title">Exterior Bundle</div>
-    <div class="section-subtitle">RoofCrafter · SidingCrafter · WindowCrafter — $65/lead à la carte</div>
-    <div class="bundles-grid">
-      <div class="bundle-card">
-        <div class="bundle-count">10-Pack</div>
-        <div class="bundle-price">$585</div>
-        <div class="bundle-per">$58.50/lead</div>
-        <div class="bundle-save">Save 10%</div>
-      </div>
-      <div class="bundle-card popular">
-        <div class="bundle-badge">Best Value</div>
-        <div class="bundle-count">25-Pack</div>
-        <div class="bundle-price">$1,380</div>
-        <div class="bundle-per">$55.20/lead</div>
-        <div class="bundle-save">Save 15%</div>
-      </div>
-      <div class="bundle-card">
-        <div class="bundle-count">50-Pack</div>
-        <div class="bundle-price">$2,600</div>
-        <div class="bundle-per">$52/lead</div>
-        <div class="bundle-save">Save 20%</div>
-      </div>
-    </div>
+  <!-- Bundle Packs -->
+  <div class="section-title">Bundle Packs</div>
+  <div class="section-subtitle">Select a trade to see discounted bundles</div>
+
+  <div class="bundle-selector">
+    <select id="bundleSelect">
+      <option value="">— Choose a trade —</option>
+      <option value="bathcrafter">BathCrafter — $80/lead</option>
+      <option value="carpetcrafter">CarpetCrafter — $55/lead</option>
+      <option value="cleancrafter">CleanCrafter — $45/lead</option>
+      <option value="concretecrafter">ConcreteCrafter — $54/lead</option>
+      <option value="exterior">Exterior (Roof · Siding · Window) — $65/lead</option>
+      <option value="fencecrafter">FenceCrafter — $45/lead</option>
+      <option value="floorcrafter">FloorCrafter — $55/lead</option>
+      <option value="guttercrafter">GutterCrafter — $45/lead</option>
+      <option value="handycrafter">HandyCrafter — $40/lead</option>
+      <option value="hvaccrafter">HVACCrafter — $66/lead</option>
+      <option value="kitchencrafter">KitchenCrafter — $80/lead</option>
+      <option value="lawncrafter">LawnCrafter (Landscape + Irrigation) — $54/lead</option>
+      <option value="lockcrafter">LockCrafter — $24/lead</option>
+      <option value="paintcrafter">PaintCrafter — $49/lead</option>
+      <option value="pestcrafter">PestCrafter — $48/lead</option>
+    </select>
   </div>
 
-  <!-- Fencing Bundle -->
-  <div class="bundles-section">
-    <div class="section-title">Fencing Bundle</div>
-    <div class="section-subtitle">FenceCrafter — $45/lead à la carte</div>
-    <div class="bundles-grid">
-      <div class="bundle-card">
-        <div class="bundle-count">10-Pack</div>
-        <div class="bundle-price">$405</div>
-        <div class="bundle-per">$40.50/lead</div>
-        <div class="bundle-save">Save 10%</div>
-      </div>
-      <div class="bundle-card popular">
-        <div class="bundle-badge">Best Value</div>
-        <div class="bundle-count">25-Pack</div>
-        <div class="bundle-price">$955</div>
-        <div class="bundle-per">$38.20/lead</div>
-        <div class="bundle-save">Save 15%</div>
-      </div>
-      <div class="bundle-card">
-        <div class="bundle-count">50-Pack</div>
-        <div class="bundle-price">$1,800</div>
-        <div class="bundle-per">$36/lead</div>
-        <div class="bundle-save">Save 20%</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Painting Bundle -->
-  <div class="bundles-section">
-    <div class="section-title">Painting Bundle</div>
-    <div class="section-subtitle">PaintCrafter — $49/lead à la carte</div>
-    <div class="bundles-grid">
-      <div class="bundle-card">
-        <div class="bundle-count">10-Pack</div>
-        <div class="bundle-price">$440</div>
-        <div class="bundle-per">$44/lead</div>
-        <div class="bundle-save">Save 10%</div>
-      </div>
-      <div class="bundle-card popular">
-        <div class="bundle-badge">Best Value</div>
-        <div class="bundle-count">25-Pack</div>
-        <div class="bundle-price">$1,040</div>
-        <div class="bundle-per">$41.60/lead</div>
-        <div class="bundle-save">Save 15%</div>
-      </div>
-      <div class="bundle-card">
-        <div class="bundle-count">50-Pack</div>
-        <div class="bundle-price">$1,960</div>
-        <div class="bundle-per">$39.20/lead</div>
-        <div class="bundle-save">Save 20%</div>
-      </div>
-    </div>
+  <div id="bundleDisplay" style="display:none;">
+    <div id="bundle-title"></div>
+    <div id="bundle-subtitle"></div>
+    <div class="bundles-grid" id="bundleCards"></div>
     <div class="bundles-note">Bundle credits never expire — use them whenever you're ready</div>
   </div>
 
@@ -674,18 +199,9 @@ body {
   <div class="how-section">
     <div class="section-title">How It Works</div>
     <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-text"><strong>Purchase a bundle</strong>Choose à la carte leads or a discounted pack that fits your business.</div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-text"><strong>Receive leads in your service area</strong>We match you with homeowners actively seeking your services nearby.</div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-text"><strong>Get full contact info for each lead</strong>Name, address, phone, email, property details, and project notes — everything you need to close.</div>
-      </div>
+      <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Purchase a bundle</strong>Choose à la carte leads or a discounted pack that fits your business.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text"><strong>Receive leads in your service area</strong>We match you with homeowners actively seeking your services nearby.</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Get full contact info for each lead</strong>Name, address, phone, email, property details, and project notes — everything you need to close.</div></div>
     </div>
     <div class="how-note">Max 3 contractors per lead — not 10+ like other platforms</div>
   </div>
@@ -700,7 +216,7 @@ body {
       </div>
       <div class="faq-item">
         <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Which bundle is right for me?</div>
-        <div class="faq-a">Choose the bundle that matches your trade — Exterior (roofing, siding, windows), Fencing, or Painting. If you're just getting started, a 10-pack is a great way to test the waters. The 25-pack offers the best balance of savings and commitment, while the 50-pack maximizes your discount at 20% off.</div>
+        <div class="faq-a">Choose the bundle that matches your trade from the dropdown above. If you're just getting started, a 10-pack is a great way to test the waters. The 25-pack offers the best balance of savings and commitment, while the 50-pack maximizes your discount at 20% off.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">How quickly do I receive leads?</div>
@@ -721,7 +237,7 @@ body {
   <div class="final-cta">
     <h2>Ready to Grow?</h2>
     <div class="cta-buttons">
-      <a href="#bundles" class="btn-gold" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">Buy a Bundle</a>
+      <a href="#" class="btn-gold" onclick="document.getElementById('bundleSelect').focus();window.scrollTo({top:document.querySelector('.bundle-selector').offsetTop-80,behavior:'smooth'});return false;">Buy a Bundle</a>
       <a href="ai-assistant.html" class="btn-outline">Explore AI Assistant</a>
     </div>
   </div>
@@ -735,14 +251,62 @@ body {
   <div class="footer-text" style="margin-top:6px;font-size:0.6rem;color:rgba(107,107,107,0.5)">Owned and operated by Fence Crafters LLC</div>
 </div>
 
-
 <script>
+var trades = {
+  bathcrafter:     { name: 'BathCrafter', subtitle: 'Bathroom Remodel — $80/lead à la carte', price: 80 },
+  carpetcrafter:   { name: 'CarpetCrafter', subtitle: 'Carpet — $55/lead à la carte', price: 55 },
+  cleancrafter:    { name: 'CleanCrafter', subtitle: 'Housekeeping — $45/lead à la carte', price: 45 },
+  concretecrafter: { name: 'ConcreteCrafter', subtitle: 'Concrete — $54/lead à la carte', price: 54 },
+  exterior:        { name: 'Exterior Bundle', subtitle: 'RoofCrafter · SidingCrafter · WindowCrafter — $65/lead à la carte', price: 65 },
+  fencecrafter:    { name: 'FenceCrafter', subtitle: 'Fencing — $45/lead à la carte', price: 45 },
+  floorcrafter:    { name: 'FloorCrafter', subtitle: 'Wood Flooring — $55/lead à la carte', price: 55 },
+  guttercrafter:   { name: 'GutterCrafter', subtitle: 'Gutters — $45/lead à la carte', price: 45 },
+  handycrafter:    { name: 'HandyCrafter', subtitle: 'Handyman — $40/lead à la carte', price: 40 },
+  hvaccrafter:     { name: 'HVACCrafter', subtitle: 'HVAC — $66/lead à la carte', price: 66 },
+  kitchencrafter:  { name: 'KitchenCrafter', subtitle: 'Kitchen Remodel — $80/lead à la carte', price: 80 },
+  lawncrafter:     { name: 'LawnCrafter', subtitle: 'Landscaping + Irrigation — $54/lead à la carte', price: 54 },
+  lockcrafter:     { name: 'LockCrafter', subtitle: 'Locksmith — $24/lead à la carte', price: 24 },
+  paintcrafter:    { name: 'PaintCrafter', subtitle: 'Painting — $49/lead à la carte', price: 49 },
+  pestcrafter:     { name: 'PestCrafter', subtitle: 'Pest Control — $48/lead à la carte', price: 48 }
+};
+
+function fmt(n) { return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+
+document.getElementById('bundleSelect').addEventListener('change', function() {
+  var key = this.value;
+  var display = document.getElementById('bundleDisplay');
+  if (!key || !trades[key]) { display.style.display = 'none'; return; }
+  var t = trades[key];
+  document.getElementById('bundle-title').textContent = t.name + ' Bundle';
+  document.getElementById('bundle-subtitle').textContent = t.subtitle;
+
+  var tiers = [
+    { count: 10, discount: 0.10, label: 'Save 10%' },
+    { count: 25, discount: 0.15, label: 'Save 15%', popular: true },
+    { count: 50, discount: 0.20, label: 'Save 20%' }
+  ];
+  var html = '';
+  tiers.forEach(function(tier) {
+    var perLead = t.price * (1 - tier.discount);
+    var total = Math.round(perLead * tier.count);
+    html += '<div class="bundle-card' + (tier.popular ? ' popular' : '') + '">';
+    if (tier.popular) html += '<div class="bundle-badge">Best Value</div>';
+    html += '<div class="bundle-count">' + tier.count + '-Pack</div>';
+    html += '<div class="bundle-price">' + fmt(total) + '</div>';
+    html += '<div class="bundle-per">$' + perLead.toFixed(2) + '/lead</div>';
+    html += '<div class="bundle-save">' + tier.label + '</div>';
+    html += '</div>';
+  });
+  document.getElementById('bundleCards').innerHTML = html;
+  display.style.display = 'block';
+});
+
 (function(){
   var t = localStorage.getItem('hc_pro_token');
   var el = document.getElementById('nav-auth');
   if (!el) return;
   if (t) {
-    el.innerHTML = '<a href="#" onclick="localStorage.removeItem('hc_pro_token');localStorage.removeItem('hc_pro_name');window.location.href='/pro-login.html'" style="color:rgba(255,255,255,.5);text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);padding:5px 14px;border-radius:3px">Logout</a>';
+    el.innerHTML = '<a href="#" onclick="localStorage.removeItem(\'hc_pro_token\');localStorage.removeItem(\'hc_pro_name\');window.location.href=\'/pro-login.html\'" style="color:rgba(255,255,255,.5);text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,.2);padding:5px 14px;border-radius:3px">Logout</a>';
   } else {
     el.innerHTML = '<a href="/pro-login.html" style="color:#c4aa6a;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;border:1px solid #c4aa6a;padding:5px 14px;border-radius:3px">Login</a>';
   }
