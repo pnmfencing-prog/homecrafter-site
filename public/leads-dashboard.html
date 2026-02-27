@@ -178,7 +178,7 @@ function renderLeads(leads) {
 
   var html = '<div class="leads-grid">';
   leads.forEach(function(lead) {
-    var show = currentFilter === 'all' || lead.servicePrimary === currentFilter;
+    var show = currentFilter === 'all' || lead.services.indexOf(currentFilter) !== -1;
     var badges = lead.services.map(function(s) { return '<span class="service-pill">' + s + '</span>'; }).join('');
     if (lead.isNew) badges += ' <span class="badge-new">New</span>';
     if (lead.isClosing) badges += ' <span class="badge-closing">Closing Soon</span>';
