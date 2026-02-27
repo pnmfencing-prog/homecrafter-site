@@ -50,16 +50,16 @@ export async function GET(req: NextRequest) {
   const results = leads.map((l: any) => {
     const svcs = l.services || [];
     const primaryService = svcs[0] || 'unknown';
-    const serviceName = SERVICE_NAMES[primaryService] || primaryService;
-    const price = SERVICE_PRICES[primaryService] || 45;
+    const serviceName = SERVICE_NAMES[primaryService] || SERVICE_NAMES[primaryService.toLowerCase()] || primaryService;
+    const price = SERVICE_PRICES[primaryService] || SERVICE_PRICES[primaryService.toLowerCase()] || 45;
     const hoursAgo = Math.round((Date.now() - new Date(l.submitted_at).getTime()) / 3600000);
     const hoursLeft = Math.max(0, 72 - hoursAgo); // 72h window
 
     return {
       id: l.id,
       zip: l.zip || 'NJ',
-      services: svcs.map((s: string) => SERVICE_NAMES[s] || s),
-      servicePrimary: serviceName,
+      services: svcs.map((s: string) => SERVICE_NAMES[s] || SERVICE_NAMES[s.toLowerCase()] || s),
+      servicePrimary: SERVICE_NAMES[primaryService] || SERVICE_NAMES[primaryService.toLowerCase()] || primaryService,
       notes: l.notes ? (l.notes.length > 80 ? l.notes.slice(0, 80) + '...' : l.notes) : '',
       price,
       spots: { taken: parseInt(l.assignments) || 0, total: 3 },
