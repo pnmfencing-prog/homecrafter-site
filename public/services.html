@@ -385,6 +385,68 @@ body {
   content: "✓"; color: white; font-size: 11px; font-weight: 700;
 }
 
+/* CATEGORY QUESTIONS */
+.svc-questions {
+  max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
+  padding: 0 28px 0 84px;
+}
+.svc-questions.open {
+  max-height: 300px; opacity: 1;
+  padding: 12px 28px 18px 84px;
+}
+@media (max-width: 500px) {
+  .svc-questions, .svc-questions.open { padding-left: 22px; padding-right: 22px; }
+}
+.svc-questions .q-group {
+  margin-bottom: 10px;
+}
+.svc-questions .q-label {
+  display: block; font-size: 10px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: #b8b0a4; margin-bottom: 5px;
+}
+.svc-questions select {
+  width: 100%; padding: 10px 14px; border: 1px solid #eae7e1; border-radius: 4px;
+  font-size: 13px; font-family: 'Montserrat', sans-serif; font-weight: 400;
+  background: #faf9f6; color: #2a2a2a; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23b8b0a4' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+  transition: all 0.3s; cursor: pointer;
+}
+.svc-questions select:focus {
+  outline: none; border-color: #c4aa6a;
+  box-shadow: 0 0 0 3px rgba(196,170,106,0.08);
+}
+
+/* IMAGE UPLOAD */
+.upload-section { margin-bottom: 32px; }
+.upload-section .upload-label {
+  display: block; font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 3px; color: #c4aa6a; margin-bottom: 10px;
+}
+.upload-area {
+  border: 2px dashed #ddd8d0; border-radius: 4px; padding: 28px; text-align: center;
+  cursor: pointer; transition: all 0.3s; background: white;
+}
+.upload-area:hover { border-color: #c4aa6a; background: #fdfcf8; }
+.upload-area .upload-icon { font-size: 28px; margin-bottom: 8px; color: #d4c394; }
+.upload-area .upload-text { font-size: 12px; color: #b8b0a4; font-weight: 500; }
+.upload-area .upload-hint { font-size: 10px; color: #d0cac0; margin-top: 4px; }
+.upload-previews {
+  display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap;
+}
+.upload-thumb {
+  position: relative; width: 90px; height: 90px; border-radius: 4px; overflow: hidden;
+  border: 1px solid #eae7e1;
+}
+.upload-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.upload-thumb .remove-btn {
+  position: absolute; top: 4px; right: 4px; width: 22px; height: 22px;
+  background: rgba(30,24,69,0.8); color: #d4c394; border: none; border-radius: 50%;
+  font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+
 /* NOTES */
 .notes-section { margin-bottom: 32px; }
 .notes-section label {
@@ -742,6 +804,18 @@ body {
 
       <p id="serviceError" class="error-msg">Please select at least one service</p>
 
+      <!-- Upload Photos -->
+      <div class="upload-section">
+        <label class="upload-label">Upload Photos (optional)</label>
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-icon">📷</div>
+          <div class="upload-text">Tap to add photos of your project</div>
+          <div class="upload-hint">Up to 3 images · JPG, PNG, HEIC · 5MB max each</div>
+        </div>
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.heic" multiple style="display:none">
+        <div class="upload-previews" id="uploadPreviews"></div>
+      </div>
+
       <div class="notes-section">
         <label>Your Name</label>
         <input type="text" id="formName" placeholder="John Smith" required style="width:100%;padding:14px 18px;border:1px solid #eae7e1;border-radius:4px;font-size:14px;font-family:'Montserrat',sans-serif;background:#faf9f6;margin-bottom:16px;transition:all 0.3s;">
@@ -804,6 +878,150 @@ body {
 </div>
 
 <script>
+// Category-specific questions config
+const CATEGORY_QUESTIONS = {
+  bathroom: [
+    { key: 'remodel_level', label: 'What level of remodel?', options: ['Full gut renovation','Partial update','Fixtures only','Not sure'] },
+    { key: 'count', label: 'How many bathrooms?', options: ['1','2','3+'] }
+  ],
+  carpet: [
+    { key: 'work_type', label: 'What do you need?', options: ['New carpet installation','Carpet removal','Repair/stretching','Not sure'] },
+    { key: 'rooms', label: 'How many rooms?', options: ['1-2','3-5','6+','Whole house','Not sure'] }
+  ],
+  concrete: [
+    { key: 'project_type', label: 'What type of project?', options: ['Driveway','Patio','Sidewalk','Foundation','Retaining wall','Not sure'] },
+    { key: 'area', label: 'Approximate area?', options: ['Under 200 sqft','200-500 sqft','500-1,000 sqft','1,000+ sqft','Not sure'] }
+  ],
+  fencing: [
+    { key: 'linear_feet', label: 'Approximate linear feet?', options: ['Under 50ft','50-100ft','100-200ft','200ft+','Not sure'] },
+    { key: 'material', label: 'Material preference?', options: ['Wood','Vinyl','Aluminum','Chain Link','Composite','Not sure'] }
+  ],
+  handyman: [
+    { key: 'work_type', label: 'What type of work?', options: ['Minor repairs','Assembly/mounting','Drywall/patching','Electrical/plumbing (small)','Not sure'] },
+    { key: 'tasks', label: 'How many tasks?', options: ['1','2-3','4+'] }
+  ],
+  housekeeper: [
+    { key: 'cleaning_type', label: 'What type of cleaning?', options: ['One-time deep clean','Recurring service','Move-in/move-out','Post-construction','Not sure'] },
+    { key: 'home_size', label: 'Home size?', options: ['Under 1,500 sqft','1,500-2,500 sqft','2,500-4,000 sqft','4,000+ sqft','Not sure'] }
+  ],
+  hvac: [
+    { key: 'work_type', label: 'What do you need?', options: ['New installation','Replacement','Repair','Maintenance','Not sure'] },
+    { key: 'system_type', label: 'System type?', options: ['Central AC','Mini-split','Furnace','Heat pump','Not sure'] }
+  ],
+  kitchen: [
+    { key: 'remodel_level', label: 'What level of remodel?', options: ['Full gut renovation','Partial update','Countertops & cabinets only','Not sure'] },
+    { key: 'size', label: 'Kitchen size?', options: ['Small (under 100 sqft)','Medium (100-200 sqft)','Large (200+ sqft)','Not sure'] }
+  ],
+  landscaping: [
+    { key: 'work_type', label: 'What do you need?', options: ['Full landscape design','Lawn maintenance','Tree/shrub work','Hardscaping','Not sure'] },
+    { key: 'yard_size', label: 'Yard size?', options: ['Small (under ¼ acre)','Medium (¼-½ acre)','Large (½-1 acre)','1+ acre','Not sure'] }
+  ],
+  irrigation: [
+    { key: 'work_type', label: 'What do you need?', options: ['New sprinkler system','Repair existing system','Winterization','Spring startup','Not sure'] },
+    { key: 'yard_size', label: 'Yard size?', options: ['Small (under ¼ acre)','Medium (¼-½ acre)','Large (½-1 acre)','1+ acre','Not sure'] }
+  ],
+  locksmith: [
+    { key: 'work_type', label: 'What do you need?', options: ['Lock replacement','Rekey','New installation','Lockout service','Not sure'] },
+    { key: 'property_type', label: 'Residential or commercial?', options: ['Residential','Commercial'] }
+  ],
+  paint: [
+    { key: 'scope', label: 'Interior or exterior?', options: ['Interior','Exterior','Both'] },
+    { key: 'rooms', label: 'How many rooms/areas?', options: ['1-2','3-5','6-10','Whole house','Not sure'] }
+  ],
+  pestcontrol: [
+    { key: 'pest_type', label: 'What type of pest?', options: ['Ants','Termites','Rodents','Roaches','Bed bugs','Wildlife','Not sure'] },
+    { key: 'scope', label: 'Interior or exterior?', options: ['Interior','Exterior','Both'] }
+  ],
+  roofing: [
+    { key: 'work_type', label: 'What do you need?', options: ['Full replacement','Repair','Inspection','Not sure'] },
+    { key: 'roof_type', label: 'Roof type?', options: ['Asphalt shingle','Metal','Tile','Flat','Not sure'] }
+  ],
+  security: [
+    { key: 'work_type', label: 'What do you need?', options: ['Alarm system','Security cameras','Both','Not sure'] },
+    { key: 'property_type', label: 'Residential or commercial?', options: ['Residential','Commercial'] }
+  ],
+  siding: [
+    { key: 'work_type', label: 'What do you need?', options: ['Full replacement','Partial repair','New installation','Not sure'] },
+    { key: 'material', label: 'Material preference?', options: ['Vinyl','Fiber cement','Wood','Aluminum','Stone veneer','Not sure'] }
+  ],
+  windows: [
+    { key: 'count', label: 'How many windows?', options: ['1-3','4-8','9-15','16+','Not sure'] },
+    { key: 'work_type', label: 'What type of work?', options: ['Full replacement','New installation','Repair','Not sure'] }
+  ],
+  woodflooring: [
+    { key: 'work_type', label: 'What type of work?', options: ['New installation','Refinishing','Repair','Not sure'] },
+    { key: 'area', label: 'Approximate square footage?', options: ['Under 500 sqft','500-1,000 sqft','1,000-2,000 sqft','2,000+ sqft','Not sure'] }
+  ]
+};
+
+// Inject question containers after each service label
+document.querySelectorAll('.svc').forEach(svc => {
+  const input = svc.querySelector('input[type="checkbox"]');
+  const id = input.id;
+  const questions = CATEGORY_QUESTIONS[id];
+  if (!questions) return;
+  const div = document.createElement('div');
+  div.className = 'svc-questions';
+  div.id = 'q-' + id;
+  div.innerHTML = questions.map(q => `
+    <div class="q-group">
+      <label class="q-label">${q.label}</label>
+      <select data-service="${id}" data-key="${q.key}">
+        <option value="">Select...</option>
+        ${q.options.map(o => `<option value="${o}">${o}</option>`).join('')}
+      </select>
+    </div>
+  `).join('');
+  svc.appendChild(div);
+});
+
+// Toggle questions on checkbox change
+document.querySelectorAll('input[name="services"]').forEach(cb => {
+  cb.addEventListener('change', function() {
+    const qDiv = document.getElementById('q-' + this.id);
+    if (qDiv) {
+      if (this.checked) qDiv.classList.add('open');
+      else qDiv.classList.remove('open');
+    }
+  });
+});
+
+// Image upload handling
+const uploadedFiles = [];
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+const previewsDiv = document.getElementById('uploadPreviews');
+
+uploadArea.addEventListener('click', () => { if (uploadedFiles.length < 3) fileInput.click(); });
+fileInput.addEventListener('change', handleFiles);
+
+function handleFiles(e) {
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    if (uploadedFiles.length >= 3) break;
+    if (file.size > 5 * 1024 * 1024) { alert('File too large (max 5MB): ' + file.name); continue; }
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const base64 = ev.target.result;
+      const idx = uploadedFiles.length;
+      uploadedFiles.push({ name: file.name, type: file.type, data: base64 });
+      const thumb = document.createElement('div');
+      thumb.className = 'upload-thumb';
+      thumb.innerHTML = `<img src="${base64}" alt=""><button class="remove-btn" data-idx="${idx}">✕</button>`;
+      previewsDiv.appendChild(thumb);
+      thumb.querySelector('.remove-btn').addEventListener('click', function(ev) {
+        ev.stopPropagation();
+        uploadedFiles[this.dataset.idx] = null;
+        thumb.remove();
+        if (uploadedFiles.filter(Boolean).length < 3) uploadArea.style.display = '';
+      });
+      if (uploadedFiles.filter(Boolean).length >= 3) uploadArea.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+  fileInput.value = '';
+}
+
 const params = new URLSearchParams(window.location.search);
 const name = params.get('name');
 const addr = params.get('addr') || params.get('address');
@@ -836,7 +1054,17 @@ document.getElementById('serviceForm').addEventListener('submit', async function
     phone: document.getElementById('formPhone').value || '',
     address: document.getElementById('formAddress').value || addr || '',
     uid: uid || '',
-    notes: document.getElementById('notes').value, website_url: document.getElementById('website_url').value, submitted: new Date().toISOString()
+    notes: document.getElementById('notes').value, website_url: document.getElementById('website_url').value, submitted: new Date().toISOString(),
+    details: (() => {
+      const d = {};
+      document.querySelectorAll('.svc-questions.open select').forEach(sel => {
+        const svc = sel.dataset.service;
+        const key = sel.dataset.key;
+        if (sel.value) { if (!d[svc]) d[svc] = {}; d[svc][key] = sel.value; }
+      });
+      return d;
+    })(),
+    images: uploadedFiles.filter(Boolean).map(f => ({ name: f.name, type: f.type, data: f.data }))
   };
   try {
     const res = await fetch('/api/submit', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });

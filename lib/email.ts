@@ -17,6 +17,7 @@ interface LeadEmailData {
   address: string;
   services: string[];
   notes: string;
+  details: Record<string, Record<string, string>>;
   submitted: string;
 }
 
@@ -84,6 +85,18 @@ export async function sendLeadNotification(contractorEmail: string, contractorNa
     <div class="notes-box">
       <div class="notes-label">Homeowner Notes</div>
       <div class="notes-text">"${lead.notes}"</div>
+    </div>` : ''}
+    ${lead.details && Object.keys(lead.details).length > 0 ? `
+    <div style="margin-top:16px;border-top:1px solid #f0ede6;padding-top:16px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#c4aa6a;margin-bottom:10px;">Project Details</div>
+      ${Object.entries(lead.details).map(([svc, answers]) => `
+        <div style="margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:600;color:#1e1845;margin-bottom:4px;">${svc}</div>
+          ${Object.entries(answers as Record<string, string>).map(([k, v]) => `
+            <div style="font-size:12px;color:#6b6b6b;padding-left:12px;">• ${k.replace(/_/g, ' ')}: ${v}</div>
+          `).join('')}
+        </div>
+      `).join('')}
     </div>` : ''}
     <div class="cta">
       <a href="https://homecrafter.ai/leads-dashboard.html">Unlock This Lead</a>

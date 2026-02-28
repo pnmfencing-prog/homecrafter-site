@@ -74,10 +74,11 @@ export async function POST(req: NextRequest) {
     const zipMatch = (data.address || '').match(/\b(\d{5})\b/);
     const zip = zipMatch ? zipMatch[1] : '';
 
-    // Save lead to database
+    // Save lead to database (details column stores category-specific answers)
+    const details = data.details && Object.keys(data.details).length > 0 ? JSON.stringify(data.details) : null;
     const leadResult = await sql`
-      INSERT INTO leads (homeowner_name, homeowner_email, homeowner_phone, address, zip, services, notes, submitted_at)
-      VALUES (${data.name}, ${data.email}, ${data.phone || ''}, ${data.address || ''}, ${zip}, ${data.services}, ${data.notes || ''}, ${submitted})
+      INSERT INTO leads (homeowner_name, homeowner_email, homeowner_phone, address, zip, services, notes, details, submitted_at)
+      VALUES (${data.name}, ${data.email}, ${data.phone || ''}, ${data.address || ''}, ${zip}, ${data.services}, ${data.notes || ''}, ${details}, ${submitted})
       RETURNING id
     `;
     const leadId = leadResult[0]?.id;
@@ -91,6 +92,7 @@ export async function POST(req: NextRequest) {
       address: escapeHtml(data.address || ''),
       services: (data.services || []).map((s: string) => escapeHtml(s)),
       notes: escapeHtml(data.notes || ''),
+      details: data.details || {},
       submitted,
     };
 
