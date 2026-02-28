@@ -10,7 +10,7 @@
       transition: transform 0.2s, box-shadow 0.2s;
     }
     #hc-chat-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
-    #hc-chat-bubble svg { width: 28px; height: 28px; fill: white; }
+    #hc-chat-bubble svg { width: 38px; height: 38px; }
     #hc-chat-window {
       position: fixed; bottom: 90px; right: 20px; width: 380px; height: 500px;
       border-radius: 16px; background: #faf9f6; z-index: 9999;
@@ -91,7 +91,7 @@
   const BUBBLE = document.createElement('button');
   BUBBLE.id = 'hc-chat-bubble';
   BUBBLE.setAttribute('aria-label', 'Open chat');
-  BUBBLE.innerHTML = '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"/><path d="M7 9h10v2H7zm0-3h10v2H7z"/></svg>';
+  BUBBLE.innerHTML = '<svg viewBox="0 0 64 64"><rect x="8" y="24" width="48" height="32" rx="4" fill="white"/><rect x="12" y="28" width="40" height="24" rx="2" fill="#1e1845" opacity="0.15"/><rect x="24" y="18" width="16" height="8" rx="3" fill="white"/><rect x="28" y="14" width="8" height="6" rx="2" fill="white" opacity="0.8"/><circle cx="22" cy="38" r="4" fill="white"/><circle cx="22" cy="38" r="2" fill="#c4aa6a"/><circle cx="42" cy="38" r="4" fill="white"/><circle cx="42" cy="38" r="2" fill="#c4aa6a"/><rect x="28" y="42" width="8" height="3" rx="1.5" fill="#c4aa6a"/><rect x="4" y="36" width="6" height="3" rx="1.5" fill="white" opacity="0.7"/><rect x="54" y="36" width="6" height="3" rx="1.5" fill="white" opacity="0.7"/><circle cx="17" cy="28" r="1.5" fill="#c4aa6a"/><circle cx="47" cy="28" r="1.5" fill="#c4aa6a"/></svg>';
   document.body.appendChild(BUBBLE);
 
   const WIN = document.createElement('div');
