@@ -738,6 +738,7 @@ function renderBundle(key) {
     html += '<div class="bundle-price">' + fmt(total) + '</div>';
     html += '<div class="bundle-per">$' + perLead.toFixed(2) + '/lead</div>';
     html += '<div class="bundle-save">' + tier.label + '</div>';
+    html += '<button class="btn-gold buy-bundle-btn" style="margin-top:1rem;width:100%;padding:0.7rem 1rem;font-size:0.72rem" data-bundle="' + key + '" data-size="' + tier.count + '">Buy ' + tier.count + '-Pack</button>';
     html += '</div>';
   });
   document.getElementById('bundleCards').innerHTML = html;
@@ -753,6 +754,54 @@ document.querySelectorAll('.bundle-pill').forEach(function(pill) {
 
 // Show Exterior bundle by default
 renderBundle('exterior');
+
+// Category mapping from pill keys to API category keys
+var pillToCategory = {
+  carpetcrafter:'carpet', cleancrafter:'housekeeper', concretecrafter:'concrete',
+  fencecrafter:'fencing', floorcrafter:'woodflooring', handycrafter:'handyman',
+  hvaccrafter:'hvac', lockcrafter:'locksmith', paintcrafter:'painting',
+  pestcrafter:'pestcontrol', securecrafter:'security',
+  exterior:'exterior', lawncrafter:'lawn', remodelcrafter:'remodel'
+};
+
+document.getElementById('bundleCards').addEventListener('click', function(e) {
+  var btn = e.target.closest('.buy-bundle-btn');
+  if (!btn) return;
+
+  var token = localStorage.getItem('hc_pro_token');
+  if (!token) {
+    window.location.href = '/pro-login.html?redirect=/lead-bundles.html';
+    return;
+  }
+
+  var bundleKey = btn.dataset.bundle;
+  var size = parseInt(btn.dataset.size);
+  var category = pillToCategory[bundleKey] || bundleKey;
+
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+
+  fetch('/api/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ category: category, packSize: size })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert(data.error || 'Something went wrong');
+      btn.disabled = false;
+      btn.textContent = 'Buy ' + size + '-Pack';
+    }
+  })
+  .catch(function() {
+    alert('Network error. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Buy ' + size + '-Pack';
+  });
+});
 
 (function(){
   var t = localStorage.getItem('hc_pro_token');

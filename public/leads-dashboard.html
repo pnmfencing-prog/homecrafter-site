@@ -215,6 +215,7 @@ function renderLeads(leads) {
         '<div class="card-right">' +
           '<span class="card-price">$' + lead.price + '</span>' +
           '<a href="lead-view.html?id=' + lead.id + '" class="card-link view-detail">View Details →</a>' +
+          (localStorage.getItem('hc_pro_token') ? '<button class="card-link claim-btn" style="margin-top:4px;background:var(--gold);color:#fff;border:none;cursor:pointer" data-lead-id="' + lead.leadId + '" data-category="' + lead.servicePrimary + '">Claim Lead — $' + lead.price + '</button>' : '') +
         '</div>' +
       '</div>' +
     '</div>';
@@ -249,6 +250,64 @@ fetch('/api/leads')
 document.getElementById('filterSelect').addEventListener('change', function() {
   currentFilter = this.value;
   if (window._leads) renderLeads(window._leads);
+});
+
+// Service name to category key mapping
+var serviceToCategory = {
+  'CarpetCrafter':'carpet','CleanCrafter':'housekeeper','ConcreteCrafter':'concrete',
+  'FenceCrafter':'fencing','FloorCrafter':'woodflooring','HandyCrafter':'handyman',
+  'HVACCrafter':'hvac','LandscapeCrafter':'landscaping','LockCrafter':'locksmith',
+  'PaintCrafter':'painting','PestCrafter':'pestcontrol','KitchenCrafter':'kitchen',
+  'BathroomCrafter':'bathroom','RoofCrafter':'roofing','SecureCrafter':'security',
+  'SidingCrafter':'siding','WindowCrafter':'windows'
+};
+
+// Claim lead handler
+document.getElementById('leads-container').addEventListener('click', function(e) {
+  var btn = e.target.closest('.claim-btn');
+  if (!btn) return;
+
+  var token = localStorage.getItem('hc_pro_token');
+  if (!token) { window.location.href = '/pro-login.html'; return; }
+
+  var leadId = btn.dataset.leadId;
+  var serviceName = btn.dataset.category;
+  var category = serviceToCategory[serviceName] || serviceName.toLowerCase();
+
+  btn.disabled = true;
+  btn.textContent = 'Claiming...';
+
+  fetch('/api/claim-lead', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ leadId: parseInt(leadId), category: category })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.success && data.lead) {
+      var l = data.lead;
+      btn.outerHTML = '<div style="margin-top:8px;padding:10px;background:#f0fdf4;border-radius:8px;font-size:0.75rem;line-height:1.6">' +
+        '<strong style="color:#166534">✓ Lead Claimed!</strong><br>' +
+        '<strong>' + (l.firstName||'') + ' ' + (l.lastName||'') + '</strong><br>' +
+        (l.phone ? '📞 <a href="tel:' + l.phone + '">' + l.phone + '</a><br>' : '') +
+        (l.email ? '✉️ <a href="mailto:' + l.email + '">' + l.email + '</a><br>' : '') +
+        (l.address ? '📍 ' + l.address + (l.city ? ', ' + l.city : '') + (l.state ? ' ' + l.state : '') + (l.zip ? ' ' + l.zip : '') : '') +
+        '</div>';
+    } else if (data.needsCredits) {
+      btn.textContent = 'No Credits';
+      btn.style.background = '#dc2626';
+      setTimeout(function() { window.location.href = '/lead-bundles.html'; }, 1500);
+    } else {
+      alert(data.error || 'Failed to claim lead');
+      btn.disabled = false;
+      btn.textContent = 'Claim Lead';
+    }
+  })
+  .catch(function() {
+    alert('Network error');
+    btn.disabled = false;
+    btn.textContent = 'Claim Lead';
+  });
 });
 
 // My Leads → requires login
