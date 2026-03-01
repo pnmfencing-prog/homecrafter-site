@@ -111,9 +111,9 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (e) {
+  } catch (e: any) {
     console.error('Checkout error:', e);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    const msg = e?.message || 'Unknown error';
+    return NextResponse.json({ error: 'Server error', debug: msg }, { status: 500 });
   }
 }
-// redeploy 1772378519
