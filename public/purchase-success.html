@@ -111,7 +111,7 @@ h1 { font-family: 'Cormorant Garamond', serif; font-size: 2.2rem; font-weight: 6
         if (lead.name) html += '<div class="lead-detail">👤 <strong>' + lead.name + '</strong></div>';
         if (lead.phone) html += '<div class="lead-detail">📞 <a href="tel:' + lead.phone + '">' + lead.phone + '</a></div>';
         if (lead.email) html += '<div class="lead-detail">✉️ <a href="mailto:' + lead.email + '">' + lead.email + '</a></div>';
-        if (lead.address) html += '<div class="lead-detail">📍 ' + lead.address + (lead.zip ? ', ' + lead.zip : '') + '</div>';
+        if (lead.address) html += '<div class="lead-detail">📍 ' + lead.address + (lead.zip && !lead.address.includes(lead.zip) ? ', ' + lead.zip : '') + '</div>';
         if (lead.notes) html += '<div class="lead-detail" style="margin-top:0.75rem;font-style:italic;color:#6b6b6b">"' + lead.notes + '"</div>';
         html += '</div>';
 
