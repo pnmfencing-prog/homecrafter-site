@@ -204,7 +204,7 @@ function renderLeads(leads) {
 
     html += '<div class="lead-card" data-category="' + lead.servicePrimary + '" style="display:' + (show ? '' : 'none') + '">' +
       '<div class="card-badges">' + badges + '</div>' +
-      '<div class="card-location">' + (lead.zip ? 'NJ ' + lead.zip : 'New Jersey') + '</div>' +
+      '<div class="card-location">' + (lead.zip && /^\d{5}$/.test(lead.zip) ? lead.zip + ', NJ' : 'New Jersey') + '</div>' +
       (lead.notes ? '<div class="card-notes">"' + lead.notes + '"</div>' : '') +
       '<div class="card-footer">' +
         '<div class="card-meta">' +
