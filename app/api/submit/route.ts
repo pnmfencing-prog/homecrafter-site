@@ -41,7 +41,7 @@ const SERVICE_TO_CATEGORY: Record<string, string[]> = {
 };
 
 const RADIUS_MILES = 30;
-const MAX_CONTRACTORS = 3;
+const MAX_CONTRACTORS = 200; // Notify ALL contractors in radius; only 3 can purchase (first come first serve)
 
 export async function POST(req: NextRequest) {
   try {
