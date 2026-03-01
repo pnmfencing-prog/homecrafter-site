@@ -127,9 +127,5 @@ export async function POST(request: NextRequest) {
   } catch (e: any) {
     console.error('Checkout error:', e);
     const msg = e?.message || 'Unknown error';
-    return NextResponse.json({ error: 'Server error', debug: msg }, { status: 500 });
   }
 }
-// deploy 1772379772
-// v1772379950
-// v1772383248
