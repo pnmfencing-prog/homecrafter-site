@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
 import { verifyProToken } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import {
@@ -8,12 +7,40 @@ import {
   getBasePrice, isPairedBundle,
 } from '@/lib/pricing';
 
-function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2026-02-25.clover',
-    timeout: 30000,
-    maxNetworkRetries: 3,
+async function createCheckoutSession(params: Record<string, any>) {
+  const sk = process.env.STRIPE_SECRET_KEY!;
+  const body = new URLSearchParams();
+
+  body.append('mode', 'payment');
+  body.append('payment_method_types[0]', 'card');
+  body.append('line_items[0][price_data][currency]', 'usd');
+  body.append('line_items[0][price_data][unit_amount]', String(params.unitAmount));
+  body.append('line_items[0][price_data][product_data][name]', params.name);
+  if (params.description) {
+    body.append('line_items[0][price_data][product_data][description]', params.description);
+  }
+  body.append('line_items[0][quantity]', '1');
+  body.append('success_url', params.successUrl);
+  body.append('cancel_url', params.cancelUrl);
+
+  if (params.metadata) {
+    for (const [k, v] of Object.entries(params.metadata)) {
+      body.append(`metadata[${k}]`, String(v));
+    }
+  }
+
+  const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${btoa(sk + ':')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: body.toString(),
   });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || 'Stripe error');
+  return data;
 }
 
 export async function POST(request: NextRequest) {
@@ -31,10 +58,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { category, packSize, leadId } = body;
 
-    // Validate inputs
     const cat = typeof category === 'string' ? category.toLowerCase().trim() : '';
-    
-    const origin = request.headers.get('origin') || request.headers.get('referer')?.replace(/\/[^/]*$/, '') || '';
+    const origin = request.headers.get('origin') || request.headers.get('referer')?.replace(/\/[^/]*$/, '') || 'https://homecrafter.ai';
 
     // SINGLE LEAD PURCHASE
     if (leadId && !packSize) {
@@ -44,26 +69,18 @@ export async function POST(request: NextRequest) {
       const price = SINGLE_PRICES[cat];
       if (!price) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
 
-      const session = await getStripe().checkout.sessions.create({
-        payment_method_types: ['card'],
-        mode: 'payment',
-        line_items: [{
-          price_data: {
-            currency: 'usd',
-            unit_amount: price * 100,
-            product_data: { name: `HomeCrafter Lead — ${cat}` },
-          },
-          quantity: 1,
-        }],
+      const session = await createCheckoutSession({
+        unitAmount: price * 100,
+        name: `HomeCrafter Lead — ${cat}`,
+        successUrl: `${origin}/pro-dashboard.html?payment=success`,
+        cancelUrl: `${origin}/leads-dashboard.html`,
         metadata: {
-          pro_account_id: String(user.id),
+          pro_account_id: user.id,
           category: cat,
           pack_size: '1',
-          lead_id: String(leadId),
+          lead_id: leadId,
           type: 'single',
         },
-        success_url: `${origin}/pro-dashboard.html?payment=success`,
-        cancel_url: `${origin}/leads-dashboard.html`,
       });
 
       return NextResponse.json({ url: session.url });
@@ -92,28 +109,18 @@ export async function POST(request: NextRequest) {
       ? PAIRED_BUNDLES[cat].categories.join(' / ')
       : cat;
 
-    const session = await getStripe().checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          unit_amount: total,
-          product_data: {
-            name: `HomeCrafter ${size}-Pack — ${bundleLabel}`,
-            description: `${size} lead credits at $${perLead.toFixed(2)}/lead (${Math.round(discount * 100)}% off)`,
-          },
-        },
-        quantity: 1,
-      }],
+    const session = await createCheckoutSession({
+      unitAmount: total,
+      name: `HomeCrafter ${size}-Pack — ${bundleLabel}`,
+      description: `${size} lead credits at $${perLead.toFixed(2)}/lead (${Math.round(discount * 100)}% off)`,
+      successUrl: `${origin}/pro-dashboard.html?payment=success`,
+      cancelUrl: `${origin}/lead-bundles.html`,
       metadata: {
-        pro_account_id: String(user.id),
+        pro_account_id: user.id,
         category: cat,
         pack_size: String(size),
         type: isBundleKey ? 'paired_bundle' : 'bundle',
       },
-      success_url: `${origin}/pro-dashboard.html?payment=success`,
-      cancel_url: `${origin}/lead-bundles.html`,
     });
 
     return NextResponse.json({ url: session.url });
