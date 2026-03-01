@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Check lead exists
     const leads = await sql`
-      SELECT id, first_name, last_name, email, phone, address, city, state, zip, notes, services
+      SELECT id, homeowner_name, homeowner_email, homeowner_phone, address, zip, notes, services
       FROM leads WHERE id = ${leadId}
     `;
     if (leads.length === 0) {
@@ -101,13 +101,13 @@ export async function POST(request: NextRequest) {
       success: true,
       lead: {
         id: lead.id,
-        firstName: lead.first_name,
-        lastName: lead.last_name,
-        email: lead.email,
-        phone: lead.phone,
+        firstName: lead.homeowner_name,
+        lastName: '',
+        email: lead.homeowner_email,
+        phone: lead.homeowner_phone,
         address: lead.address,
-        city: lead.city,
-        state: lead.state,
+        city: '',
+        state: '',
         zip: lead.zip,
         notes: lead.notes,
         services: lead.services,
