@@ -277,6 +277,7 @@ document.getElementById('leads-container').addEventListener('click', function(e)
   btn.disabled = true;
   btn.textContent = 'Claiming...';
 
+  // First try to claim with existing credits
   fetch('/api/claim-lead', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -294,9 +295,28 @@ document.getElementById('leads-container').addEventListener('click', function(e)
         (l.address ? '📍 ' + l.address + (l.city ? ', ' + l.city : '') + (l.state ? ' ' + l.state : '') + (l.zip ? ' ' + l.zip : '') : '') +
         '</div>';
     } else if (data.needsCredits) {
-      btn.textContent = 'No Credits';
-      btn.style.background = '#dc2626';
-      setTimeout(function() { window.location.href = '/lead-bundles.html'; }, 1500);
+      // No credits — redirect to Stripe for à la carte purchase
+      btn.textContent = 'Redirecting to checkout...';
+      fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ category: category, leadId: parseInt(leadId) })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(checkoutData) {
+        if (checkoutData.url) {
+          window.location.href = checkoutData.url;
+        } else {
+          alert(checkoutData.error || 'Checkout error');
+          btn.disabled = false;
+          btn.textContent = 'Claim Lead — $' + btn.closest('.lead-card').querySelector('.card-price').textContent.replace('$','');
+        }
+      })
+      .catch(function() {
+        alert('Network error');
+        btn.disabled = false;
+        btn.textContent = 'Claim Lead';
+      });
     } else {
       alert(data.error || 'Failed to claim lead');
       btn.disabled = false;
