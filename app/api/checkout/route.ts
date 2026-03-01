@@ -8,7 +8,13 @@ import {
   getBasePrice, isPairedBundle,
 } from '@/lib/pricing';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' });
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2026-02-25.clover',
+    timeout: 30000,
+    maxNetworkRetries: 3,
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +44,7 @@ export async function POST(request: NextRequest) {
       const price = SINGLE_PRICES[cat];
       if (!price) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
 
-      const session = await stripe.checkout.sessions.create({
+      const session = await getStripe().checkout.sessions.create({
         payment_method_types: ['card'],
         mode: 'payment',
         line_items: [{
@@ -86,7 +92,7 @@ export async function POST(request: NextRequest) {
       ? PAIRED_BUNDLES[cat].categories.join(' / ')
       : cat;
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
       line_items: [{
