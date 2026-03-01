@@ -116,19 +116,13 @@ h1 { font-family: 'Cormorant Garamond', serif; font-size: 2.2rem; font-weight: 6
         html += '</div>';
 
         if (data.isGuest && data.claimCode) {
-          // Guest purchase
-          html += '<div class="claim-code-box">';
-          html += '<div class="claim-code-label">Your Claim Code</div>';
-          html += '<div class="claim-code">' + data.claimCode + '</div>';
-          html += '<div class="claim-code-note">Save this code — you can use it to link this lead to your account later.</div>';
-          html += '</div>';
+          // Guest — push account creation as primary CTA
+          html += '<a href="/pro-signup.html" class="cta-btn" style="font-size:1rem;padding:16px 44px;margin-bottom:0.75rem">Create Your Free Account</a>';
+          html += '<p style="font-size:0.85rem;color:#6b6b6b;max-width:420px;margin:0 auto 2.5rem;line-height:1.6">Sign up with <strong style="color:#1e1845">' + (data.stripeEmail || 'your email') + '</strong> to automatically access this lead and future purchases from your dashboard.</p>';
 
-          html += '<div class="guest-note">';
-          html += 'Create an account with <strong>' + (data.stripeEmail || 'your email') + '</strong> to automatically see this lead in your dashboard, or save your claim code above.';
+          html += '<div style="border-top:1px solid #eae7e1;padding-top:1.5rem;font-size:0.78rem;color:#999;line-height:1.7;max-width:400px;margin:0 auto">';
+          html += 'Already have an account with a different email? Save your claim code: <strong style="color:#1e1845;font-size:0.9rem;letter-spacing:2px">' + data.claimCode + '</strong> and enter it in <a href="/pro-dashboard.html" style="color:#c4aa6a;font-weight:600">your dashboard</a>.';
           html += '</div>';
-
-          html += '<a href="/pro-signup.html" class="cta-btn">Create Free Account →</a><br>';
-          html += '<a href="/leads-dashboard.html" class="cta-secondary">← Back to Leads</a>';
         } else {
           // Logged-in purchase
           html += '<p style="font-size:0.9rem;color:#166534;font-weight:600;margin-bottom:1.5rem">✓ Lead added to your dashboard!</p>';
