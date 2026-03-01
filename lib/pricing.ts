@@ -1,5 +1,5 @@
 export const SINGLE_PRICES: Record<string, number> = {
-  locksmith: 24, handyman: 40, fencing: 45, housekeeper: 45,
+  locksmith: 1, // TEMP: $1 for testing, restore to 24 handyman: 40, fencing: 45, housekeeper: 45,
   pestcontrol: 48, painting: 49, concrete: 54, landscaping: 54,
   irrigation: 54, carpet: 55, woodflooring: 55, security: 55,
   roofing: 65, siding: 65, windows: 65, hvac: 66,
