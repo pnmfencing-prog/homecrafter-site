@@ -113,8 +113,8 @@ export async function POST(request: NextRequest) {
         services: lead.services,
       },
     });
-  } catch (e) {
+  } catch (e: any) {
     console.error('Claim lead error:', e);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Server error', debug: e?.message || 'Unknown' }, { status: 500 });
   }
 }
