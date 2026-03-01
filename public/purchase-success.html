@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purchase Successful — HomeCrafter</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2d2d2d; line-height: 1.6; }
+.topnav { background: #1e1845; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.topnav a.brand { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 600; letter-spacing: 3px; color: #d4c394; text-decoration: none; }
+.topnav .links { display: flex; gap: 20px; align-items: center; }
+.topnav .links a { color: rgba(255,255,255,.7); text-decoration: none; font-size: 12px; font-weight: 500; }
+.gold-trim { height: 1px; background: linear-gradient(90deg, transparent 5%, #c4aa6a 50%, transparent 95%); }
+
+.container { max-width: 600px; margin: 0 auto; padding: 3rem 1.5rem 4rem; text-align: center; }
+.success-icon { font-size: 4rem; margin-bottom: 1rem; }
+h1 { font-family: 'Cormorant Garamond', serif; font-size: 2.2rem; font-weight: 600; color: #1e1845; margin-bottom: 0.5rem; }
+.subtitle { font-size: 0.9rem; color: #6b6b6b; margin-bottom: 2rem; }
+
+.lead-card { background: #fff; border-radius: 12px; padding: 2rem; text-align: left; box-shadow: 0 2px 12px rgba(30,24,69,0.08); margin-bottom: 2rem; }
+.lead-card h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; color: #1e1845; margin-bottom: 1rem; font-weight: 600; }
+.lead-detail { font-size: 0.85rem; margin-bottom: 0.5rem; color: #2d2d2d; }
+.lead-detail span { color: #6b6b6b; }
+
+.claim-code-box { background: linear-gradient(135deg, #1e1845, #2a2260); border-radius: 12px; padding: 2rem; margin-bottom: 1.5rem; text-align: center; }
+.claim-code-label { font-size: 0.75rem; color: rgba(255,255,255,0.6); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.5rem; }
+.claim-code { font-family: 'Cormorant Garamond', serif; font-size: 2.5rem; font-weight: 700; color: #c4aa6a; letter-spacing: 0.15em; }
+.claim-code-note { font-size: 0.78rem; color: rgba(255,255,255,0.5); margin-top: 0.75rem; line-height: 1.5; }
+
+.guest-note { background: #fff; border: 1.5px solid #c4aa6a; border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem; font-size: 0.85rem; color: #2d2d2d; line-height: 1.6; }
+
+.cta-btn { display: inline-block; background: #c4aa6a; color: #fff; font-weight: 600; padding: 14px 36px; border-radius: 50px; text-decoration: none; font-size: 0.9rem; letter-spacing: 0.04em; transition: all 0.3s; border: none; cursor: pointer; }
+.cta-btn:hover { background: #d4c394; }
+.cta-secondary { display: inline-block; margin-top: 0.75rem; color: #1e1845; font-size: 0.8rem; font-weight: 600; text-decoration: none; }
+.cta-secondary:hover { color: #c4aa6a; }
+
+.loading { padding: 4rem 2rem; color: #6b6b6b; font-size: 0.9rem; }
+.error { padding: 3rem 2rem; color: #c0392b; }
+
+.footer { text-align: center; padding: 2.5rem 1.5rem; border-top: 1px solid #f0ede6; }
+.footer-logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.1rem; letter-spacing: 0.3em; color: #c4aa6a; text-transform: uppercase; margin-bottom: 0.4rem; }
+.footer-text { font-size: 0.7rem; color: #6b6b6b; }
+</style>
+</head>
+<body>
+
+<div class="topnav">
+  <a href="/services.html" class="brand">HOMECRAFTER</a>
+  <div class="links">
+    <a href="/leads-dashboard.html">Leads</a>
+    <a href="/lead-bundles.html">Bundles</a>
+    <a href="/pro-dashboard.html">Dashboard</a>
+  </div>
+</div>
+<div class="gold-trim"></div>
+
+<div class="container" id="content">
+  <div class="loading">
+    <div class="success-icon">⏳</div>
+    <p>Loading your purchase details...</p>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="footer-logo">HomeCrafter</div>
+  <div class="footer-text">Connecting homeowners with trusted local professionals</div>
+  <div class="footer-text" style="margin-top:6px;font-size:0.6rem;color:rgba(107,107,107,0.5)">Owned and operated by Fence Crafters LLC</div>
+  <div class="footer-text" style="margin-top:8px"><a href="/privacy-policy.html" style="color:#6b6b6b;text-decoration:none;font-size:0.6rem">Privacy Policy</a> · <a href="/terms-and-conditions.html" style="color:#6b6b6b;text-decoration:none;font-size:0.6rem">Terms</a></div>
+</div>
+
+<script>
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var sessionId = params.get('session_id');
+  var container = document.getElementById('content');
+
+  if (!sessionId) {
+    container.innerHTML = '<div class="error"><h1>Missing Session</h1><p>No purchase session found.</p><br><a href="/leads-dashboard.html" class="cta-btn">Browse Leads</a></div>';
+    return;
+  }
+
+  var attempts = 0;
+  var maxAttempts = 10;
+
+  function poll() {
+    fetch('/api/purchase-status?session_id=' + encodeURIComponent(sessionId))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.pending && attempts < maxAttempts) {
+          attempts++;
+          setTimeout(poll, 2000);
+          return;
+        }
+        if (data.error || data.pending) {
+          container.innerHTML = '<div class="error"><div class="success-icon">⚠️</div><h1>Processing</h1><p>Your payment was received but we\'re still processing. Please check your dashboard in a moment.</p><br><a href="/pro-dashboard.html" class="cta-btn">Go to Dashboard</a></div>';
+          return;
+        }
+
+        if (data.type === 'bundle') {
+          container.innerHTML = '<div class="success-icon">🎉</div><h1>Bundle Purchased!</h1><p class="subtitle">' + data.packSize + ' lead credits for ' + data.category + ' have been added to your account.</p><br><a href="/pro-dashboard.html" class="cta-btn">View Dashboard →</a>';
+          return;
+        }
+
+        var lead = data.lead || {};
+        var html = '<div class="success-icon">🎉</div><h1>Purchase Successful!</h1><p class="subtitle">Your lead details are below.</p>';
+
+        // Lead info card
+        html += '<div class="lead-card"><h3>Lead Details</h3>';
+        if (lead.name) html += '<div class="lead-detail">👤 <strong>' + lead.name + '</strong></div>';
+        if (lead.phone) html += '<div class="lead-detail">📞 <a href="tel:' + lead.phone + '">' + lead.phone + '</a></div>';
+        if (lead.email) html += '<div class="lead-detail">✉️ <a href="mailto:' + lead.email + '">' + lead.email + '</a></div>';
+        if (lead.address) html += '<div class="lead-detail">📍 ' + lead.address + (lead.zip ? ', ' + lead.zip : '') + '</div>';
+        if (lead.notes) html += '<div class="lead-detail" style="margin-top:0.75rem;font-style:italic;color:#6b6b6b">"' + lead.notes + '"</div>';
+        html += '</div>';
+
+        if (data.isGuest && data.claimCode) {
+          // Guest purchase
+          html += '<div class="claim-code-box">';
+          html += '<div class="claim-code-label">Your Claim Code</div>';
+          html += '<div class="claim-code">' + data.claimCode + '</div>';
+          html += '<div class="claim-code-note">Save this code — you can use it to link this lead to your account later.</div>';
+          html += '</div>';
+
+          html += '<div class="guest-note">';
+          html += 'Create an account with <strong>' + (data.stripeEmail || 'your email') + '</strong> to automatically see this lead in your dashboard, or save your claim code above.';
+          html += '</div>';
+
+          html += '<a href="/pro-signup.html" class="cta-btn">Create Free Account →</a><br>';
+          html += '<a href="/leads-dashboard.html" class="cta-secondary">← Back to Leads</a>';
+        } else {
+          // Logged-in purchase
+          html += '<p style="font-size:0.9rem;color:#166534;font-weight:600;margin-bottom:1.5rem">✓ Lead added to your dashboard!</p>';
+          html += '<a href="/pro-dashboard.html" class="cta-btn">View Dashboard →</a><br>';
+          html += '<a href="/leads-dashboard.html" class="cta-secondary">← Browse More Leads</a>';
+        }
+
+        container.innerHTML = html;
+      })
+      .catch(function() {
+        if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(poll, 2000);
+        } else {
+          container.innerHTML = '<div class="error"><div class="success-icon">⚠️</div><h1>Error</h1><p>Unable to load purchase details. Please contact support.</p></div>';
+        }
+      });
+  }
+
+  poll();
+})();
+</script>
+<script src="/chat-widget.js"></script>
+</body>
+</html>

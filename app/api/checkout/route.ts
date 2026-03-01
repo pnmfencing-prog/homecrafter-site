@@ -51,81 +51,96 @@ export async function POST(request: NextRequest) {
     }
 
     const user = verifyProToken(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
     const body = await request.json();
     const { category, packSize, leadId } = body;
 
     const cat = typeof category === 'string' ? category.toLowerCase().trim() : '';
     const origin = request.headers.get('origin') || request.headers.get('referer')?.replace(/\/[^/]*$/, '') || 'https://homecrafter.ai';
 
-    // SINGLE LEAD PURCHASE
-    if (leadId && !packSize) {
-      if (!VALID_CATEGORIES.includes(cat)) {
-        return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+    // BUNDLE PURCHASE — requires auth
+    if (packSize) {
+      if (!user) {
+        return NextResponse.json({ error: 'Authentication required for bundles' }, { status: 401 });
       }
-      const price = SINGLE_PRICES[cat];
-      if (!price) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+
+      const size = Number(packSize);
+      if (!VALID_PACK_SIZES.includes(size)) {
+        return NextResponse.json({ error: 'Invalid pack size (10, 25, or 50)' }, { status: 400 });
+      }
+
+      const isBundleKey = VALID_BUNDLES.includes(cat);
+      const isSingleCat = VALID_CATEGORIES.includes(cat);
+      if (!isBundleKey && !isSingleCat) {
+        return NextResponse.json({ error: 'Invalid category or bundle' }, { status: 400 });
+      }
+
+      const basePrice = getBasePrice(cat);
+      if (!basePrice) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+
+      const discount = BUNDLE_DISCOUNTS[size];
+      const perLead = Math.round(basePrice * (1 - discount) * 100) / 100;
+      const total = Math.round(perLead * size * 100);
+
+      const bundleLabel = isPairedBundle(cat)
+        ? PAIRED_BUNDLES[cat].categories.join(' / ')
+        : cat;
 
       const session = await createCheckoutSession({
-        unitAmount: price * 100,
-        name: `HomeCrafter Lead — ${cat}`,
+        unitAmount: total,
+        name: `HomeCrafter ${size}-Pack — ${bundleLabel}`,
+        description: `${size} lead credits at $${perLead.toFixed(2)}/lead (${Math.round(discount * 100)}% off)`,
         successUrl: `${origin}/pro-dashboard.html?payment=success`,
-        cancelUrl: `${origin}/leads-dashboard.html`,
+        cancelUrl: `${origin}/lead-bundles.html`,
         metadata: {
           pro_account_id: user.id,
           category: cat,
-          pack_size: '1',
-          lead_id: leadId,
-          type: 'single',
+          pack_size: String(size),
+          type: isBundleKey ? 'paired_bundle' : 'bundle',
         },
       });
 
       return NextResponse.json({ url: session.url });
     }
 
-    // BUNDLE PURCHASE
-    const size = Number(packSize);
-    if (!VALID_PACK_SIZES.includes(size)) {
-      return NextResponse.json({ error: 'Invalid pack size (10, 25, or 50)' }, { status: 400 });
-    }
+    // SINGLE LEAD PURCHASE — auth optional (guest checkout)
+    if (leadId) {
+      if (!VALID_CATEGORIES.includes(cat)) {
+        return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+      }
+      const price = SINGLE_PRICES[cat];
+      if (!price) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
 
-    const isBundleKey = VALID_BUNDLES.includes(cat);
-    const isSingleCat = VALID_CATEGORIES.includes(cat);
-    if (!isBundleKey && !isSingleCat) {
-      return NextResponse.json({ error: 'Invalid category or bundle' }, { status: 400 });
-    }
-
-    const basePrice = getBasePrice(cat);
-    if (!basePrice) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
-
-    const discount = BUNDLE_DISCOUNTS[size];
-    const perLead = Math.round(basePrice * (1 - discount) * 100) / 100;
-    const total = Math.round(perLead * size * 100); // in cents
-
-    const bundleLabel = isPairedBundle(cat)
-      ? PAIRED_BUNDLES[cat].categories.join(' / ')
-      : cat;
-
-    const session = await createCheckoutSession({
-      unitAmount: total,
-      name: `HomeCrafter ${size}-Pack — ${bundleLabel}`,
-      description: `${size} lead credits at $${perLead.toFixed(2)}/lead (${Math.round(discount * 100)}% off)`,
-      successUrl: `${origin}/pro-dashboard.html?payment=success`,
-      cancelUrl: `${origin}/lead-bundles.html`,
-      metadata: {
-        pro_account_id: user.id,
+      const metadata: Record<string, string> = {
         category: cat,
-        pack_size: String(size),
-        type: isBundleKey ? 'paired_bundle' : 'bundle',
-      },
-    });
+        pack_size: '1',
+        lead_id: String(leadId),
+        type: 'single',
+      };
 
-    return NextResponse.json({ url: session.url });
+      let successUrl: string;
+
+      if (user) {
+        metadata.pro_account_id = String(user.id);
+        successUrl = `${origin}/purchase-success.html?session_id={CHECKOUT_SESSION_ID}`;
+      } else {
+        metadata.guest = 'true';
+        successUrl = `${origin}/purchase-success.html?session_id={CHECKOUT_SESSION_ID}`;
+      }
+
+      const session = await createCheckoutSession({
+        unitAmount: price * 100,
+        name: `HomeCrafter Lead — ${cat}`,
+        successUrl,
+        cancelUrl: `${origin}/leads-dashboard.html`,
+        metadata,
+      });
+
+      return NextResponse.json({ url: session.url });
+    }
+
+    return NextResponse.json({ error: 'Missing leadId or packSize' }, { status: 400 });
   } catch (e: any) {
     console.error('Checkout error:', e);
-    const msg = e?.message || 'Unknown error';
+    return NextResponse.json({ error: e?.message || 'Unknown error' }, { status: 500 });
   }
 }

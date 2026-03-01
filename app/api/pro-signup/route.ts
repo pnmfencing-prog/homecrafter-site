@@ -51,6 +51,21 @@ export async function POST(request: NextRequest) {
 
     console.log(`New pro signup: ${firstName} ${lastName} - ${company} (${email})`);
 
+    // Auto-link any guest lead purchases made with this email
+    const emailLower = email.toLowerCase();
+    const newAcct = await sql`SELECT id FROM pro_accounts WHERE email = ${emailLower} LIMIT 1`;
+    if (newAcct.length > 0) {
+      const acctId = newAcct[0].id;
+      const linked = await sql`
+        UPDATE lead_assignments SET pro_account_id = ${acctId}
+        WHERE LOWER(stripe_email) = ${emailLower} AND pro_account_id IS NULL
+        RETURNING id
+      `;
+      if (linked.length > 0) {
+        console.log(`Auto-linked ${linked.length} guest lead(s) to new account ${acctId}`);
+      }
+    }
+
     return NextResponse.json({ success: true, message: 'Account created successfully' });
   } catch (e) {
     console.error('Signup error:', e);

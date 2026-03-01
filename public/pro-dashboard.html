@@ -117,6 +117,50 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
   </a>
 </div>
 
+<!-- Claim Code Section -->
+<div style="max-width:640px;margin:0 auto;padding:0 24px 40px">
+  <div id="claimSection" style="background:#fff;border:1px solid #eae7e1;border-radius:4px;padding:24px;text-align:center">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:#1e1845;margin-bottom:6px">Have a Claim Code?</div>
+    <div style="font-size:11px;color:#b8b0a4;margin-bottom:16px">Enter your code to link a purchased lead to your account</div>
+    <div id="claimForm" style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap">
+      <input id="claimInput" type="text" placeholder="HC-XXXXX" style="padding:10px 16px;border:1.5px solid #eae7e1;border-radius:4px;font-family:'Montserrat',sans-serif;font-size:14px;letter-spacing:2px;text-transform:uppercase;width:160px;text-align:center;outline:none" maxlength="8">
+      <button onclick="submitClaimCode()" style="padding:10px 24px;background:#c4aa6a;color:#fff;border:none;border-radius:4px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0.5px">Claim</button>
+    </div>
+    <div id="claimResult" style="margin-top:12px;font-size:13px"></div>
+  </div>
+</div>
+<script>
+function submitClaimCode() {
+  var code = document.getElementById('claimInput').value.trim();
+  if (!code) return;
+  var token = localStorage.getItem('hc_pro_token');
+  if (!token) { alert('Please log in first'); return; }
+  var result = document.getElementById('claimResult');
+  result.innerHTML = '<span style="color:#6b6b6b">Checking...</span>';
+  fetch('/api/claim-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ code: code })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.success && data.lead) {
+      var l = data.lead;
+      result.innerHTML = '<div style="text-align:left;padding:12px;background:#f0fdf4;border-radius:8px;margin-top:8px">' +
+        '<strong style="color:#166534">✓ Lead Claimed!</strong><br>' +
+        '<strong>' + (l.name||'') + '</strong><br>' +
+        (l.phone ? '📞 ' + l.phone + '<br>' : '') +
+        (l.email ? '✉️ ' + l.email + '<br>' : '') +
+        (l.address ? '📍 ' + l.address + (l.zip ? ', ' + l.zip : '') : '') +
+        '</div>';
+    } else {
+      result.innerHTML = '<span style="color:#c0392b">' + (data.error || 'Invalid code') + '</span>';
+    }
+  })
+  .catch(function() { result.innerHTML = '<span style="color:#c0392b">Network error</span>'; });
+}
+</script>
+
 <div class="footer">
   <p><a href="/services.html">homecrafter.ai</a></p>
   <div class="footer-text" style="margin-top:6px;font-size:0.6rem;color:rgba(107,107,107,0.5)">Owned and operated by Fence Crafters LLC</div>

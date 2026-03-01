@@ -215,7 +215,7 @@ function renderLeads(leads) {
         '<div class="card-right">' +
           '<span class="card-price">$' + lead.price + '</span>' +
           '<a href="lead-view.html?id=' + lead.id + '" class="card-link view-detail">View Details →</a>' +
-          (localStorage.getItem('hc_pro_token') ? '<button class="card-link claim-btn" style="margin-top:4px;background:var(--gold);color:#fff;border:none;cursor:pointer" data-lead-id="' + lead.leadId + '" data-category="' + lead.servicePrimary + '">Claim Lead — $' + lead.price + '</button>' : '') +
+          '<button class="card-link claim-btn" style="margin-top:4px;background:var(--gold);color:#fff;border:none;cursor:pointer" data-lead-id="' + lead.leadId + '" data-category="' + lead.servicePrimary + '">Buy Lead — $' + lead.price + '</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -262,72 +262,73 @@ var serviceToCategory = {
   'SidingCrafter':'siding','WindowCrafter':'windows'
 };
 
+function goToCheckout(token, category, leadId, btn) {
+  btn.textContent = 'Redirecting to checkout...';
+  var headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  fetch('/api/checkout', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({ category: category, leadId: parseInt(leadId) })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert(data.error || 'Checkout error');
+      btn.disabled = false;
+      btn.textContent = 'Buy Lead — $' + btn.closest('.lead-card').querySelector('.card-price').textContent.replace('$','');
+    }
+  })
+  .catch(function() {
+    alert('Network error');
+    btn.disabled = false;
+    btn.textContent = 'Buy Lead';
+  });
+}
+
 // Claim lead handler
 document.getElementById('leads-container').addEventListener('click', function(e) {
   var btn = e.target.closest('.claim-btn');
   if (!btn) return;
 
   var token = localStorage.getItem('hc_pro_token');
-  if (!token) { window.location.href = '/pro-login.html'; return; }
-
   var leadId = btn.dataset.leadId;
   var serviceName = btn.dataset.category;
   var category = serviceToCategory[serviceName] || serviceName.toLowerCase();
 
   btn.disabled = true;
-  btn.textContent = 'Claiming...';
+  btn.textContent = 'Processing...';
 
-  // First try to claim with existing credits
-  fetch('/api/claim-lead', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-    body: JSON.stringify({ leadId: parseInt(leadId), category: category })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    if (data.success && data.lead) {
-      var l = data.lead;
-      btn.outerHTML = '<div style="margin-top:8px;padding:10px;background:#f0fdf4;border-radius:8px;font-size:0.75rem;line-height:1.6">' +
-        '<strong style="color:#166534">✓ Lead Claimed!</strong><br>' +
-        '<strong>' + (l.firstName||'') + ' ' + (l.lastName||'') + '</strong><br>' +
-        (l.phone ? '📞 <a href="tel:' + l.phone + '">' + l.phone + '</a><br>' : '') +
-        (l.email ? '✉️ <a href="mailto:' + l.email + '">' + l.email + '</a><br>' : '') +
-        (l.address ? '📍 ' + l.address + (l.city ? ', ' + l.city : '') + (l.state ? ' ' + l.state : '') + (l.zip ? ' ' + l.zip : '') : '') +
-        '</div>';
-    } else if (data.needsCredits) {
-      // No credits — redirect to Stripe for à la carte purchase
-      btn.textContent = 'Redirecting to checkout...';
-      fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ category: category, leadId: parseInt(leadId) })
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(checkoutData) {
-        if (checkoutData.url) {
-          window.location.href = checkoutData.url;
-        } else {
-          alert(checkoutData.error || 'Checkout error');
-          btn.disabled = false;
-          btn.textContent = 'Claim Lead — $' + btn.closest('.lead-card').querySelector('.card-price').textContent.replace('$','');
-        }
-      })
-      .catch(function() {
-        alert('Network error');
-        btn.disabled = false;
-        btn.textContent = 'Claim Lead';
-      });
-    } else {
-      alert(data.error || 'Failed to claim lead');
-      btn.disabled = false;
-      btn.textContent = 'Claim Lead';
-    }
-  })
-  .catch(function() {
-    alert('Network error');
-    btn.disabled = false;
-    btn.textContent = 'Claim Lead';
-  });
+  // If logged in, try claim-lead first (uses existing credits)
+  if (token) {
+    fetch('/api/claim-lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ leadId: parseInt(leadId), category: category })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success && data.lead) {
+        var l = data.lead;
+        btn.outerHTML = '<div style="margin-top:8px;padding:10px;background:#f0fdf4;border-radius:8px;font-size:0.75rem;line-height:1.6">' +
+          '<strong style="color:#166534">✓ Lead Claimed!</strong><br>' +
+          '<strong>' + (l.firstName||'') + ' ' + (l.lastName||'') + '</strong><br>' +
+          (l.phone ? '📞 <a href="tel:' + l.phone + '">' + l.phone + '</a><br>' : '') +
+          (l.email ? '✉️ <a href="mailto:' + l.email + '">' + l.email + '</a><br>' : '') +
+          (l.address ? '📍 ' + l.address + (l.city ? ', ' + l.city : '') + (l.state ? ' ' + l.state : '') + (l.zip ? ' ' + l.zip : '') : '') +
+          '</div>';
+      } else {
+        // No credits — go to checkout (logged in)
+        goToCheckout(token, category, leadId, btn);
+      }
+    })
+    .catch(function() { goToCheckout(token, category, leadId, btn); });
+  } else {
+    // Guest — go straight to checkout without auth
+    goToCheckout(null, category, leadId, btn);
+  }
 });
 
 // My Leads → requires login
