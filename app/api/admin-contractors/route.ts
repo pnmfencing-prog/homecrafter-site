@@ -14,8 +14,14 @@ export async function GET(req: NextRequest) {
     const hasPhone = sp.get('hasPhone') || '';
     const minRating = parseFloat(sp.get('minRating') || '0');
 
-    // Get total + data using tagged templates
-    const countResult = await sql`SELECT COUNT(*)::int as total FROM contractors`;
+    // Get filtered total
+    const countResult = await sql`SELECT COUNT(*)::int as total FROM contractors
+      WHERE (${category} = '' OR category = ${category})
+        AND (${county} = '' OR county = ${county})
+        AND (${search} = '' OR name ILIKE ${'%' + search + '%'} OR email ILIKE ${'%' + search + '%'} OR phone ILIKE ${'%' + search + '%'})
+        AND (${hasEmail} = '' OR (${hasEmail} = 'yes' AND email IS NOT NULL AND email != '') OR (${hasEmail} = 'no' AND (email IS NULL OR email = '')))
+        AND (${hasPhone} = '' OR (${hasPhone} = 'yes' AND phone IS NOT NULL AND phone != '') OR (${hasPhone} = 'no' AND (phone IS NULL OR phone = '')))
+        AND rating >= ${minRating}`;
     const total = countResult[0]?.total || 0;
 
     const rows = await sql`
