@@ -5,7 +5,7 @@ import sql from '@/lib/db';
 import { getZipCoords } from '@/lib/geo';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hc-pro-secret-change-in-production';
-const RADIUS_MILES = 30;
+const RADIUS_MILES = 40;
 
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
