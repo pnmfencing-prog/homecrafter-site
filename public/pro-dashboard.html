@@ -117,6 +117,22 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
   </a>
 </div>
 
+<!-- My Bundles Section -->
+<div style="max-width:640px;margin:0 auto;padding:0 24px 24px">
+  <div id="bundlesSection" style="display:none">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#1e1845;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid #eae7e1">My Bundles</div>
+    <div id="bundlesList"></div>
+  </div>
+</div>
+
+<!-- Lead Usage History -->
+<div style="max-width:640px;margin:0 auto;padding:0 24px 24px">
+  <div id="usageSection" style="display:none">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#1e1845;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid #eae7e1">Lead Usage History</div>
+    <div id="usageList"></div>
+  </div>
+</div>
+
 <!-- Claim Code Section -->
 <div style="max-width:640px;margin:0 auto;padding:0 24px 40px">
   <div id="claimSection" style="background:#fff;border:1px solid #eae7e1;border-radius:4px;padding:24px;text-align:center">
@@ -166,6 +182,75 @@ function submitClaimCode() {
   <div class="footer-text" style="margin-top:6px;font-size:0.6rem;color:rgba(107,107,107,0.5)">Owned and operated by Fence Crafters LLC</div>
 </div>
 
+<style>
+.bundle-card { background:#fff; border:1px solid #eae7e1; border-radius:8px; padding:20px; margin-bottom:12px; transition:all 0.3s; }
+.bundle-card:hover { border-color:#c4aa6a; box-shadow:0 4px 16px rgba(30,24,69,0.06); }
+.bundle-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.bundle-category { font-family:'Cormorant Garamond',serif; font-size:18px; font-weight:600; color:#1e1845; }
+.bundle-status { font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:3px 10px; border-radius:50px; }
+.bundle-status.active { background:#f0fdf4; color:#166534; }
+.bundle-status.exhausted { background:#fef2f2; color:#991b1b; }
+.bundle-progress-track { height:8px; background:#f0ede6; border-radius:4px; overflow:hidden; margin:8px 0; }
+.bundle-progress-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,#1e1845,#2a2260); transition:width 0.6s ease; }
+.bundle-meta { display:flex; justify-content:space-between; font-size:11px; color:#b8b0a4; font-weight:500; }
+.usage-item { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#fff; border:1px solid #eae7e1; border-radius:6px; margin-bottom:8px; font-size:12px; transition:all 0.3s; }
+.usage-item:hover { border-color:#c4aa6a; }
+.usage-name { font-weight:600; color:#1e1845; }
+.usage-detail { color:#b8b0a4; font-size:11px; }
+.usage-date { color:#b8b0a4; font-size:11px; white-space:nowrap; }
+.empty-msg { text-align:center; padding:24px; font-size:12px; color:#b8b0a4; }
+</style>
+<script>
+function loadProDashboardData() {
+  var token = localStorage.getItem('hc_pro_token');
+  if (!token) return;
+  fetch('/api/pro-bundles', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) return;
+      // Render bundles
+      var bundles = data.bundles || [];
+      var bundlesSec = document.getElementById('bundlesSection');
+      var bundlesList = document.getElementById('bundlesList');
+      if (bundles.length > 0) {
+        bundlesSec.style.display = 'block';
+        bundlesList.innerHTML = bundles.map(function(b) {
+          var pct = b.credits_total > 0 ? Math.round(((b.credits_total - b.credits_remaining) / b.credits_total) * 100) : 100;
+          var isActive = b.credits_remaining > 0;
+          var date = new Date(b.purchased_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          return '<div class="bundle-card">' +
+            '<div class="bundle-header">' +
+              '<div class="bundle-category">' + (b.category || 'General') + (b.bundle_type ? ' — ' + b.bundle_type : '') + '</div>' +
+              '<span class="bundle-status ' + (isActive ? 'active' : 'exhausted') + '">' + (isActive ? 'Active' : 'Exhausted') + '</span>' +
+            '</div>' +
+            '<div class="bundle-progress-track"><div class="bundle-progress-fill" style="width:' + pct + '%"></div></div>' +
+            '<div class="bundle-meta"><span>' + b.credits_used + ' of ' + b.credits_total + ' credits used</span><span>Purchased ' + date + '</span></div>' +
+          '</div>';
+        }).join('');
+      }
+      // Render usage
+      var usage = data.usage || [];
+      var usageSec = document.getElementById('usageSection');
+      var usageList = document.getElementById('usageList');
+      if (usage.length > 0) {
+        usageSec.style.display = 'block';
+        usageList.innerHTML = usage.map(function(u) {
+          var date = new Date(u.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          return '<div class="usage-item">' +
+            '<div><div class="usage-name">' + (u.homeowner_name || 'Lead') + '</div>' +
+            '<div class="usage-detail">' + (u.category || '') + (u.zip ? ' · ' + u.zip : '') + '</div></div>' +
+            '<div class="usage-date">' + date + '</div>' +
+          '</div>';
+        }).join('');
+      } else if (bundles.length > 0) {
+        usageSec.style.display = 'block';
+        usageList.innerHTML = '<div class="empty-msg">No leads claimed yet. Browse available leads to use your credits.</div>';
+      }
+    })
+    .catch(function() {});
+}
+loadProDashboardData();
+</script>
 <script>
 // Server-side session validation
 (async () => {

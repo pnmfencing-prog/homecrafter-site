@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — HomeCrafter</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --midnight: #1e1845; --midnight-light: #2a2260; --gold: #c4aa6a; --gold-light: #d4c394;
+  --cream: #faf9f6; --cream-dark: #f0ede6; --text: #2d2d2d; --text-muted: #6b6b6b;
+}
+body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--text); line-height: 1.6; }
+
+.header { background: linear-gradient(135deg, var(--midnight), var(--midnight-light)); padding: 2.5rem 1.5rem 2rem; text-align: center; position: relative; overflow: hidden; }
+.header::before { content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:radial-gradient(ellipse at 30% 50%,rgba(196,170,106,0.08) 0%,transparent 60%); pointer-events:none; }
+.logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 2.2rem; letter-spacing: 0.35em; color: var(--gold); text-transform: uppercase; margin-bottom: 0.4rem; }
+.header-subtitle { font-weight: 300; font-size: 0.8rem; letter-spacing: 0.2em; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+.gold-rule { width: 60px; height: 1px; background: var(--gold); margin: 1rem auto 0; opacity: 0.5; }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+
+.page-title { text-align: center; margin-bottom: 2rem; }
+.page-title h1 { font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 2rem; color: var(--midnight); letter-spacing: 0.06em; margin-bottom: 0.3rem; }
+.page-title p { font-size: 0.85rem; color: var(--text-muted); }
+
+/* Stat Cards */
+.stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
+.stat-card { background: #fff; border-radius: 14px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 30px rgba(30,24,69,0.06); text-align: center; transition: transform 0.3s; }
+.stat-card:hover { transform: translateY(-3px); }
+.stat-icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+.stat-value { font-family: 'Cormorant Garamond', serif; font-size: 2.2rem; font-weight: 700; color: var(--midnight); line-height: 1.1; }
+.stat-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 0.3rem; }
+.stat-sub { font-size: 0.65rem; color: var(--gold); margin-top: 0.25rem; font-weight: 500; }
+
+/* Filter Bar */
+.filter-bar { background: #fff; border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 30px rgba(30,24,69,0.06); position: sticky; top: 0; z-index: 100; }
+.filter-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.filter-header h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.15rem; font-weight: 600; color: var(--midnight); display: flex; align-items: center; gap: 0.5rem; }
+.filter-header h3::before { content: '⚙'; font-size: 0.9rem; }
+.filter-toggle { font-size: 0.7rem; font-weight: 600; color: var(--gold); letter-spacing: 0.08em; text-transform: uppercase; display: flex; align-items: center; gap: 0.3rem; }
+.filter-toggle .arrow { transition: transform 0.3s; display: inline-block; }
+.filter-bar.collapsed .filter-toggle .arrow { transform: rotate(-90deg); }
+.filter-bar.collapsed .filter-body { display: none; }
+.filter-bar .active-count { display: inline-block; background: var(--gold); color: #fff; font-size: 0.6rem; font-weight: 700; border-radius: 50%; width: 18px; height: 18px; line-height: 18px; text-align: center; margin-left: 0.4rem; }
+.filter-body { margin-top: 1rem; }
+.filter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem 1rem; }
+.filter-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.filter-group label { font-size: 0.65rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+.filter-group select, .filter-group input { font-family: 'Montserrat', sans-serif; font-size: 0.78rem; padding: 0.5rem 0.7rem; border: 1.5px solid var(--cream-dark); border-radius: 8px; background: var(--cream); color: var(--text); outline: none; transition: border-color 0.2s; }
+.filter-group select:focus, .filter-group input:focus { border-color: var(--gold); }
+.filter-group select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b6b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.6rem center; padding-right: 2rem; }
+.filter-row-2 { display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; margin-top: 0.75rem; align-items: end; }
+.filter-search { flex: 1; }
+.filter-search input { width: 100%; }
+.filter-actions { display: flex; gap: 0.5rem; align-items: end; }
+.btn-filter { font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; padding: 0.5rem 1.2rem; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.btn-apply { background: var(--midnight); color: var(--gold-light); }
+.btn-apply:hover { background: var(--midnight-light); }
+.btn-clear { background: transparent; color: var(--text-muted); border: 1.5px solid var(--cream-dark); }
+.btn-clear:hover { border-color: var(--gold); color: var(--gold); }
+.date-range { display: flex; gap: 0.4rem; align-items: center; }
+.date-range span { font-size: 0.7rem; color: var(--text-muted); }
+.date-range input { flex: 1; min-width: 0; }
+
+/* Sections */
+.section { margin-bottom: 2.5rem; }
+.section-title { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 600; color: var(--midnight); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--cream-dark); }
+
+/* Two-column layout */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem; }
+
+/* Status breakdown */
+.status-grid { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.status-pill { display: inline-flex; align-items: center; gap: 0.4rem; background: #fff; border: 1.5px solid var(--cream-dark); border-radius: 50px; padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 600; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; }
+.status-dot.new { background: #22c55e; }
+.status-dot.assigned { background: var(--gold); }
+.status-dot.closed { background: var(--text-muted); }
+.status-dot.default { background: var(--midnight); }
+
+/* Table */
+.data-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 30px rgba(30,24,69,0.06); }
+.data-table th { background: var(--midnight); color: var(--gold-light); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.85rem 1rem; text-align: left; }
+.data-table td { padding: 0.75rem 1rem; font-size: 0.8rem; border-bottom: 1px solid var(--cream-dark); }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: rgba(196,170,106,0.04); }
+
+/* Sortable headers */
+.data-table th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 1.5rem; }
+.data-table th.sortable:hover { color: #fff; }
+.data-table th.sortable::after { content: '⇅'; position: absolute; right: 0.4rem; font-size: 0.6rem; opacity: 0.4; }
+.data-table th.sortable.sort-asc::after { content: '↑'; opacity: 1; }
+.data-table th.sortable.sort-desc::after { content: '↓'; opacity: 1; }
+
+/* Leads table status badges */
+.lead-status { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.lead-status.s-new { background: rgba(34,197,94,0.1); color: #16a34a; }
+.lead-status.s-assigned { background: rgba(196,170,106,0.15); color: #a08940; }
+.lead-status.s-closed { background: rgba(107,107,107,0.1); color: #6b6b6b; }
+
+/* Pagination */
+.pagination { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 1.25rem; }
+.pagination button { font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 600; padding: 0.4rem 0.9rem; border: 1.5px solid var(--cream-dark); border-radius: 8px; background: #fff; color: var(--text); cursor: pointer; transition: all 0.2s; }
+.pagination button:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination button.active { background: var(--midnight); color: var(--gold-light); border-color: var(--midnight); }
+.pagination .page-info { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+
+/* Activity feed */
+.activity-feed { background: #fff; border-radius: 14px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 30px rgba(30,24,69,0.06); max-height: 400px; overflow-y: auto; }
+.activity-item { display: flex; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--cream-dark); align-items: flex-start; }
+.activity-item:last-child { border-bottom: none; }
+.activity-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 0.1rem; }
+.activity-text { font-size: 0.78rem; color: var(--text); line-height: 1.5; }
+.activity-text strong { color: var(--midnight); }
+.activity-time { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+/* Service bar chart */
+.bar-chart { display: flex; flex-direction: column; gap: 0.5rem; }
+.bar-row { display: flex; align-items: center; gap: 0.6rem; }
+.bar-label { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); min-width: 130px; text-align: right; }
+.bar-track { flex: 1; height: 22px; background: var(--cream-dark); border-radius: 11px; overflow: hidden; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, var(--midnight), var(--midnight-light)); border-radius: 11px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; min-width: 24px; transition: width 0.6s ease; }
+.bar-fill span { font-size: 0.6rem; font-weight: 700; color: var(--gold-light); }
+
+.loading-msg { text-align: center; padding: 4rem; color: var(--text-muted); font-size: 0.9rem; }
+
+.footer { text-align: center; padding: 2.5rem 1.5rem; border-top: 1px solid var(--cream-dark); margin-top: 1rem; }
+.footer-logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.1rem; letter-spacing: 0.3em; color: var(--gold); text-transform: uppercase; margin-bottom: 0.4rem; }
+.footer-text { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.04em; }
+
+@media (max-width: 768px) {
+  .stat-cards { grid-template-columns: repeat(2, 1fr); }
+  .two-col { grid-template-columns: 1fr; }
+  .filter-grid { grid-template-columns: 1fr 1fr; }
+  .header { padding: 2rem 1rem 1.5rem; }
+  .logo { font-size: 1.8rem; }
+  .container { padding: 1.25rem 1rem 2rem; }
+  .page-title h1 { font-size: 1.6rem; }
+  .data-table { font-size: 0.7rem; }
+  .data-table th, .data-table td { padding: 0.6rem 0.5rem; }
+  .bar-label { min-width: 80px; font-size: 0.65rem; }
+}
+@media (max-width: 480px) {
+  .stat-cards { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .stat-card { padding: 1rem; }
+  .stat-value { font-size: 1.8rem; }
+  .filter-grid { grid-template-columns: 1fr; }
+  .filter-row-2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">HomeCrafter</div>
+  <div class="header-subtitle">Admin Command Center</div>
+  <div class="gold-rule"></div>
+</div>
+
+<div class="container">
+  <div class="page-title">
+    <h1>Dashboard</h1>
+    <p>Real-time overview of your lead marketplace</p>
+  </div>
+
+  <div id="stats-cards"></div>
+
+  <div id="filter-bar" class="filter-bar" style="display:none">
+    <div class="filter-header" onclick="toggleFilters()">
+      <h3>Filters <span id="active-filter-count" class="active-count" style="display:none">0</span></h3>
+      <div class="filter-toggle"><span class="arrow">▼</span></div>
+    </div>
+    <div class="filter-body">
+      <div class="filter-grid">
+        <div class="filter-group">
+          <label>Service / Category</label>
+          <select id="f-category"><option value="all">All Services</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Status</label>
+          <select id="f-status">
+            <option value="all">All Statuses</option>
+            <option value="new">New</option>
+            <option value="assigned">Assigned</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Date Range</label>
+          <div class="date-range">
+            <input type="date" id="f-date-from" placeholder="From">
+            <span>→</span>
+            <input type="date" id="f-date-to" placeholder="To">
+          </div>
+        </div>
+        <div class="filter-group">
+          <label>Zip Code</label>
+          <input type="text" id="f-zip" placeholder="e.g. 077" maxlength="10">
+        </div>
+        <div class="filter-group">
+          <label>Contractor</label>
+          <select id="f-contractor"><option value="">All Contractors</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Search (name, email, phone)</label>
+          <input type="text" id="f-search" placeholder="Search leads...">
+        </div>
+      </div>
+      <div class="filter-row-2">
+        <div></div>
+        <div class="filter-actions">
+          <button class="btn-filter btn-clear" onclick="clearFilters()">Clear Filters</button>
+          <button class="btn-filter btn-apply" onclick="applyFilters()">Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="content">
+    <div class="loading-msg">Loading dashboard data...</div>
+  </div>
+
+  <div id="leads-section" class="section" style="display:none">
+    <div class="section-title">All Leads</div>
+    <div id="leads-table-wrap"></div>
+    <div id="leads-pagination" class="pagination"></div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="footer-logo">HomeCrafter</div>
+  <div class="footer-text">Admin Dashboard — Internal Use Only</div>
+  <div class="footer-text" style="margin-top:6px;font-size:0.6rem;color:rgba(107,107,107,0.5)">Owned and operated by Fence Crafters LLC</div>
+</div>
+
+<script>
+// State
+var currentSort = { col: 'submitted_at', dir: 'desc' };
+var currentPage = 1;
+var filterOptions = { services: [], contractors: [] };
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  var d = new Date(dateStr);
+  var now = new Date();
+  var diff = Math.floor((now - d) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function getFilterParams() {
+  var p = {};
+  var cat = document.getElementById('f-category').value;
+  var status = document.getElementById('f-status').value;
+  var dateFrom = document.getElementById('f-date-from').value;
+  var dateTo = document.getElementById('f-date-to').value;
+  var zip = document.getElementById('f-zip').value.trim();
+  var contractor = document.getElementById('f-contractor').value;
+  var search = document.getElementById('f-search').value.trim();
+  if (cat && cat !== 'all') p.category = cat;
+  if (status && status !== 'all') p.status = status;
+  if (dateFrom) p.dateFrom = dateFrom;
+  if (dateTo) p.dateTo = dateTo;
+  if (zip) p.zip = zip;
+  if (contractor) p.proAccountId = contractor;
+  if (search) p.search = search;
+  return p;
+}
+
+function countActiveFilters() {
+  return Object.keys(getFilterParams()).length;
+}
+
+function updateFilterBadge() {
+  var n = countActiveFilters();
+  var badge = document.getElementById('active-filter-count');
+  if (n > 0) { badge.textContent = n; badge.style.display = 'inline-block'; }
+  else { badge.style.display = 'none'; }
+}
+
+function toggleFilters() {
+  document.getElementById('filter-bar').classList.toggle('collapsed');
+}
+
+function clearFilters() {
+  document.getElementById('f-category').value = 'all';
+  document.getElementById('f-status').value = 'all';
+  document.getElementById('f-date-from').value = '';
+  document.getElementById('f-date-to').value = '';
+  document.getElementById('f-zip').value = '';
+  document.getElementById('f-contractor').value = '';
+  document.getElementById('f-search').value = '';
+  applyFilters();
+}
+
+function buildQS(params) {
+  var parts = [];
+  for (var k in params) { if (params[k] !== undefined && params[k] !== '') parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k])); }
+  return parts.length ? '?' + parts.join('&') : '';
+}
+
+function applyFilters() {
+  currentPage = 1;
+  updateFilterBadge();
+  loadStats();
+  loadLeads();
+}
+
+function loadStats() {
+  var params = getFilterParams();
+  fetch('/api/admin-stats' + buildQS(params))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) { document.getElementById('content').innerHTML = '<div class="loading-msg">Error: ' + data.error + '</div>'; return; }
+      renderDashboard(data);
+    })
+    .catch(function(err) {
+      document.getElementById('content').innerHTML = '<div class="loading-msg">Failed to load dashboard. ' + err.message + '</div>';
+    });
+}
+
+function loadLeads() {
+  var params = getFilterParams();
+  params.page = currentPage;
+  params.limit = 50;
+  params.sortBy = currentSort.col;
+  params.sortDir = currentSort.dir;
+  fetch('/api/admin-leads' + buildQS(params))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) return;
+      renderLeadsTable(data.leads, data.pagination);
+    });
+}
+
+function sortBy(col) {
+  if (currentSort.col === col) {
+    currentSort.dir = currentSort.dir === 'desc' ? 'asc' : 'desc';
+  } else {
+    currentSort.col = col;
+    currentSort.dir = col === 'submitted_at' ? 'desc' : 'asc';
+  }
+  currentPage = 1;
+  loadLeads();
+}
+
+function goPage(p) {
+  currentPage = p;
+  loadLeads();
+}
+
+function renderLeadsTable(leads, pg) {
+  var section = document.getElementById('leads-section');
+  section.style.display = 'block';
+
+  var cols = [
+    { key: 'homeowner_name', label: 'Homeowner', sortable: true },
+    { key: 'services', label: 'Service', sortable: false },
+    { key: 'zip', label: 'Zip', sortable: true },
+    { key: 'status', label: 'Status', sortable: true },
+    { key: 'submitted_at', label: 'Submitted', sortable: true },
+    { key: 'assigned_contractor', label: 'Contractor', sortable: false }
+  ];
+
+  var html = '<table class="data-table"><thead><tr>';
+  cols.forEach(function(c) {
+    var cls = c.sortable ? 'sortable' : '';
+    if (c.sortable && currentSort.col === c.key) cls += ' sort-' + currentSort.dir;
+    var onclick = c.sortable ? ' onclick="sortBy(\'' + c.key + '\')"' : '';
+    html += '<th class="' + cls + '"' + onclick + '>' + c.label + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  if (leads.length === 0) {
+    html += '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">No leads match your filters</td></tr>';
+  } else {
+    leads.forEach(function(l) {
+      var statusCls = 's-' + (l.status || 'new');
+      var services = (l.services || []).join(', ');
+      html += '<tr>' +
+        '<td><strong>' + (l.homeowner_name || '—') + '</strong></td>' +
+        '<td>' + services + '</td>' +
+        '<td>' + (l.zip || '—') + '</td>' +
+        '<td><span class="lead-status ' + statusCls + '">' + (l.status || 'new') + '</span></td>' +
+        '<td>' + formatDate(l.submitted_at) + '</td>' +
+        '<td>' + (l.assigned_contractor || '<span style="color:var(--text-muted)">—</span>') + '</td>' +
+        '</tr>';
+    });
+  }
+  html += '</tbody></table>';
+  document.getElementById('leads-table-wrap').innerHTML = html;
+
+  // Pagination
+  var pgHtml = '';
+  if (pg.totalPages > 1) {
+    pgHtml += '<button ' + (pg.page <= 1 ? 'disabled' : 'onclick="goPage(' + (pg.page-1) + ')"') + '>‹ Prev</button>';
+    var start = Math.max(1, pg.page - 2);
+    var end = Math.min(pg.totalPages, pg.page + 2);
+    for (var i = start; i <= end; i++) {
+      pgHtml += '<button class="' + (i === pg.page ? 'active' : '') + '" onclick="goPage(' + i + ')">' + i + '</button>';
+    }
+    pgHtml += '<button ' + (pg.page >= pg.totalPages ? 'disabled' : 'onclick="goPage(' + (pg.page+1) + ')"') + '>Next ›</button>';
+    pgHtml += '<span class="page-info">' + pg.total + ' leads</span>';
+  } else if (pg.total > 0) {
+    pgHtml = '<span class="page-info">' + pg.total + ' lead' + (pg.total !== 1 ? 's' : '') + '</span>';
+  }
+  document.getElementById('leads-pagination').innerHTML = pgHtml;
+}
+
+function renderDashboard(data) {
+  var s = data.stats;
+  var convRate = s.totalLeads > 0 ? Math.round((s.assignedLeads / s.totalLeads) * 100) : 0;
+
+  // Stat cards
+  document.getElementById('stats-cards').innerHTML =
+    '<div class="stat-cards">' +
+      '<div class="stat-card"><div class="stat-icon">📋</div><div class="stat-value">' + s.totalLeads + '</div><div class="stat-label">Total Leads</div><div class="stat-sub">' + s.openLeads + ' open · ' + s.assignedLeads + ' assigned</div></div>' +
+      '<div class="stat-card"><div class="stat-icon">👷</div><div class="stat-value">' + s.activePros + '</div><div class="stat-label">Active Pros</div><div class="stat-sub">registered accounts</div></div>' +
+      '<div class="stat-card"><div class="stat-icon">💰</div><div class="stat-value">' + s.totalPurchases + '</div><div class="stat-label">Purchases</div><div class="stat-sub">' + s.totalCreditsSold + ' total credits sold</div></div>' +
+      '<div class="stat-card"><div class="stat-icon">📈</div><div class="stat-value">' + convRate + '%</div><div class="stat-label">Conversion</div><div class="stat-sub">leads → assigned</div></div>' +
+    '</div>';
+
+  // Activity feed
+  var activities = [];
+  (data.recentLeads || []).forEach(function(l) {
+    activities.push({
+      icon: '📋',
+      text: '<strong>' + (l.homeowner_name || 'Anonymous') + '</strong> submitted a lead' + (l.services && l.services.length ? ' for ' + l.services.join(', ') : '') + (l.zip ? ' in ' + l.zip : ''),
+      time: l.submitted_at,
+      ts: new Date(l.submitted_at).getTime()
+    });
+  });
+  (data.recentAssignments || []).forEach(function(a) {
+    activities.push({
+      icon: '🤝',
+      text: 'Lead' + (a.lead_name ? ' from <strong>' + a.lead_name + '</strong>' : '') + ' assigned to <strong>' + (a.pro_name || 'contractor') + '</strong>' + (a.category ? ' (' + a.category + ')' : ''),
+      time: a.sent_at,
+      ts: new Date(a.sent_at).getTime()
+    });
+  });
+  (data.recentPurchases || []).forEach(function(p) {
+    activities.push({
+      icon: '💰',
+      text: '<strong>' + (p.pro_name || 'Pro') + '</strong> purchased ' + p.credits_total + ' credits' + (p.category ? ' for ' + p.category : '') + (p.bundle_type ? ' (' + p.bundle_type + ')' : ''),
+      time: p.purchased_at,
+      ts: new Date(p.purchased_at).getTime()
+    });
+  });
+  activities.sort(function(a, b) { return b.ts - a.ts; });
+  activities = activities.slice(0, 15);
+
+  var activityHtml = activities.length
+    ? activities.map(function(a) {
+        return '<div class="activity-item"><div class="activity-icon">' + a.icon + '</div><div><div class="activity-text">' + a.text + '</div><div class="activity-time">' + timeAgo(a.time) + '</div></div></div>';
+      }).join('')
+    : '<div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:0.85rem">No activity yet</div>';
+
+  var statusColors = { new: 'new', assigned: 'assigned', closed: 'closed' };
+  var statusHtml = (s.statusBreakdown || []).map(function(st) {
+    var cls = statusColors[st.status] || 'default';
+    return '<div class="status-pill"><span class="status-dot ' + cls + '"></span>' + st.status + ': ' + st.count + '</div>';
+  }).join('');
+
+  var maxSvc = Math.max.apply(null, (s.leadsByService || []).map(function(x) { return x.count; }).concat([1]));
+  var barsHtml = (s.leadsByService || []).map(function(svc) {
+    var pct = Math.round((svc.count / maxSvc) * 100);
+    return '<div class="bar-row"><div class="bar-label">' + svc.service + '</div><div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"><span>' + svc.count + '</span></div></div></div>';
+  }).join('');
+
+  var contractorRows = (data.topContractors || []).map(function(c) {
+    return '<tr><td><strong>' + c.name + '</strong>' + (c.company ? '<br><span style="font-size:0.7rem;color:var(--text-muted)">' + c.company + '</span>' : '') + '</td><td>' + c.bundles_purchased + '</td><td>' + c.total_credits + '</td><td>' + c.credits_used + '</td></tr>';
+  }).join('');
+
+  document.getElementById('content').innerHTML =
+    '<div class="section">' +
+      '<div class="section-title">Lead Status Breakdown</div>' +
+      '<div class="status-grid">' + (statusHtml || '<span style="font-size:0.8rem;color:var(--text-muted)">No leads yet</span>') + '</div>' +
+    '</div>' +
+    '<div class="two-col">' +
+      '<div class="section">' +
+        '<div class="section-title">Leads by Service</div>' +
+        (barsHtml ? '<div class="bar-chart">' + barsHtml + '</div>' : '<div style="font-size:0.8rem;color:var(--text-muted)">No data yet</div>') +
+      '</div>' +
+      '<div class="section">' +
+        '<div class="section-title">Recent Activity</div>' +
+        '<div class="activity-feed">' + activityHtml + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="section">' +
+      '<div class="section-title">Contractor Activity</div>' +
+      (contractorRows
+        ? '<table class="data-table"><thead><tr><th>Contractor</th><th>Bundles</th><th>Credits</th><th>Used</th></tr></thead><tbody>' + contractorRows + '</tbody></table>'
+        : '<div style="font-size:0.8rem;color:var(--text-muted);padding:1rem">No contractor purchases yet</div>') +
+    '</div>';
+}
+
+// Load filter options then init
+fetch('/api/admin-filters')
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var catSel = document.getElementById('f-category');
+    (data.services || []).forEach(function(s) {
+      var opt = document.createElement('option');
+      opt.value = s; opt.textContent = s;
+      catSel.appendChild(opt);
+    });
+    var conSel = document.getElementById('f-contractor');
+    (data.contractors || []).forEach(function(c) {
+      var opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name + (c.company ? ' — ' + c.company : '');
+      conSel.appendChild(opt);
+    });
+    document.getElementById('filter-bar').style.display = 'block';
+  })
+  .catch(function() {
+    document.getElementById('filter-bar').style.display = 'block';
+  });
+
+// Enter key applies filters
+['f-zip', 'f-search'].forEach(function(id) {
+  document.getElementById(id).addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') applyFilters();
+  });
+});
+['f-category', 'f-status', 'f-contractor'].forEach(function(id) {
+  document.getElementById(id).addEventListener('change', function() { applyFilters(); });
+});
+['f-date-from', 'f-date-to'].forEach(function(id) {
+  document.getElementById(id).addEventListener('change', function() { applyFilters(); });
+});
+
+// Initial load
+loadStats();
+loadLeads();
+</script>
+</body>
+</html>
