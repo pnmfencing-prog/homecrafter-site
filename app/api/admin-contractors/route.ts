@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         AND (${hasEmail} = '' OR (${hasEmail} = 'yes' AND email IS NOT NULL AND email != '') OR (${hasEmail} = 'no' AND (email IS NULL OR email = '')))
         AND (${hasPhone} = '' OR (${hasPhone} = 'yes' AND phone IS NOT NULL AND phone != '') OR (${hasPhone} = 'no' AND (phone IS NULL OR phone = '')))
         AND rating >= ${minRating}
-      ORDER BY name ASC NULLS LAST
+      ORDER BY LOWER(name) ASC NULLS LAST
       LIMIT ${limit} OFFSET ${offset}`;
 
     const categories = await sql`SELECT DISTINCT TRIM(category) as cat FROM contractors WHERE category IS NOT NULL ORDER BY cat`;
