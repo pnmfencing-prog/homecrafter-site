@@ -318,6 +318,8 @@ function applyFilters() {
   updateFilterBadge();
   loadStats();
   loadLeads();
+  // Auto-collapse filters after applying
+  document.getElementById('filter-bar').classList.add('collapsed');
 }
 
 function loadStats() {
