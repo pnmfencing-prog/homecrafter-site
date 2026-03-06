@@ -53,7 +53,7 @@ export async function sendLeadNotification(contractorEmail: string, contractorNa
   body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #faf9f6; margin: 0; padding: 0; }
   .wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px; }
   .header { background: linear-gradient(135deg, #1e1845, #2a2260); border-radius: 12px 12px 0 0; padding: 32px 24px; text-align: center; }
-  .header h1 { color: #d4c394; font-size: 28px; letter-spacing: 6px; margin: 0 0 4px; font-weight: 300; }
+  .header h1 { color: #d4c394; font-size: 22px; letter-spacing: 4px; margin: 0 0 4px; font-weight: 300; }
   .header p { color: rgba(255,255,255,0.5); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin: 0; }
   .body { background: #fff; padding: 32px 28px; border: 1px solid #eae7e1; border-top: none; }
   .badge { display: inline-block; background: #1e1845; color: #d4c394; font-size: 11px; font-weight: 600; letter-spacing: 2px; padding: 6px 16px; border-radius: 20px; text-transform: uppercase; margin-bottom: 20px; }
@@ -123,7 +123,7 @@ export async function sendHomeownerConfirmation(email: string, name: string) {
   body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #faf9f6; margin: 0; padding: 0; }
   .wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px; }
   .header { background: linear-gradient(135deg, #1e1845, #2a2260); border-radius: 12px 12px 0 0; padding: 32px 24px; text-align: center; }
-  .header h1 { color: #d4c394; font-size: 28px; letter-spacing: 6px; margin: 0 0 4px; font-weight: 300; }
+  .header h1 { color: #d4c394; font-size: 22px; letter-spacing: 4px; margin: 0 0 4px; font-weight: 300; }
   .body { background: #fff; padding: 32px 28px; border: 1px solid #eae7e1; border-top: none; border-radius: 0 0 12px 12px; }
   .body h2 { color: #1e1845; font-size: 20px; margin: 0 0 12px; }
   .body p { font-size: 14px; color: #2d2d2d; line-height: 1.7; }
@@ -215,7 +215,7 @@ export async function sendHomeownerMatchEmail(leadId: number, proAccountId: numb
   body { font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif; background: #faf9f6; margin: 0; padding: 0; color: #2d2d2d; }
   .wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px; }
   .header { background: linear-gradient(135deg, #1e1845, #2a2260); border-radius: 12px 12px 0 0; padding: 36px 24px; text-align: center; }
-  .header h1 { font-family: 'Cormorant Garamond', Georgia, serif; color: #d4c394; font-size: 28px; letter-spacing: 6px; margin: 0 0 4px; font-weight: 300; }
+  .header h1 { font-family: 'Cormorant Garamond', Georgia, serif; color: #d4c394; font-size: 22px; letter-spacing: 4px; margin: 0 0 4px; font-weight: 300; }
   .header p { color: rgba(255,255,255,0.5); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin: 0; font-family: 'Montserrat', sans-serif; }
   .body-section { background: #fff; padding: 36px 28px; border: 1px solid #eae7e1; border-top: none; }
   .greeting { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 22px; color: #1e1845; font-weight: 600; margin: 0 0 8px; }

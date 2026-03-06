@@ -43,7 +43,7 @@ function buildEmailHtml(contractorName: string, services: string[], zip: string,
   body { margin: 0; padding: 0; background-color: #faf9f6; font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif; }
   .wrapper { max-width: 580px; margin: 0 auto; padding: 32px 16px; }
   .header { background: linear-gradient(135deg, #1e1845 0%, #2a2260 100%); border-radius: 16px 16px 0 0; padding: 40px 32px; text-align: center; }
-  .header h1 { font-family: 'Cormorant Garamond', Georgia, serif; color: #c4aa6a; font-size: 32px; letter-spacing: 8px; margin: 0 0 6px; font-weight: 600; text-transform: uppercase; }
+  .header h1 { font-family: 'Cormorant Garamond', Georgia, serif; color: #c4aa6a; font-size: 22px; letter-spacing: 4px; margin: 0 0 6px; font-weight: 600; text-transform: uppercase; }
   .header .subtitle { color: rgba(255,255,255,0.5); font-family: 'Montserrat', sans-serif; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin: 0; }
   .content { background: #ffffff; padding: 36px 32px; border-left: 1px solid #eae7e1; border-right: 1px solid #eae7e1; }
   .greeting { font-family: 'Montserrat', sans-serif; font-size: 14px; color: #555; margin: 0 0 24px; line-height: 1.6; }
