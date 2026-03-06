@@ -8,23 +8,25 @@ const RADIUS_MILES = 40;
 const LEAD_VIEW_URL = 'https://homecrafter-site.vercel.app/lead-view.html';
 
 const SERVICE_NAMES: Record<string, string> = {
-  fencing: 'Fencing', roofing: 'Roofing', windows: 'Windows',
-  siding: 'Siding', painting: 'Painting', paint: 'Painting',
-  locksmith: 'Locksmith', housekeeper: 'Housekeeping',
-  woodflooring: 'Wood Flooring', carpet: 'Carpet', hvac: 'HVAC',
-  landscaping: 'Landscaping', irrigation: 'Irrigation',
-  concrete: 'Concrete', kitchen: 'Kitchen', bathroom: 'Bathroom',
-  pestcontrol: 'Pest Control', handyman: 'Handyman', security: 'Security',
+  Fencing: 'Fencing', Roofing: 'Roofing', Windows: 'Windows',
+  Siding: 'Siding', Paint: 'Painting',
+  Locksmith: 'Locksmith', Housekeeper: 'Housekeeping',
+  WoodFlooring: 'Wood Flooring', Carpet: 'Carpet', HVAC: 'HVAC',
+  Landscaping: 'Landscaping', Irrigation: 'Irrigation',
+  Concrete: 'Concrete', Kitchen: 'Kitchen', Bathroom: 'Bathroom',
+  PestControl: 'Pest Control', Handyman: 'Handyman', Security: 'Security',
+  Solar: 'Solar', PowerWashing: 'Power Washing',
 };
 
 const SERVICE_TO_CATEGORY: Record<string, string[]> = {
-  fencing: ['fencing'], roofing: ['roofing'], windows: ['windows'],
-  siding: ['siding'], painting: ['paint'], paint: ['paint'],
-  locksmith: ['locksmith'], housekeeper: ['housekeeper'],
-  woodflooring: ['woodflooring'], carpet: ['carpet'], hvac: ['hvac'],
-  landscaping: ['landscaping', 'irrigation'], irrigation: ['landscaping', 'irrigation'],
-  concrete: ['concrete'], kitchen: ['kitchen', 'bathroom'], bathroom: ['kitchen', 'bathroom'],
-  pestcontrol: ['pestcontrol'], handyman: ['handyman'], security: ['security'],
+  Fencing: ['Fencing'], Roofing: ['Roofing'], Windows: ['Windows'],
+  Siding: ['Siding'], Paint: ['Paint'],
+  Locksmith: ['Locksmith'], Housekeeper: ['Housekeeper'],
+  WoodFlooring: ['WoodFlooring'], Carpet: ['Carpet'], HVAC: ['HVAC'],
+  Landscaping: ['Landscaping', 'Irrigation'], Irrigation: ['Landscaping', 'Irrigation'],
+  Concrete: ['Concrete'], Kitchen: ['Kitchen', 'Bathroom'], Bathroom: ['Kitchen', 'Bathroom'],
+  PestControl: ['PestControl'], Handyman: ['Handyman'], Security: ['Security'],
+  Solar: ['Solar'], PowerWashing: ['PowerWashing'],
 };
 
 function buildEmailHtml(contractorName: string, services: string[], zip: string, leadId: number): string {
