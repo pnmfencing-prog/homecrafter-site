@@ -142,7 +142,7 @@ export async function sendHomeownerConfirmation(email: string, name: string) {
     <p>We've received your request and are matching you with trusted local professionals in your area.</p>
     <ul class="steps">
       <li>We're reviewing your project details now</li>
-      <li>You'll hear from up to 3 vetted contractors within 24 hours</li>
+      <li>You'll hear from up to 3 vetted contractors within 72 hours</li>
       <li>Compare quotes and choose the best fit — no obligation</li>
     </ul>
     <p style="font-size:13px;color:#6b6b6b;margin-top:20px;">Questions? Reply to this email anytime.</p>
