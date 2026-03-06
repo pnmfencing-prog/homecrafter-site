@@ -1,4 +1,4 @@
-const LEAD_VIEW_URL = 'https://homecrafter-site.vercel.app/lead-view.html';
+const LEAD_VIEW_URL = 'https://homecrafter.ai/lead-view.html';
 
 const SERVICE_NAMES: Record<string, string> = {
   Fencing: 'Fencing', Roofing: 'Roofing', Windows: 'Windows',

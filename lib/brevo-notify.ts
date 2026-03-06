@@ -5,7 +5,7 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
 const RADIUS_MILES = 40;
 // No contractor cap — email all matches
-const LEAD_VIEW_URL = 'https://homecrafter-site.vercel.app/lead-view.html';
+const LEAD_VIEW_URL = 'https://homecrafter.ai/lead-view.html';
 
 const SERVICE_NAMES: Record<string, string> = {
   Fencing: 'Fencing', Roofing: 'Roofing', Windows: 'Windows',
