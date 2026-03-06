@@ -200,5 +200,71 @@ export async function notifyContractorsViaBrevo(
   }
 
   console.log(`[brevo-notify] Lead #${leadId}: ${sent}/${matchedContractors.length} emails sent via Brevo`);
+
+  // Schedule follow-up notifications (12h and 48h)
+  try {
+    await scheduleFollowUps(leadId);
+  } catch (e: any) {
+    console.error(`[brevo-notify] Failed to schedule follow-ups for lead #${leadId}:`, e.message);
+  }
+
   return { matched: matchedContractors.length, sent, errors };
+}
+
+/**
+ * Adjust a Date to respect quiet hours (9 PM – 7:30 AM EST).
+ * If the time falls in quiet hours, push to 7:30 AM next morning.
+ */
+function adjustForQuietHours(date: Date): Date {
+  // Convert to EST components
+  const estStr = date.toLocaleString('en-US', { timeZone: 'America/New_York' });
+  const est = new Date(estStr);
+  const hours = est.getHours();
+  const minutes = est.getMinutes();
+  const timeInMinutes = hours * 60 + minutes;
+
+  const quietStart = 21 * 60;     // 9:00 PM = 1260 min
+  const quietEnd = 7 * 60 + 30;   // 7:30 AM = 450 min
+
+  if (timeInMinutes >= quietStart || timeInMinutes < quietEnd) {
+    // In quiet hours — push to 7:30 AM EST
+    // Calculate how many ms until 7:30 AM EST
+    const estNow = est;
+    const next730 = new Date(estNow);
+    next730.setHours(7, 30, 0, 0);
+
+    // If we're past midnight but before 7:30 AM, next730 is today
+    // If we're past 9 PM, next730 is tomorrow
+    if (timeInMinutes >= quietStart) {
+      next730.setDate(next730.getDate() + 1);
+    }
+
+    // Convert back: find the offset between est and original UTC
+    const offsetMs = date.getTime() - est.getTime();
+    return new Date(next730.getTime() + offsetMs);
+  }
+
+  return date;
+}
+
+/**
+ * Schedule 12h and 48h follow-up notification rows for a lead.
+ */
+async function scheduleFollowUps(leadId: number): Promise<void> {
+  const now = new Date();
+
+  const twelveHours = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+  const fortyEightHours = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+  const scheduled12h = adjustForQuietHours(twelveHours);
+  const scheduled48h = adjustForQuietHours(fortyEightHours);
+
+  await sql`
+    INSERT INTO lead_notifications (lead_id, notification_type, scheduled_for, status)
+    VALUES
+      (${leadId}, 'reminder_12h', ${scheduled12h.toISOString()}, 'pending'),
+      (${leadId}, 'reminder_48h', ${scheduled48h.toISOString()}, 'pending')
+  `;
+
+  console.log(`[brevo-notify] Scheduled follow-ups for lead #${leadId}: 12h=${scheduled12h.toISOString()}, 48h=${scheduled48h.toISOString()}`);
 }
