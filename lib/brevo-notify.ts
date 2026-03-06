@@ -30,7 +30,7 @@ const SERVICE_TO_CATEGORY: Record<string, string[]> = {
 };
 
 function buildEmailHtml(contractorName: string, services: string[], zip: string, leadId: number): string {
-  const serviceLabels = services.map(s => SERVICE_NAMES[s.toLowerCase()] || s).join(' & ');
+  const serviceLabels = services.map(s => SERVICE_NAMES[s] || SERVICE_NAMES[s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()] || s).join(' & ');
   const viewUrl = `${LEAD_VIEW_URL}?lead=${leadId}`;
 
   return `<!DOCTYPE html>
@@ -137,7 +137,7 @@ export async function notifyContractorsViaBrevo(
   // Build category list
   const allCategories: string[] = [];
   for (const svc of services) {
-    const cats = SERVICE_TO_CATEGORY[svc.toLowerCase()] || [svc.toLowerCase()];
+    const cats = SERVICE_TO_CATEGORY[svc] || SERVICE_TO_CATEGORY[svc.charAt(0).toUpperCase() + svc.slice(1).toLowerCase()] || [svc.toLowerCase()];
     for (const c of cats) {
       if (!allCategories.includes(c)) allCategories.push(c);
     }
@@ -187,7 +187,7 @@ export async function notifyContractorsViaBrevo(
   // Send emails
   let sent = 0;
   const errors: string[] = [];
-  const serviceLabels = services.map(s => SERVICE_NAMES[s.toLowerCase()] || s).join(' & ');
+  const serviceLabels = services.map(s => SERVICE_NAMES[s] || SERVICE_NAMES[s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()] || s).join(' & ');
 
   for (const contractor of matchedContractors) {
     try {
