@@ -824,8 +824,22 @@ body {
         <input type="email" id="formEmail" placeholder="you@email.com" required style="width:100%;padding:14px 18px;border:1px solid #eae7e1;border-radius:4px;font-size:14px;font-family:'Montserrat',sans-serif;background:#faf9f6;margin-bottom:16px;transition:all 0.3s;">
         <label>Phone</label>
         <input type="tel" id="formPhone" placeholder="(732) 555-1234" required style="width:100%;padding:14px 18px;border:1px solid #eae7e1;border-radius:4px;font-size:14px;font-family:'Montserrat',sans-serif;background:#faf9f6;margin-bottom:16px;transition:all 0.3s;">
-        <label>Address</label>
-        <input type="text" id="formAddress" placeholder="123 Main St, Rumson, NJ 07760" style="width:100%;padding:14px 18px;border:1px solid #eae7e1;border-radius:4px;font-size:14px;font-family:'Montserrat',sans-serif;background:#faf9f6;margin-bottom:16px;transition:all 0.3s;">
+        <label>Street Address</label>
+        <input type="text" id="formAddress" autocomplete="street-address" placeholder="123 Main St" style="width:100%;padding:14px 18px;border:1px solid #eae7e1;border-radius:4px;font-size:14px;font-family:'Montserrat',sans-serif;background:#faf9f6;margin-bottom:16px;transition:all 0.3s;">
+        <div style="display:flex;gap:12px;margin-bottom:16px;">
+          <div style="flex:2;">
+            <label>City</label>
+            <input type="text" id="formCity" autocomplete="address-level2" placeholder="Rumson" style="width:100%;padding:14px 18px;border:1px solid #eae7e1;border-radius:4px;font-size:14px;font-family:'Montserrat',sans-serif;background:#faf9f6;transition:all 0.3s;">
+          </div>
+          <div style="flex:1;">
+            <label>State</label>
+            <input type="text" id="formState" autocomplete="address-level1" placeholder="NJ" maxlength="2" style="width:100%;padding:14px 18px;border:1px solid #eae7e1;border-radius:4px;font-size:14px;font-family:'Montserrat',sans-serif;background:#faf9f6;transition:all 0.3s;">
+          </div>
+          <div style="flex:1;">
+            <label>Zip</label>
+            <input type="text" id="formZip" autocomplete="postal-code" placeholder="07760" maxlength="5" style="width:100%;padding:14px 18px;border:1px solid #eae7e1;border-radius:4px;font-size:14px;font-family:'Montserrat',sans-serif;background:#faf9f6;transition:all 0.3s;">
+          </div>
+        </div>
         <label>Share Your Vision — the more details, the better!</label>
         <textarea id="notes" placeholder="Tell us about your project — timeline, style, special requests..."></textarea>
       </div>
@@ -1053,7 +1067,8 @@ document.getElementById('serviceForm').addEventListener('submit', async function
     name: document.getElementById('formName').value || name || 'Unknown',
     email: document.getElementById('formEmail').value || '',
     phone: document.getElementById('formPhone').value || '',
-    address: document.getElementById('formAddress').value || addr || '',
+    address: [document.getElementById('formAddress').value, document.getElementById('formCity').value, document.getElementById('formState').value, document.getElementById('formZip').value].filter(Boolean).join(', ') || addr || '',
+    zip: document.getElementById('formZip').value || '',
     uid: uid || '',
     notes: document.getElementById('notes').value, website_url: document.getElementById('website_url').value, submitted: new Date().toISOString(),
     details: (() => {
