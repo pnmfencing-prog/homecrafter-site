@@ -71,9 +71,9 @@ export function build12hReminderHtml(
     <p class="subtitle">Lead Still Available</p>
   </div>
   <div class="content">
-    <p class="greeting">Hi ${firstName},<br>A ${serviceLabels.toLowerCase()} lead in your area already has 2 of 3 spots claimed. One spot left — don't let another pro beat you to it.</p>
+    <p class="greeting">Hi ${firstName},<br>Contractors in your area are viewing this ${serviceLabels.toLowerCase()} lead right now. Claim it before someone else does.</p>
     <div class="lead-card">
-      <span class="lead-badge">🔥 2 of 3 Spots Claimed</span>
+      <span class="lead-badge">🔥 Pros Are Viewing This Lead</span>
       <h2 class="lead-title">${serviceLabels} Lead — ${zip ? `Zip ${zip}` : 'New Jersey'}</h2>
       <p class="lead-location">📍 ${zip ? `Zip code ${zip}` : 'New Jersey'}</p>
       <div class="time-badge">⏰ ~${hoursLeft} hours remaining before expiry</div>
@@ -83,13 +83,13 @@ export function build12hReminderHtml(
       </div>
       <div class="lead-detail">
         <span class="detail-label">Status</span>
-        <div class="detail-value" style="color:#2d6b3f;font-weight:600;">2 of 3 spots claimed — 1 remaining</div>
+        <div class="detail-value" style="color:#2d6b3f;font-weight:600;">Other contractors are viewing — claim yours now</div>
       </div>
     </div>
     <div class="cta-wrap">
       <a href="${viewUrl}" class="cta-btn">Claim This Lead</a>
     </div>
-    <p class="urgency">Other contractors in your area are already on this. Claim the last spot.</p>
+    <p class="urgency">Only 3 contractors can purchase this lead. Don't miss your window.</p>
   </div>
   <div class="footer">
     <p class="brand">HOMECRAFTER</p>
@@ -162,7 +162,7 @@ export function build48hReminderHtml(
       </div>
       <div class="lead-detail">
         <span class="detail-label">Urgency</span>
-        <div class="detail-value" style="color:#c62828;font-weight:600;">Last spot — 2 contractors already claimed theirs</div>
+        <div class="detail-value" style="color:#c62828;font-weight:600;">Expires in ${hoursLeft} hours — act now or lose it</div>
       </div>
     </div>
     <div class="cta-wrap">
@@ -181,10 +181,10 @@ export function build48hReminderHtml(
 
 export function get12hSubject(services: string[]): string {
   const serviceLabels = getServiceLabels(services);
-  return `2 of 3 Spots Claimed — ${serviceLabels} Lead in Your Area`;
+  return `Contractors Are Viewing This ${serviceLabels} Lead — Claim It Now`;
 }
 
 export function get48hSubject(services: string[]): string {
   const serviceLabels = getServiceLabels(services);
-  return `Last Spot — This ${serviceLabels} Lead Expires in 24 Hours`;
+  return `This ${serviceLabels} Lead Expires in 24 Hours`;
 }
