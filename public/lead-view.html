@@ -785,92 +785,97 @@ body {
 
 <div class="container">
 
-  <!-- Urgency -->
-  <div class="urgency">
-    <div class="urgency-left">
-      <span class="urgency-icon">⏱</span>
-      <span class="urgency-text">This lead is available to 4 contractors — claim yours now</span>
-    </div>
-    <div class="urgency-timer">Closes in 47h 23m</div>
+  <!-- Dynamic content loaded from API -->
+  <div id="lead-content">
+    <div style="text-align:center;padding:3rem;color:var(--text-muted)">Loading lead details...</div>
   </div>
 
-  <!-- Lead Summary -->
-  <div class="card">
-    <div class="card-header">
-      <h2>Lead Summary</h2>
-    </div>
-    <div class="card-body">
-      <div class="lead-top">
-        <div class="redacted-name">James &amp; Patricia Morrison</div>
-        <div class="redacted-address">847 Oceanview Drive</div>
-        <div class="location-visible">📍 Rumson, NJ 07760</div>
-        <div class="services">
-          <span class="service-badge">
-            <svg viewBox="0 0 24 24"><path d="M3 3h2v18H3V3zm16 0h2v18h-2V3zM7 4h2v2H7V4zm8 0h2v2h-2V4zM7 8h2v2H7V8zm8 0h2v2h-2V8zm-8 4h2v2H7v-2zm8 0h2v2h-2v-2zm-8 4h2v2H7v-2zm8 0h2v2h-2v-2z"/></svg>
-            FenceCrafter
-          </span>
-        </div>
-      </div>
+<script>
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var leadId = params.get('id') || params.get('lead');
+  if (!leadId) {
+    document.getElementById('lead-content').innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted)">No lead specified.</div>';
+    return;
+  }
 
-      <div class="submitted-date">Submitted February 23, 2026</div>
+  fetch('/api/lead?id=' + leadId)
+    .then(function(r) { return r.json(); })
+    .then(function(lead) {
+      if (lead.error) {
+        document.getElementById('lead-content').innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted)">' + lead.error + '</div>';
+        return;
+      }
 
-      <div class="notes-section">
-        <div class="notes-label">Homeowner Notes</div>
-        <div class="notes-text">"Looking to replace the existing fence with vinyl. Hoping to get it done before summer."</div>
-      </div>
-    </div>
-  </div>
+      var serviceBadges = lead.services.map(function(s) {
+        return '<span class="service-badge">' + s.label + '</span>';
+      }).join('');
 
-  <!-- Property Dossier -->
-  <div class="card">
-    <div class="card-header">
-      <h2>Property Dossier</h2>
-    </div>
-    <div class="card-body">
-      <div class="dossier-grid">
-        <div class="dossier-item">
-          <div class="dossier-value">$1.25M</div>
-          <div class="dossier-label">Home Value</div>
-        </div>
-        <div class="dossier-item">
-          <div class="dossier-value">3,400</div>
-          <div class="dossier-label">Square Feet</div>
-        </div>
-        <div class="dossier-item">
-          <div class="dossier-value">1998</div>
-          <div class="dossier-label">Year Built</div>
-        </div>
-        <div class="dossier-item">
-          <div class="dossier-value">0.45 ac</div>
-          <div class="dossier-label">Lot Size</div>
-        </div>
-      </div>
-      <div class="map-placeholder">
-        <span class="pin">📍</span>
-        <span class="map-label">Rumson, NJ 07760</span>
-      </div>
-    </div>
-  </div>
+      var spotsDotsHtml = '';
+      for (var i = 0; i < lead.spots.total; i++) {
+        spotsDotsHtml += '<span class="dot ' + (i < lead.spots.taken ? 'taken' : 'available') + '"></span>';
+      }
 
-  <!-- Lead Pricing -->
-  <div class="pricing-section">
-    <div class="pricing-amount">$65</div>
-    <div class="pricing-per">per lead</div>
-    <div class="spots-indicator">
-      <div class="spots-dots">
-        <span class="dot taken"></span>
-        <span class="dot taken"></span>
-        <span class="dot available"></span>
-        <span class="dot available"></span>
-      </div>
-      <span class="spots-text">2 of 4 purchased</span>
-    </div>
-    <div class="closing-note">Closes after 72 hours or when all 4 spots are filled</div>
-    <div class="pricing-actions">
-      <a href="lead-accepted.html" class="btn btn-primary">Purchase This Lead — $65</a>
-      <button class="btn btn-outline">Pass</button>
-    </div>
-  </div>
+      var submitted = new Date(lead.submittedAt);
+      var submittedStr = submitted.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+      // Build details HTML from any extra form answers
+      var detailsHtml = '';
+      if (lead.details && Object.keys(lead.details).length > 0) {
+        detailsHtml = '<div class="notes-section"><div class="notes-label">Project Details</div><div style="background:var(--cream);padding:1rem 1.25rem;border-radius:8px;border-left:3px solid var(--gold)">';
+        for (var svc in lead.details) {
+          for (var key in lead.details[svc]) {
+            detailsHtml += '<div style="margin-bottom:0.5rem"><span style="font-size:0.72rem;font-weight:600;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.05em">' + key.replace(/_/g,' ') + '</span><br><span style="font-size:0.88rem;color:var(--text)">' + lead.details[svc][key] + '</span></div>';
+          }
+        }
+        detailsHtml += '</div></div>';
+      }
+
+      var html = '' +
+        '<div class="urgency">' +
+          '<div class="urgency-left">' +
+            '<span class="urgency-icon">⏱</span>' +
+            '<span class="urgency-text">' + (lead.spots.available > 0 ? lead.spots.available + ' spot' + (lead.spots.available > 1 ? 's' : '') + ' remaining — claim yours now' : 'All spots claimed') + '</span>' +
+          '</div>' +
+          '<div class="urgency-timer">' + (lead.hoursLeft > 0 ? 'Closes in ' + lead.hoursLeft + 'h' : 'Expired') + '</div>' +
+        '</div>' +
+
+        '<div class="card">' +
+          '<div class="card-header"><h2>Lead Summary</h2></div>' +
+          '<div class="card-body">' +
+            '<div class="lead-top">' +
+              '<div class="redacted-name">Homeowner Name</div>' +
+              '<div class="redacted-address">Street Address</div>' +
+              '<div class="location-visible">📍 ' + (lead.zip ? lead.zip + ', NJ' : 'New Jersey') + '</div>' +
+              '<div class="services">' + serviceBadges + '</div>' +
+            '</div>' +
+            '<div class="submitted-date">Submitted ' + submittedStr + '</div>' +
+            (lead.notes ? '<div class="notes-section"><div class="notes-label">Homeowner Notes</div><div class="notes-text">"' + lead.notes + '"</div></div>' : '') +
+            detailsHtml +
+          '</div>' +
+        '</div>' +
+
+        '<div class="pricing-section">' +
+          '<div class="pricing-amount">$' + lead.price + '</div>' +
+          '<div class="pricing-per">per lead</div>' +
+          '<div class="spots-indicator">' +
+            '<div class="spots-dots">' + spotsDotsHtml + '</div>' +
+            '<span class="spots-text">' + lead.spots.taken + ' of ' + lead.spots.total + ' purchased</span>' +
+          '</div>' +
+          '<div class="closing-note">Closes after 72 hours or when all ' + lead.spots.total + ' spots are filled</div>' +
+          '<div class="pricing-actions">' +
+            '<a href="#" class="btn btn-primary" onclick="alert(\'Purchase flow coming soon!\');return false;">Purchase This Lead — $' + lead.price + '</a>' +
+            '<a href="/leads-dashboard.html" class="btn btn-outline">Back to Leads</a>' +
+          '</div>' +
+        '</div>';
+
+      document.getElementById('lead-content').innerHTML = html;
+    })
+    .catch(function(err) {
+      document.getElementById('lead-content').innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted)">Error loading lead.</div>';
+    });
+})();
+</script>
 
   <!-- Bundle CTA -->
   <div style="text-align:center;margin-bottom:1.5rem;">
@@ -907,10 +912,7 @@ body {
 </div>
 
 <script>
-// Require login to view lead details
-if (!localStorage.getItem('hc_pro_token')) {
-  window.location.href = '/pro-login.html?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
-}
+// No login required to view lead details — contact info is locked behind purchase
 </script>
 
 <script>
