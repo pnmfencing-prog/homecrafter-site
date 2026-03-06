@@ -1,14 +1,5 @@
-import nodemailer from 'nodemailer';
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp.zoho.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.ZOHO_EMAIL || 'trent@homecrafter.ai',
-    pass: process.env.ZOHO_PASSWORD || '',
-  },
-});
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
 
 interface LeadEmailData {
   homeownerName: string;
@@ -21,11 +12,33 @@ interface LeadEmailData {
   submitted: string;
 }
 
+async function sendViaBrevo(to: string, subject: string, html: string) {
+  const res = await fetch(BREVO_ENDPOINT, {
+    method: 'POST',
+    headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sender: { name: 'HomeCrafter', email: 'trent@homecrafter.ai' },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Brevo error ${res.status}: ${err}`);
+  }
+}
+
 export async function sendLeadNotification(contractorEmail: string, contractorName: string, lead: LeadEmailData) {
   const serviceList = lead.services.map(s => {
     const names: Record<string, string> = {
-      fencing: 'FenceCrafter', roofing: 'RoofCrafter', windows: 'WindowCrafter',
-      siding: 'SidingCrafter', painting: 'PaintCrafter'
+      Fencing: 'FenceCrafter', Roofing: 'RoofCrafter', Windows: 'WindowCrafter',
+      Siding: 'SidingCrafter', Paint: 'PaintCrafter', Locksmith: 'LockCrafter',
+      Housekeeper: 'CleanCrafter', WoodFlooring: 'FloorCrafter', Carpet: 'CarpetCrafter',
+      HVAC: 'HVACCrafter', Landscaping: 'LandscapeCrafter', Irrigation: 'HydroCrafter',
+      Concrete: 'ConcreteCrafter', Kitchen: 'KitchenCrafter', Bathroom: 'BathroomCrafter',
+      PestControl: 'PestCrafter', Handyman: 'HandyCrafter', Security: 'SecureCrafter',
+      Solar: 'SolarCrafter', PowerWashing: 'WashCrafter',
     };
     return names[s] || s;
   }).join(', ');
@@ -42,8 +55,6 @@ export async function sendLeadNotification(contractorEmail: string, contractorNa
   .header p { color: rgba(255,255,255,0.5); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin: 0; }
   .body { background: #fff; padding: 32px 28px; border: 1px solid #eae7e1; border-top: none; }
   .badge { display: inline-block; background: #1e1845; color: #d4c394; font-size: 11px; font-weight: 600; letter-spacing: 2px; padding: 6px 16px; border-radius: 20px; text-transform: uppercase; margin-bottom: 20px; }
-  .lead-name { font-size: 22px; color: #1e1845; font-weight: 600; margin: 0 0 4px; }
-  .lead-address { font-size: 14px; color: #6b6b6b; margin: 0 0 20px; }
   .detail-grid { border-top: 1px solid #f0ede6; padding-top: 16px; }
   .detail-row { display: flex; padding: 8px 0; border-bottom: 1px solid #f8f6f2; }
   .detail-label { width: 100px; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #c4aa6a; padding-top: 2px; }
@@ -65,8 +76,8 @@ export async function sendLeadNotification(contractorEmail: string, contractorNa
   </div>
   <div class="body">
     <div class="badge">🔔 New Lead</div>
-    <p class="lead-name" style="font-size:18px;color:#1e1845;font-weight:600;margin:0 0 4px;">New ${serviceList} Project</p>
-    <p class="lead-address">📍 ${lead.address ? lead.address.replace(/.*,?\s*(\w+),?\s*[A-Z]{2}\s*\d{5}.*/, '$1 area') : 'New Jersey'}</p>
+    <p style="font-size:18px;color:#1e1845;font-weight:600;margin:0 0 4px;">New ${serviceList} Project</p>
+    <p style="font-size:14px;color:#6b6b6b;margin:0 0 20px;">📍 ${lead.address ? lead.address.replace(/.*,?\s*(\w+),?\s*[A-Z]{2}\s*\d{5}.*/, '$1 area') : 'New Jersey'}</p>
     <div class="detail-grid">
       <div class="detail-row">
         <div class="detail-label">Services</div>
@@ -86,18 +97,6 @@ export async function sendLeadNotification(contractorEmail: string, contractorNa
       <div class="notes-label">Homeowner Notes</div>
       <div class="notes-text">"${lead.notes}"</div>
     </div>` : ''}
-    ${lead.details && Object.keys(lead.details).length > 0 ? `
-    <div style="margin-top:16px;border-top:1px solid #f0ede6;padding-top:16px;">
-      <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#c4aa6a;margin-bottom:10px;">Project Details</div>
-      ${Object.entries(lead.details).map(([svc, answers]) => `
-        <div style="margin-bottom:8px;">
-          <div style="font-size:12px;font-weight:600;color:#1e1845;margin-bottom:4px;">${svc}</div>
-          ${Object.entries(answers as Record<string, string>).map(([k, v]) => `
-            <div style="font-size:12px;color:#6b6b6b;padding-left:12px;">• ${k.replace(/_/g, ' ')}: ${v}</div>
-          `).join('')}
-        </div>
-      `).join('')}
-    </div>` : ''}
     <div class="cta">
       <a href="https://homecrafter.ai/leads-dashboard.html">Unlock This Lead</a>
     </div>
@@ -109,15 +108,11 @@ export async function sendLeadNotification(contractorEmail: string, contractorNa
 </body>
 </html>`;
 
-  await transporter.sendMail({
-    from: '"HomeCrafter" <trent@homecrafter.ai>',
-    to: contractorEmail,
-    subject: `New ${serviceList} Lead Available — HomeCrafter`,
-    html,
-  });
+  await sendViaBrevo(contractorEmail, `New ${serviceList} Lead Available — HomeCrafter`, html);
 }
 
 export async function sendHomeownerConfirmation(email: string, name: string) {
+  const firstName = name.split(' ')[0];
   const html = `
 <!DOCTYPE html>
 <html>
@@ -141,7 +136,7 @@ export async function sendHomeownerConfirmation(email: string, name: string) {
     <h1>HOMECRAFTER</h1>
   </div>
   <div class="body">
-    <h2>Thanks, ${name.split(' ')[0]}!</h2>
+    <h2>Thanks, ${firstName}!</h2>
     <p>We've received your request and are matching you with trusted local professionals in your area.</p>
     <ul class="steps">
       <li>We're reviewing your project details now</li>
@@ -154,10 +149,5 @@ export async function sendHomeownerConfirmation(email: string, name: string) {
 </body>
 </html>`;
 
-  await transporter.sendMail({
-    from: '"HomeCrafter" <trent@homecrafter.ai>',
-    to: email,
-    subject: `We're on it, ${name.split(' ')[0]}! Your HomeCrafter request`,
-    html,
-  });
+  await sendViaBrevo(email, `We're on it, ${firstName}! Your HomeCrafter request`, html);
 }
