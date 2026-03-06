@@ -240,6 +240,8 @@ function applyFilters() {
   currentPage = 1;
   updateFilterBadge();
   loadContractors();
+  // Auto-collapse filters after applying
+  document.getElementById('filter-bar').classList.add('collapsed');
 }
 
 function buildQS(params) {
