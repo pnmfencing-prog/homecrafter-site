@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { sendHomeownerMatchEmail } from '@/lib/email';
 
 const STRIPE_SK = process.env.STRIPE_SECRET_KEY!;
 
@@ -91,6 +92,11 @@ export async function POST(request: NextRequest) {
         VALUES (${leadId}, ${proAccountId}, ${category}, ${buyerEmail}, ${claimCode}, ${sessionId})
       `;
       console.log(`Lead assigned: lead=${leadId}, pro=${proAccountId || 'guest'}, email=${buyerEmail}, code=${claimCode}`);
+
+      // Send homeowner notification if we have a pro account (not guest)
+      if (proAccountId) {
+        sendHomeownerMatchEmail(leadId, proAccountId, category).catch(() => {});
+      }
     }
 
     return NextResponse.json({ received: true });

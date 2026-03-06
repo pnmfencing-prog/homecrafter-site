@@ -3,6 +3,7 @@ import { verifyProToken } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import { VALID_CATEGORIES, categoryMatchesBundle, VALID_BUNDLES } from '@/lib/pricing';
 import sql from '@/lib/db';
+import { sendHomeownerMatchEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -96,6 +97,9 @@ export async function POST(request: NextRequest) {
       INSERT INTO lead_assignments (lead_id, pro_account_id, category, credit_id)
       VALUES (${leadId}, ${user.id}, ${category}, ${creditRow.id})
     `;
+
+    // Send homeowner notification (fire-and-forget)
+    sendHomeownerMatchEmail(leadId, user.id, category).catch(() => {});
 
     return NextResponse.json({
       success: true,
