@@ -4,7 +4,7 @@ import { getZipCoords } from '@/lib/geo';
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
 const RADIUS_MILES = 40;
-const MAX_CONTRACTORS = 200;
+// No contractor cap — email all matches
 const LEAD_VIEW_URL = 'https://homecrafter-site.vercel.app/lead-view.html';
 
 const SERVICE_NAMES: Record<string, string> = {
@@ -166,7 +166,7 @@ export async function notifyContractorsViaBrevo(
       ) sub
       WHERE distance_miles <= ${RADIUS_MILES}
       ORDER BY distance_miles ASC
-      LIMIT ${MAX_CONTRACTORS}
+
     `;
   } else {
     matchedContractors = await sql`
@@ -176,7 +176,7 @@ export async function notifyContractorsViaBrevo(
         AND email IS NOT NULL AND email != ''
         AND active = true
       ORDER BY email
-      LIMIT ${MAX_CONTRACTORS}
+
     `;
   }
 
