@@ -99,6 +99,8 @@ function buildEmailHtml(contractorName: string, services: string[], zip: string,
 }
 
 async function sendBrevoEmail(to: string, toName: string, subject: string, htmlContent: string): Promise<void> {
+  // Handle multi-email fields (e.g. "a@b.com; c@d.com") — use first valid email
+  const cleanEmail = to.split(/[;,]/).map(e => e.trim()).find(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) || to.trim();
   const res = await fetch(BREVO_ENDPOINT, {
     method: 'POST',
     headers: {
@@ -108,7 +110,7 @@ async function sendBrevoEmail(to: string, toName: string, subject: string, htmlC
     },
     body: JSON.stringify({
       sender: { name: 'Trent', email: 'trent@homecrafter.ai' },
-      to: [{ email: to, name: toName }],
+      to: [{ email: cleanEmail, name: toName }],
       subject,
       htmlContent,
     }),
