@@ -4,6 +4,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { escapeHtml } from '@/lib/sanitize';
 import sql from '@/lib/db';
 import { getZipCoords } from '@/lib/geo';
+import { notifyContractorsViaBrevo } from '@/lib/brevo-notify';
 
 // Service name mapping
 const SERVICE_NAMES: Record<string, string> = {
@@ -84,6 +85,13 @@ export async function POST(req: NextRequest) {
     const leadId = leadResult[0]?.id;
 
     console.log(`New lead #${leadId}: ${escapeHtml(data.name)} - ${data.services.join(', ')} - zip: ${zip}`);
+
+    // Fire-and-forget Brevo notifications to matching contractors
+    if (leadId) {
+      notifyContractorsViaBrevo(leadId, data.services, zip).catch((err: any) => {
+        console.error(`[brevo-notify] Error for lead #${leadId}:`, err.message);
+      });
+    }
 
     const lead = {
       homeownerName: escapeHtml(data.name || ''),
