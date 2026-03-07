@@ -139,9 +139,15 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
         <div id="tradesGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px"></div>
         <input type="hidden" id="service" value="">
       </div>
-      <div class="field">
-        <label>Service Area (Zip Code)</label>
-        <input type="text" id="zip" placeholder="07701" required pattern="[0-9]{5}" maxlength="5">
+      <div class="field-row">
+        <div class="field">
+          <label>Service Area (Zip Code)</label>
+          <input type="text" id="zip" placeholder="07701" required pattern="[0-9]{5}" maxlength="5">
+        </div>
+        <div class="field">
+          <label>License Number <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#b8b0a4">(optional)</span></label>
+          <input type="text" id="license" placeholder="13VH12345678">
+        </div>
       </div>
       <div class="field">
         <label>Password</label>
@@ -224,6 +230,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
     service: selectedTrades[0],
     categories: selectedTrades,
     zip: document.getElementById('zip').value,
+    license: document.getElementById('license').value.trim() || null,
     password: pw
   };
 
