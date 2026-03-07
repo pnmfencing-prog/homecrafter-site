@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, password } = await request.json();
+    const { email, password, remember } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -62,11 +62,11 @@ export async function POST(request: NextRequest) {
 
     const name = `${user.first_name} ${user.last_name}`;
 
-    // Issue JWT token (expires in 7 days)
+    // Issue JWT token — 30 days if "remember me", 7 days otherwise
     const token = jwt.sign(
       { id: user.id, email: user.email, name },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: remember ? '30d' : '7d' }
     );
 
     return NextResponse.json({ success: true, token, name });
