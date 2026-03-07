@@ -59,5 +59,26 @@ export async function PUT(req: NextRequest) {
 
   await sql`UPDATE pro_accounts SET categories = ${valid}, service = ${valid[0]} WHERE email = ${email}`;
 
+  // Sync contractors table — remove old category rows for this email, add new ones
+  // Get contractor info to preserve other fields
+  const existing = await sql`
+    SELECT DISTINCT ON (LOWER(email)) name, phone, website, address, city, state, zip, rating, reviews, lat, lng
+    FROM contractors WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+  `;
+
+  if (existing.length > 0) {
+    const c = existing[0];
+    // Delete old entries for this email
+    await sql`DELETE FROM contractors WHERE LOWER(email) = LOWER(${email})`;
+    // Insert one row per selected category
+    for (const cat of valid) {
+      await sql`
+        INSERT INTO contractors (name, email, phone, website, address, city, state, zip, category, rating, reviews, lat, lng, active)
+        VALUES (${c.name}, ${email}, ${c.phone}, ${c.website}, ${c.address}, ${c.city}, ${c.state}, ${c.zip}, ${cat}, ${c.rating}, ${c.reviews}, ${c.lat}, ${c.lng}, true)
+      `;
+    }
+    console.log(`[pro-categories] Synced ${valid.length} categories for ${email} in contractors table`);
+  }
+
   return NextResponse.json({ success: true, categories: valid });
 }

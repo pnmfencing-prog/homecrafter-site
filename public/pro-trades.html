@@ -177,6 +177,14 @@ var selected = [];
 
 function updateCount() {
   document.getElementById('selectedCount').textContent = selected.length;
+  var btn = document.getElementById('saveBtn');
+  if (selected.length === 0) {
+    btn.disabled = true;
+    btn.title = 'You must select at least one trade';
+  } else {
+    btn.disabled = false;
+    btn.title = '';
+  }
 }
 
 function toggleTrade(el) {
