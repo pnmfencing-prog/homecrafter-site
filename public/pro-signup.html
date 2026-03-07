@@ -89,7 +89,8 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
 .trade-pill:hover { border-color:#c4aa6a; }
 .trade-pill.selected { border-color:#1e1845; background:#f5f3ff; color:#1e1845; font-weight:600; }
 .trade-pill .check { width:16px; height:16px; border:1.5px solid #d0cdc6; border-radius:3px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.25s; font-size:10px; }
-.trade-pill.selected .check { background:#1e1845; border-color:#1e1845; color:#c4aa6a; }
+.trade-pill.selected .check { background:#1e1845; border-color:#1e1845; }
+.trade-pill.selected .check::after { content:'✓'; color:#c4aa6a; font-size:10px; font-weight:700; }
 
 @media (max-width: 500px) {
   .hero-logo { font-size: clamp(24px, 7vw, 36px); letter-spacing: 4px; }
@@ -178,7 +179,7 @@ var selectedTrades = [];
   var grid = document.getElementById('tradesGrid');
   grid.innerHTML = ALL_TRADES.map(function(t) {
     return '<div class="trade-pill" data-val="' + t.v + '" onclick="toggleTrade(this)">' +
-      '<span class="check">✓</span><span>' + t.l + '</span></div>';
+      '<span class="check"></span><span>' + t.l + '</span></div>';
   }).join('');
 })();
 function toggleTrade(el) {
