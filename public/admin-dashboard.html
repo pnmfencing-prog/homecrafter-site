@@ -227,6 +227,12 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
     <div class="loading-msg">Loading dashboard data...</div>
   </div>
 
+  <!-- Pending Approvals -->
+  <div id="pending-section" class="section" style="display:none">
+    <div class="section-title">Pending Account Approvals</div>
+    <div id="pending-list"></div>
+  </div>
+
   <div id="leads-section" class="section" style="display:none">
     <div class="section-title">All Leads</div>
     <div id="leads-table-wrap"></div>
@@ -546,7 +552,60 @@ fetch('/api/admin-filters')
   document.getElementById(id).addEventListener('change', function() { applyFilters(); });
 });
 
+// Pending Approvals
+function loadPending() {
+  fetch('/api/admin-approve?status=pending')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var accts = data.accounts || [];
+      var sec = document.getElementById('pending-section');
+      var list = document.getElementById('pending-list');
+      if (accts.length === 0) { sec.style.display = 'none'; return; }
+      sec.style.display = 'block';
+      list.innerHTML = accts.map(function(a) {
+        var cats = (a.categories || []).join(', ') || a.service || 'N/A';
+        var date = new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        return '<div style="background:#fff;border:1px solid #eae7e1;border-radius:6px;padding:16px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">' +
+          '<div>' +
+            '<div style="font-weight:600;color:#1e1845;font-size:14px">' + a.first_name + ' ' + a.last_name + (a.company ? ' — ' + a.company : '') + '</div>' +
+            '<div style="font-size:11px;color:#6b6b6b;margin-top:4px">' + a.email + (a.phone ? ' · ' + a.phone : '') + ' · ' + a.zip + '</div>' +
+            '<div style="font-size:11px;color:#b8b0a4;margin-top:2px">Trades: ' + cats + ' · Signed up ' + date + '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:8px">' +
+            '<button onclick="approveAccount(' + a.id + ',this)" style="padding:8px 16px;background:#1e1845;color:#c4aa6a;border:none;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:0.5px">Approve</button>' +
+            '<button onclick="rejectAccount(' + a.id + ',this)" style="padding:8px 16px;background:#fff;color:#991b1b;border:1px solid #fca5a5;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:0.5px">Reject</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function() {});
+}
+
+function approveAccount(id, btn) {
+  btn.disabled = true; btn.textContent = 'Approving...';
+  fetch('/api/admin-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, action: 'approve' }) })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) { btn.parentElement.parentElement.style.opacity = '0.4'; btn.textContent = '✓ Approved'; }
+      else { btn.textContent = 'Error'; btn.disabled = false; }
+    })
+    .catch(function() { btn.textContent = 'Error'; btn.disabled = false; });
+}
+
+function rejectAccount(id, btn) {
+  if (!confirm('Reject this account?')) return;
+  btn.disabled = true; btn.textContent = 'Rejecting...';
+  fetch('/api/admin-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id, action: 'reject' }) })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) { btn.parentElement.parentElement.style.opacity = '0.4'; btn.textContent = '✗ Rejected'; }
+      else { btn.textContent = 'Error'; btn.disabled = false; }
+    })
+    .catch(function() { btn.textContent = 'Error'; btn.disabled = false; });
+}
+
 // Initial load
+loadPending();
 loadStats();
 loadLeads();
 </script>

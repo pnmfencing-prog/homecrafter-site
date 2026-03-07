@@ -43,11 +43,16 @@ export async function POST(request: NextRequest) {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Insert into database
+    // Check if email exists in contractors database — auto-approve if so
     const cats: string[] = Array.isArray(categories) && categories.length > 0 ? categories : (service ? [service] : []);
+    const emailLower = email.toLowerCase();
+    const knownContractor = await sql`SELECT id FROM contractors WHERE LOWER(email) = ${emailLower} LIMIT 1`;
+    const autoApprove = knownContractor.length > 0;
+    const status = autoApprove ? 'active' : 'pending';
+
     await sql`
       INSERT INTO pro_accounts (first_name, last_name, company, email, phone, password_hash, service, zip, status, categories)
-      VALUES (${firstName}, ${lastName}, ${company}, ${email.toLowerCase()}, ${phone}, ${passwordHash}, ${service || cats[0] || ''}, ${zip}, 'active', ${cats})
+      VALUES (${firstName}, ${lastName}, ${company}, ${emailLower}, ${phone}, ${passwordHash}, ${service || cats[0] || ''}, ${zip}, ${status}, ${cats})
     `;
 
     console.log(`New pro signup: ${firstName} ${lastName} - ${company} (${email})`);
@@ -67,7 +72,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, message: 'Account created successfully' });
+    return NextResponse.json({
+      success: true,
+      autoApproved: autoApprove,
+      message: autoApprove
+        ? 'Account created! You can log in now.'
+        : 'Account created! Your account is being reviewed and will be approved shortly.'
+    });
   } catch (e) {
     console.error('Signup error:', e);
     return NextResponse.json(

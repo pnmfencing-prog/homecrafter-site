@@ -235,9 +235,11 @@ document.getElementById('signupForm').addEventListener('submit', async function(
     const result = await res.json();
     if (result.success) {
       msgEl.className = 'msg success';
-      msgEl.textContent = 'Account created! Redirecting to login...';
+      msgEl.textContent = result.message || 'Account created!';
       msgEl.style.display = 'block';
-      setTimeout(() => { window.location.href = '/pro-login.html'; }, 2000);
+      if (result.autoApproved) {
+        setTimeout(() => { window.location.href = '/pro-login.html'; }, 2000);
+      }
     } else {
       msgEl.className = 'msg error';
       msgEl.textContent = result.message || 'Something went wrong';
