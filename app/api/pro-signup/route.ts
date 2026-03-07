@@ -58,7 +58,6 @@ export async function POST(request: NextRequest) {
     console.log(`New pro signup: ${firstName} ${lastName} - ${company} (${email})`);
 
     // Auto-link any guest lead purchases made with this email
-    const emailLower = email.toLowerCase();
     const newAcct = await sql`SELECT id FROM pro_accounts WHERE email = ${emailLower} LIMIT 1`;
     if (newAcct.length > 0) {
       const acctId = newAcct[0].id;
