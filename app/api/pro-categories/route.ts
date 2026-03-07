@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import jwt from 'jsonwebtoken';
 import sql from '@/lib/db';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'hc-pro-secret-change-in-production';
 
 const VALID_CATEGORIES = [
   'Bathroom', 'Carpet', 'Concrete', 'Fencing', 'Handyman', 'Housekeeper',
@@ -8,19 +11,28 @@ const VALID_CATEGORIES = [
   'Windows', 'WoodFlooring',
 ];
 
+function getProEmail(req: NextRequest): string | null {
+  const token = req.headers.get('authorization')?.replace('Bearer ', '');
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { email: string };
+    return decoded.email || null;
+  } catch {
+    return null;
+  }
+}
+
 // GET — fetch current categories
 export async function GET(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const email = getProEmail(req);
+  if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const sessions = await sql`SELECT pro_account_id FROM pro_sessions WHERE token = ${token} AND expires_at > NOW()`;
-  if (sessions.length === 0) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
-
-  const proId = sessions[0].pro_account_id;
-  const accounts = await sql`SELECT categories, service FROM pro_accounts WHERE id = ${proId}`;
+  const accounts = await sql`SELECT categories, service FROM pro_accounts WHERE email = ${email}`;
   if (accounts.length === 0) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
 
-  const categories = accounts[0].categories || (accounts[0].service ? [accounts[0].service] : []);
+  const categories = accounts[0].categories?.length > 0
+    ? accounts[0].categories
+    : (accounts[0].service ? [accounts[0].service] : []);
 
   return NextResponse.json({
     categories,
@@ -30,13 +42,9 @@ export async function GET(req: NextRequest) {
 
 // PUT — update categories
 export async function PUT(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const email = getProEmail(req);
+  if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const sessions = await sql`SELECT pro_account_id FROM pro_sessions WHERE token = ${token} AND expires_at > NOW()`;
-  if (sessions.length === 0) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
-
-  const proId = sessions[0].pro_account_id;
   const body = await req.json();
   const categories: string[] = body.categories || [];
 
@@ -49,7 +57,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'Maximum 10 trades' }, { status: 400 });
   }
 
-  await sql`UPDATE pro_accounts SET categories = ${valid}, service = ${valid[0]} WHERE id = ${proId}`;
+  await sql`UPDATE pro_accounts SET categories = ${valid}, service = ${valid[0]} WHERE email = ${email}`;
 
   return NextResponse.json({ success: true, categories: valid });
 }
