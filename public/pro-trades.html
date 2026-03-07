@@ -203,17 +203,28 @@ function toggleTrade(el) {
 
 function loadTrades() {
   var token = localStorage.getItem('hc_pro_token');
-  if (!token) return;
+  if (!token) { renderGrid(); return; }
+
+  document.getElementById('tradesGrid').innerHTML = '<div style="text-align:center;padding:24px;color:#b8b0a4;font-size:13px">Loading your trades...</div>';
 
   fetch('/api/pro-categories', { headers: { 'Authorization': 'Bearer ' + token } })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (data.error) return;
+      if (data.error) {
+        console.log('pro-categories error:', data.error);
+        renderGrid();
+        updateCount();
+        return;
+      }
       selected = data.categories || [];
       renderGrid();
       updateCount();
     })
-    .catch(function() { renderGrid(); });
+    .catch(function(err) {
+      console.log('pro-categories fetch error:', err);
+      renderGrid();
+      updateCount();
+    });
 }
 
 function renderGrid() {
