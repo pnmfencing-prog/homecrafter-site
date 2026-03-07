@@ -10,9 +10,9 @@ export async function POST(request: NextRequest) {
   try {
     // Rate limit: 5 login attempts per IP per 15 minutes
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    if (!rateLimit(`login:${ip}`, 5, 15 * 60 * 1000)) {
+    if (!rateLimit(`login:${ip}`, 5, 5 * 60 * 1000)) {
       return NextResponse.json(
-        { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' },
+        { success: false, message: 'Too many login attempts. Please try again in 5 minutes.' },
         { status: 429 }
       );
     }
