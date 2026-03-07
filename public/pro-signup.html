@@ -81,6 +81,16 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
 .footer p { font-size: 10px; color: #c8c0b4; letter-spacing: 1px; font-weight: 500; }
 .footer a { color: #b8ae9e; text-decoration: none; }
 
+.trade-pill {
+  display:flex; align-items:center; gap:6px; padding:8px 10px; background:#faf9f6;
+  border:1.5px solid #eae7e1; border-radius:5px; cursor:pointer; transition:all 0.25s;
+  font-size:11px; font-weight:500; color:#6b6b6b; user-select:none;
+}
+.trade-pill:hover { border-color:#c4aa6a; }
+.trade-pill.selected { border-color:#1e1845; background:#f5f3ff; color:#1e1845; font-weight:600; }
+.trade-pill .check { width:16px; height:16px; border:1.5px solid #d0cdc6; border-radius:3px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.25s; font-size:10px; }
+.trade-pill.selected .check { background:#1e1845; border-color:#1e1845; color:#c4aa6a; }
+
 @media (max-width: 500px) {
   .hero-logo { font-size: clamp(24px, 7vw, 36px); letter-spacing: 4px; }
   .signup-card { padding: 28px 20px; }
@@ -124,15 +134,9 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
         <input type="tel" id="phone" placeholder="(732) 555-1234" required>
       </div>
       <div class="field">
-        <label>Primary Service</label>
-        <select id="service" required>
-          <option value="" disabled selected>Select your trade</option>
-          <option value="fencing">Fencing</option>
-          <option value="roofing">Roofing</option>
-          <option value="windows">Windows</option>
-          <option value="siding">Siding</option>
-          <option value="painting">Painting</option>
-        </select>
+        <label>Your Trades <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9px;color:#b8b0a4">(select all that apply)</span></label>
+        <div id="tradesGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px"></div>
+        <input type="hidden" id="service" value="">
       </div>
       <div class="field">
         <label>Service Area (Zip Code)</label>
@@ -159,6 +163,32 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
 </div>
 
 <script>
+// Trade selection
+var ALL_TRADES = [
+  {v:'Bathroom',l:'🛁 Bathroom'},{v:'Carpet',l:'🧶 Carpet'},{v:'Concrete',l:'🪨 Concrete'},
+  {v:'Fencing',l:'🏗️ Fencing'},{v:'Handyman',l:'🔧 Handyman'},{v:'Housekeeper',l:'🧹 Housekeeping'},
+  {v:'HVAC',l:'❄️ HVAC'},{v:'Irrigation',l:'💧 Irrigation'},{v:'Kitchen',l:'🍳 Kitchen'},
+  {v:'Landscaping',l:'🌿 Landscaping'},{v:'Locksmith',l:'🔒 Locksmith'},{v:'Paint',l:'🎨 Painting'},
+  {v:'PestControl',l:'🐜 Pest Control'},{v:'PowerWashing',l:'💦 Power Washing'},{v:'Roofing',l:'🏠 Roofing'},
+  {v:'Security',l:'📹 Security'},{v:'Siding',l:'🏡 Siding'},{v:'Solar',l:'☀️ Solar'},
+  {v:'Windows',l:'🪟 Windows'},{v:'WoodFlooring',l:'🪵 Wood Flooring'}
+];
+var selectedTrades = [];
+(function() {
+  var grid = document.getElementById('tradesGrid');
+  grid.innerHTML = ALL_TRADES.map(function(t) {
+    return '<div class="trade-pill" data-val="' + t.v + '" onclick="toggleTrade(this)">' +
+      '<span class="check">✓</span><span>' + t.l + '</span></div>';
+  }).join('');
+})();
+function toggleTrade(el) {
+  var val = el.getAttribute('data-val');
+  var idx = selectedTrades.indexOf(val);
+  if (idx >= 0) { selectedTrades.splice(idx, 1); el.classList.remove('selected'); }
+  else { if (selectedTrades.length >= 10) { alert('Maximum 10 trades'); return; } selectedTrades.push(val); el.classList.add('selected'); }
+  document.getElementById('service').value = selectedTrades.join(',');
+}
+
 document.getElementById('signupForm').addEventListener('submit', async function(e) {
   e.preventDefault();
   const btn = document.getElementById('signupBtn');
@@ -176,13 +206,22 @@ document.getElementById('signupForm').addEventListener('submit', async function(
   btn.disabled = true; btn.textContent = 'Creating account...';
   msgEl.style.display = 'none';
 
+  if (selectedTrades.length === 0) {
+    msgEl.className = 'msg error';
+    msgEl.textContent = 'Please select at least one trade';
+    msgEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Create Account';
+    return;
+  }
+
   const data = {
     firstName: document.getElementById('firstName').value,
     lastName: document.getElementById('lastName').value,
     company: document.getElementById('company').value,
     email: document.getElementById('email').value,
     phone: document.getElementById('phone').value,
-    service: document.getElementById('service').value,
+    service: selectedTrades[0],
+    categories: selectedTrades,
     zip: document.getElementById('zip').value,
     password: pw
   };

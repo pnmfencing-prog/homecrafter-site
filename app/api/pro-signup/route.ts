@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { firstName, lastName, company, email, phone, service, zip, password } = await request.json();
+    const { firstName, lastName, company, email, phone, service, categories, zip, password } = await request.json();
 
     // Validate required fields
     if (!firstName || !lastName || !company || !email || !phone || !service || !zip || !password) {
@@ -44,9 +44,10 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 12);
 
     // Insert into database
+    const cats: string[] = Array.isArray(categories) && categories.length > 0 ? categories : (service ? [service] : []);
     await sql`
-      INSERT INTO pro_accounts (first_name, last_name, company, email, phone, password_hash, service, zip, status)
-      VALUES (${firstName}, ${lastName}, ${company}, ${email.toLowerCase()}, ${phone}, ${passwordHash}, ${service}, ${zip}, 'pending')
+      INSERT INTO pro_accounts (first_name, last_name, company, email, phone, password_hash, service, zip, status, categories)
+      VALUES (${firstName}, ${lastName}, ${company}, ${email.toLowerCase()}, ${phone}, ${passwordHash}, ${service || cats[0] || ''}, ${zip}, 'pending', ${cats})
     `;
 
     console.log(`New pro signup: ${firstName} ${lastName} - ${company} (${email})`);
