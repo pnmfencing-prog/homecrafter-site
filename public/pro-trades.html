@@ -134,7 +134,7 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
     <p>Select one or more trades that you specialize in to receive related leads.</p>
   </div>
 
-  <div class="count-badge">Selected: <strong><span id="selectedCount">0</span></strong> / 10</div>
+  <div class="count-badge">Selected: <strong><span id="selectedCount">0</span></strong> / 20</div>
 
   <div id="tradesGrid" class="trades-grid"></div>
 
@@ -194,7 +194,7 @@ function toggleTrade(el) {
     selected.splice(idx, 1);
     el.classList.remove('selected');
   } else {
-    if (selected.length >= 10) { alert('Maximum 10 trades'); return; }
+    if (selected.length >= 20) { alert('Maximum 20 trades'); return; }
     selected.push(val);
     el.classList.add('selected');
   }
@@ -212,11 +212,30 @@ function loadTrades() {
     .then(function(data) {
       if (data.error) {
         console.log('pro-categories error:', data.error);
-        renderGrid();
-        updateCount();
+        // Fallback: try to get service from pro-session
+        fetch('/api/pro-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token }) })
+          .then(function(r2) { return r2.json(); })
+          .then(function(d2) {
+            // Can't get categories from session, just render empty
+            renderGrid();
+            updateCount();
+          }).catch(function() { renderGrid(); updateCount(); });
         return;
       }
-      selected = data.categories || [];
+      // Normalize categories to match TRADES values
+      var validKeys = TRADES.map(function(t) { return t.v; });
+      selected = (data.categories || []).filter(function(c) {
+        return validKeys.indexOf(c) >= 0;
+      });
+      // If empty but we got data, try case-insensitive match
+      if (selected.length === 0 && data.categories && data.categories.length > 0) {
+        var lowerMap = {};
+        validKeys.forEach(function(k) { lowerMap[k.toLowerCase()] = k; });
+        data.categories.forEach(function(c) {
+          var match = lowerMap[c.toLowerCase()];
+          if (match && selected.indexOf(match) < 0) selected.push(match);
+        });
+      }
       renderGrid();
       updateCount();
     })

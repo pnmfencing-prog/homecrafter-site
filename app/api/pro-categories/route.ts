@@ -53,8 +53,8 @@ export async function PUT(req: NextRequest) {
   if (valid.length === 0) {
     return NextResponse.json({ error: 'Select at least one trade' }, { status: 400 });
   }
-  if (valid.length > 10) {
-    return NextResponse.json({ error: 'Maximum 10 trades' }, { status: 400 });
+  if (valid.length > 20) {
+    return NextResponse.json({ error: 'Maximum 20 trades' }, { status: 400 });
   }
 
   await sql`UPDATE pro_accounts SET categories = ${valid}, service = ${valid[0]} WHERE email = ${email}`;
