@@ -157,6 +157,10 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
         <label>Confirm Password</label>
         <input type="password" id="confirmPassword" placeholder="••••••••" required minlength="8">
       </div>
+      <div style="display:flex;align-items:flex-start;gap:10px;margin:16px 0 8px">
+        <input type="checkbox" id="consent" required style="width:18px;height:18px;accent-color:#1e1845;cursor:pointer;flex-shrink:0;margin-top:2px">
+        <label for="consent" style="font-size:11px;color:#6b6b6b;font-weight:400;line-height:1.5;cursor:pointer;text-transform:none;letter-spacing:0">By creating an account, I agree to receive lead notifications via <strong>email and text message</strong> from HomeCrafter. Message & data rates may apply. You can update your preferences at any time from your dashboard.</label>
+      </div>
       <button type="submit" class="signup-btn" id="signupBtn">Create Account</button>
       <div class="msg" id="msgEl"></div>
     </form>
@@ -231,6 +235,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
     categories: selectedTrades,
     zip: document.getElementById('zip').value,
     license: document.getElementById('license').value.trim() || null,
+    consent: document.getElementById('consent').checked,
     password: pw
   };
 

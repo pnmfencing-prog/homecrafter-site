@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { firstName, lastName, company, email, phone, service, categories, zip, license, password } = await request.json();
+    const { firstName, lastName, company, email, phone, service, categories, zip, license, consent, password } = await request.json();
 
     // Validate required fields
     if (!firstName || !lastName || !company || !email || !phone || !service || !zip || !password) {
@@ -51,8 +51,8 @@ export async function POST(request: NextRequest) {
     const status = autoApprove ? 'active' : 'pending';
 
     await sql`
-      INSERT INTO pro_accounts (first_name, last_name, company, email, phone, password_hash, service, zip, status, categories, license)
-      VALUES (${firstName}, ${lastName}, ${company}, ${emailLower}, ${phone}, ${passwordHash}, ${service || cats[0] || ''}, ${zip}, ${status}, ${cats}, ${license || null})
+      INSERT INTO pro_accounts (first_name, last_name, company, email, phone, password_hash, service, zip, status, categories, license, sms_consent, consent_at)
+      VALUES (${firstName}, ${lastName}, ${company}, ${emailLower}, ${phone}, ${passwordHash}, ${service || cats[0] || ''}, ${zip}, ${status}, ${cats}, ${license || null}, ${consent ? true : false}, ${consent ? new Date().toISOString() : null})
     `;
 
     console.log(`New pro signup: ${firstName} ${lastName} - ${company} (${email})`);
