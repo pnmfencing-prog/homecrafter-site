@@ -76,6 +76,7 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
   <div class="nav-links">
     <a href="/leads-dashboard.html">Leads</a>
     <a href="/lead-bundles.html">Bundles</a>
+    <a href="/pro-trades.html">My Trades</a>
     <a href="/ai-assistant.html">AI Assistant</a>
     <a href="/pro-dashboard.html" class="active">My Dashboard</a>
     <button class="logout-btn" onclick="logout()">Logout</button>
@@ -115,19 +116,6 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
     <div class="card-title">AI Assistant</div>
     <div class="card-desc">Your digital sales representative</div>
   </a>
-</div>
-
-<!-- My Trades Section -->
-<div style="max-width:640px;margin:0 auto;padding:0 24px 24px">
-  <div id="tradesSection">
-    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#1e1845;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid #eae7e1">My Trades</div>
-    <div style="font-size:11px;color:#b8b0a4;margin-bottom:16px">Select the trades you offer — you'll receive leads matching these categories.</div>
-    <div id="tradesGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
-    <div style="margin-top:16px;text-align:center">
-      <button id="saveTradesBtn" onclick="saveTrades()" style="padding:12px 32px;background:#1e1845;color:#c4aa6a;border:none;border-radius:4px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all 0.3s">Save Changes</button>
-      <div id="tradesMsg" style="margin-top:10px;font-size:12px"></div>
-    </div>
-  </div>
 </div>
 
 <!-- My Bundles Section -->
@@ -212,16 +200,7 @@ function submitClaimCode() {
 .usage-detail { color:#b8b0a4; font-size:11px; }
 .usage-date { color:#b8b0a4; font-size:11px; white-space:nowrap; }
 .empty-msg { text-align:center; padding:24px; font-size:12px; color:#b8b0a4; }
-.trade-pill {
-  display:flex; align-items:center; gap:8px; padding:10px 14px; background:#fff;
-  border:1.5px solid #eae7e1; border-radius:6px; cursor:pointer; transition:all 0.25s;
-  font-size:12px; font-weight:500; color:#6b6b6b; user-select:none;
-}
-.trade-pill:hover { border-color:#c4aa6a; }
-.trade-pill.selected { border-color:#1e1845; background:#f5f3ff; color:#1e1845; font-weight:600; }
-.trade-pill .check { width:18px; height:18px; border:1.5px solid #d0cdc6; border-radius:3px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.25s; }
-.trade-pill.selected .check { background:#1e1845; border-color:#1e1845; }
-.trade-pill.selected .check::after { content:'✓'; color:#c4aa6a; font-size:11px; font-weight:700; }
+
 </style>
 <script>
 function loadProDashboardData() {
@@ -273,81 +252,6 @@ function loadProDashboardData() {
     .catch(function() {});
 }
 loadProDashboardData();
-
-// Trade management
-var TRADE_LABELS = {
-  Bathroom:'🛁 Bathroom', Carpet:'🧶 Carpet', Concrete:'🪨 Concrete', Fencing:'🏗️ Fencing',
-  Handyman:'🔧 Handyman', Housekeeper:'🧹 Housekeeping', HVAC:'❄️ HVAC', Irrigation:'💧 Irrigation',
-  Kitchen:'🍳 Kitchen', Landscaping:'🌿 Landscaping', Locksmith:'🔒 Locksmith', Paint:'🎨 Painting',
-  PestControl:'🐜 Pest Control', PowerWashing:'💦 Power Washing', Roofing:'🏠 Roofing',
-  Security:'📹 Security', Siding:'🏡 Siding', Solar:'☀️ Solar', Windows:'🪟 Windows', WoodFlooring:'🪵 Wood Flooring'
-};
-var selectedTrades = [];
-
-function loadTrades() {
-  var token = localStorage.getItem('hc_pro_token');
-  if (!token) return;
-  fetch('/api/pro-categories', { headers: { 'Authorization': 'Bearer ' + token } })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.error) return;
-      selectedTrades = data.categories || [];
-      var grid = document.getElementById('tradesGrid');
-      grid.innerHTML = (data.available || []).map(function(cat) {
-        var sel = selectedTrades.indexOf(cat) >= 0;
-        return '<div class="trade-pill' + (sel ? ' selected' : '') + '" data-cat="' + cat + '" onclick="toggleTrade(this,\'' + cat + '\')">' +
-          '<span class="check"></span>' +
-          '<span>' + (TRADE_LABELS[cat] || cat) + '</span>' +
-        '</div>';
-      }).join('');
-    })
-    .catch(function() {});
-}
-
-function toggleTrade(el, cat) {
-  var idx = selectedTrades.indexOf(cat);
-  if (idx >= 0) {
-    selectedTrades.splice(idx, 1);
-    el.classList.remove('selected');
-  } else {
-    if (selectedTrades.length >= 10) { alert('Maximum 10 trades'); return; }
-    selectedTrades.push(cat);
-    el.classList.add('selected');
-  }
-}
-
-function saveTrades() {
-  var token = localStorage.getItem('hc_pro_token');
-  if (!token) return;
-  if (selectedTrades.length === 0) { alert('Select at least one trade'); return; }
-  var btn = document.getElementById('saveTradesBtn');
-  var msg = document.getElementById('tradesMsg');
-  btn.disabled = true;
-  btn.textContent = 'Saving...';
-  fetch('/api/pro-categories', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-    body: JSON.stringify({ categories: selectedTrades })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    btn.disabled = false;
-    btn.textContent = 'Save Changes';
-    if (data.success) {
-      msg.innerHTML = '<span style="color:#166534">✓ Trades updated successfully</span>';
-      setTimeout(function() { msg.innerHTML = ''; }, 3000);
-    } else {
-      msg.innerHTML = '<span style="color:#c0392b">' + (data.error || 'Error saving') + '</span>';
-    }
-  })
-  .catch(function() {
-    btn.disabled = false;
-    btn.textContent = 'Save Changes';
-    msg.innerHTML = '<span style="color:#c0392b">Network error</span>';
-  });
-}
-
-loadTrades();
 </script>
 <script>
 // Server-side session validation

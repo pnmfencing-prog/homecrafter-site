@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Trades — HomeCrafter</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2a; visibility: hidden; }
+
+.pro-topnav {
+  background: #1e1845; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+}
+.pro-topnav .brand {
+  font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 600;
+  letter-spacing: 3px; color: #d4c394; text-decoration: none;
+}
+.pro-topnav .nav-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.pro-topnav .nav-links a {
+  color: rgba(255,255,255,0.7); text-decoration: none; font-size: 12px; font-weight: 500;
+  letter-spacing: 0.5px; transition: color 0.3s;
+}
+.pro-topnav .nav-links a:hover { color: #d4c394; }
+.pro-topnav .nav-links a.active { color: #d4c394; }
+.pro-topnav .logout-btn {
+  color: rgba(255,255,255,0.5); text-decoration: none; font-size: 11px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase; transition: color 0.3s; cursor: pointer;
+  background: none; border: 1px solid rgba(255,255,255,0.2); padding: 5px 14px; border-radius: 3px;
+}
+.pro-topnav .logout-btn:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+.gold-trim { height: 1px; background: linear-gradient(90deg, transparent 5%, #c4aa6a 50%, transparent 95%); }
+
+.page-header {
+  background: linear-gradient(135deg, #1e1845, #2a2260);
+  padding: 40px 24px; text-align: center;
+}
+.page-header h1 {
+  font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 2.2rem;
+  letter-spacing: 0.35em; color: #c4aa6a; text-transform: uppercase; margin-bottom: 0.4rem;
+}
+.page-header .sub {
+  font-weight: 300; font-size: 0.8rem; letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.6); text-transform: uppercase;
+}
+.page-header .rule { width: 40px; height: 2px; background: #c4aa6a; margin: 16px auto 0; }
+
+.content { max-width: 640px; margin: 0 auto; padding: 40px 24px 64px; }
+
+.intro {
+  text-align: center; margin-bottom: 32px;
+}
+.intro h2 {
+  font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 600;
+  color: #1e1845; margin-bottom: 8px;
+}
+.intro p {
+  font-size: 13px; color: #6b6b6b; line-height: 1.6;
+}
+
+.trades-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 28px;
+}
+
+.trade-pill {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: #fff;
+  border: 1.5px solid #eae7e1; border-radius: 8px; cursor: pointer; transition: all 0.25s;
+  font-size: 13px; font-weight: 500; color: #6b6b6b; user-select: none;
+}
+.trade-pill:hover { border-color: #c4aa6a; box-shadow: 0 2px 8px rgba(30,24,69,0.06); }
+.trade-pill.selected { border-color: #1e1845; background: #f5f3ff; color: #1e1845; font-weight: 600; }
+
+.trade-pill .check {
+  width: 20px; height: 20px; border: 1.5px solid #d0cdc6; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.25s;
+}
+.trade-pill.selected .check { background: #1e1845; border-color: #1e1845; }
+.trade-pill.selected .check::after { content: '✓'; color: #c4aa6a; font-size: 12px; font-weight: 700; }
+
+.trade-pill .emoji { font-size: 18px; flex-shrink: 0; }
+
+.save-area { text-align: center; margin-top: 8px; }
+.save-btn {
+  padding: 14px 40px; background: #1e1845; color: #c4aa6a; border: none; border-radius: 4px;
+  font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+  letter-spacing: 2px; text-transform: uppercase; transition: all 0.35s;
+}
+.save-btn:hover { background: #2a2260; box-shadow: 0 8px 32px rgba(30,24,69,0.2); transform: translateY(-1px); }
+.save-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.save-msg { margin-top: 12px; font-size: 13px; }
+
+.count-badge {
+  text-align: center; font-size: 12px; color: #b8b0a4; font-weight: 500; margin-bottom: 20px;
+}
+.count-badge strong { color: #1e1845; }
+
+.footer { text-align: center; padding: 24px 20px; }
+.footer p { font-size: 10px; color: #c8c0b4; letter-spacing: 1px; font-weight: 500; }
+.footer a { color: #b8ae9e; text-decoration: none; }
+
+@media (max-width: 500px) {
+  .trades-grid { grid-template-columns: 1fr; }
+  .page-header h1 { font-size: 1.6rem; letter-spacing: 0.2em; }
+  .pro-topnav { padding: 12px 16px; }
+  .pro-topnav .nav-links { gap: 14px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="pro-topnav">
+  <a href="/services.html" class="brand">HOMECRAFTER</a>
+  <div class="nav-links">
+    <a href="/leads-dashboard.html">Leads</a>
+    <a href="/lead-bundles.html">Bundles</a>
+    <a href="/pro-trades.html" class="active">My Trades</a>
+    <a href="/ai-assistant.html">AI Assistant</a>
+    <a href="/pro-dashboard.html">My Dashboard</a>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</nav>
+<div class="gold-trim"></div>
+
+<div class="page-header">
+  <h1>My Trades</h1>
+  <div class="sub">◆ &nbsp; Lead Preferences &nbsp; ◆</div>
+  <div class="rule"></div>
+</div>
+
+<div class="content">
+  <div class="intro">
+    <h2>Choose Your Specialties</h2>
+    <p>Select one or more trades that you specialize in to receive related leads.</p>
+  </div>
+
+  <div class="count-badge">Selected: <strong><span id="selectedCount">0</span></strong> / 10</div>
+
+  <div id="tradesGrid" class="trades-grid"></div>
+
+  <div class="save-area">
+    <button id="saveBtn" class="save-btn" onclick="saveTrades()">Save Changes</button>
+    <div id="saveMsg" class="save-msg"></div>
+  </div>
+</div>
+
+<div class="footer">
+  <p><a href="/services.html">homecrafter.ai</a></p>
+  <div style="margin-top:6px;font-size:0.6rem;color:rgba(107,107,107,0.5)">Owned and operated by Fence Crafters LLC</div>
+</div>
+
+<script>
+var TRADES = [
+  { v: 'Bathroom',      emoji: '🛁', label: 'Bathroom' },
+  { v: 'Carpet',        emoji: '🧶', label: 'Carpet' },
+  { v: 'Concrete',      emoji: '🪨', label: 'Concrete' },
+  { v: 'Fencing',       emoji: '🏗️', label: 'Fencing' },
+  { v: 'Handyman',      emoji: '🔧', label: 'Handyman' },
+  { v: 'Housekeeper',   emoji: '🧹', label: 'Housekeeping' },
+  { v: 'HVAC',          emoji: '❄️', label: 'HVAC' },
+  { v: 'Irrigation',    emoji: '💧', label: 'Irrigation' },
+  { v: 'Kitchen',       emoji: '🍳', label: 'Kitchen' },
+  { v: 'Landscaping',   emoji: '🌿', label: 'Landscaping' },
+  { v: 'Locksmith',     emoji: '🔒', label: 'Locksmith' },
+  { v: 'Paint',         emoji: '🎨', label: 'Painting' },
+  { v: 'PestControl',   emoji: '🐜', label: 'Pest Control' },
+  { v: 'PowerWashing',  emoji: '💦', label: 'Power Washing' },
+  { v: 'Roofing',       emoji: '🏠', label: 'Roofing' },
+  { v: 'Security',      emoji: '📹', label: 'Security' },
+  { v: 'Siding',        emoji: '🏡', label: 'Siding' },
+  { v: 'Solar',         emoji: '☀️', label: 'Solar' },
+  { v: 'Windows',       emoji: '🪟', label: 'Windows' },
+  { v: 'WoodFlooring',  emoji: '🪵', label: 'Wood Flooring' }
+];
+
+var selected = [];
+
+function updateCount() {
+  document.getElementById('selectedCount').textContent = selected.length;
+}
+
+function toggleTrade(el) {
+  var val = el.getAttribute('data-val');
+  var idx = selected.indexOf(val);
+  if (idx >= 0) {
+    selected.splice(idx, 1);
+    el.classList.remove('selected');
+  } else {
+    if (selected.length >= 10) { alert('Maximum 10 trades'); return; }
+    selected.push(val);
+    el.classList.add('selected');
+  }
+  updateCount();
+}
+
+function loadTrades() {
+  var token = localStorage.getItem('hc_pro_token');
+  if (!token) return;
+
+  fetch('/api/pro-categories', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) return;
+      selected = data.categories || [];
+      renderGrid();
+      updateCount();
+    })
+    .catch(function() { renderGrid(); });
+}
+
+function renderGrid() {
+  var grid = document.getElementById('tradesGrid');
+  grid.innerHTML = TRADES.map(function(t) {
+    var sel = selected.indexOf(t.v) >= 0;
+    return '<div class="trade-pill' + (sel ? ' selected' : '') + '" data-val="' + t.v + '" onclick="toggleTrade(this)">' +
+      '<span class="check"></span>' +
+      '<span class="emoji">' + t.emoji + '</span>' +
+      '<span>' + t.label + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+function saveTrades() {
+  var token = localStorage.getItem('hc_pro_token');
+  if (!token) return;
+  if (selected.length === 0) { alert('Select at least one trade'); return; }
+
+  var btn = document.getElementById('saveBtn');
+  var msg = document.getElementById('saveMsg');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  fetch('/api/pro-categories', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ categories: selected })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    btn.disabled = false; btn.textContent = 'Save Changes';
+    if (data.success) {
+      msg.innerHTML = '<span style="color:#166534">✓ Trades updated successfully — you\'ll now receive leads for these categories</span>';
+      setTimeout(function() { msg.innerHTML = ''; }, 4000);
+    } else {
+      msg.innerHTML = '<span style="color:#c0392b">' + (data.error || 'Error saving') + '</span>';
+    }
+  })
+  .catch(function() {
+    btn.disabled = false; btn.textContent = 'Save Changes';
+    msg.innerHTML = '<span style="color:#c0392b">Network error — please try again</span>';
+  });
+}
+
+async function logout() {
+  localStorage.removeItem('hc_pro_token');
+  localStorage.removeItem('hc_pro_name');
+  window.location.href = '/pro-login.html';
+}
+
+// Auth check
+(async () => {
+  var token = localStorage.getItem('hc_pro_token');
+  if (!token) { window.location.href = '/pro-login.html'; return; }
+  try {
+    var res = await fetch('/api/pro-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token }) });
+    var data = await res.json();
+    if (!data.valid) { localStorage.removeItem('hc_pro_token'); window.location.href = '/pro-login.html'; return; }
+    document.body.style.visibility = 'visible';
+    loadTrades();
+  } catch(e) { window.location.href = '/pro-login.html'; }
+})();
+</script>
+<script src="/chat-widget.js"></script>
+</body>
+</html>
