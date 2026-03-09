@@ -76,7 +76,8 @@ export async function GET(request: NextRequest) {
       } else {
         leads = await sql`
           SELECT l.id, l.homeowner_name, l.homeowner_email, l.homeowner_phone, l.services, l.zip, l.status, l.submitted_at,
-            (SELECT pa.first_name || ' ' || pa.last_name FROM lead_assignments la JOIN pro_accounts pa ON pa.id = la.pro_account_id WHERE la.lead_id = l.id LIMIT 1) as assigned_contractor
+            (SELECT pa.first_name || ' ' || pa.last_name FROM lead_assignments la JOIN pro_accounts pa ON pa.id = la.pro_account_id WHERE la.lead_id = l.id LIMIT 1) as assigned_contractor,
+            (SELECT count(*)::int FROM lead_assignments la WHERE la.lead_id = l.id) as spots_sold
           FROM leads l
           WHERE l.id = ANY(${ids})
           ORDER BY
@@ -97,7 +98,8 @@ export async function GET(request: NextRequest) {
       totalCount = countResult[0]?.count || 0;
       leads = await sql`
         SELECT l.id, l.homeowner_name, l.homeowner_email, l.homeowner_phone, l.services, l.zip, l.status, l.submitted_at,
-          (SELECT pa.first_name || ' ' || pa.last_name FROM lead_assignments la JOIN pro_accounts pa ON pa.id = la.pro_account_id WHERE la.lead_id = l.id LIMIT 1) as assigned_contractor
+          (SELECT pa.first_name || ' ' || pa.last_name FROM lead_assignments la JOIN pro_accounts pa ON pa.id = la.pro_account_id WHERE la.lead_id = l.id LIMIT 1) as assigned_contractor,
+          (SELECT count(*)::int FROM lead_assignments la WHERE la.lead_id = l.id) as spots_sold
         FROM leads l
         ORDER BY
           CASE WHEN ${sortCol} = 'homeowner_name' AND ${sortDir} = 'asc' THEN l.homeowner_name END ASC,

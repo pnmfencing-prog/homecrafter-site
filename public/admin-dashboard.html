@@ -380,6 +380,7 @@ function renderLeadsTable(leads, pg) {
     { key: 'services', label: 'Service', sortable: false },
     { key: 'zip', label: 'Zip', sortable: true },
     { key: 'status', label: 'Status', sortable: true },
+    { key: 'spots_sold', label: 'Sold', sortable: false },
     { key: 'submitted_at', label: 'Submitted', sortable: true },
     { key: 'assigned_contractor', label: 'Contractor', sortable: false }
   ];
@@ -394,16 +395,19 @@ function renderLeadsTable(leads, pg) {
   html += '</tr></thead><tbody>';
 
   if (leads.length === 0) {
-    html += '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">No leads match your filters</td></tr>';
+    html += '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">No leads match your filters</td></tr>';
   } else {
     leads.forEach(function(l) {
       var statusCls = 's-' + (l.status || 'new');
       var services = (l.services || []).join(', ');
+      var sold = l.spots_sold || 0;
+      var soldDisplay = sold > 0 ? '<span style="color:#2d8a4e;font-weight:600">' + sold + ' / 3</span>' : '<span style="color:var(--text-muted)">0 / 3</span>';
       html += '<tr>' +
         '<td><strong>' + (l.homeowner_name || '—') + '</strong></td>' +
         '<td>' + services + '</td>' +
         '<td>' + (l.zip || '—') + '</td>' +
         '<td><span class="lead-status ' + statusCls + '">' + (l.status || 'new') + '</span></td>' +
+        '<td>' + soldDisplay + '</td>' +
         '<td>' + formatDate(l.submitted_at) + '</td>' +
         '<td>' + (l.assigned_contractor || '<span style="color:var(--text-muted)">—</span>') + '</td>' +
         '</tr>';
