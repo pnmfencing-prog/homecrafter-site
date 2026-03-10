@@ -14,10 +14,20 @@ const SERVICE_NAMES: Record<string, string> = {
 
 const SERVICE_PRICES: Record<string, number> = {
   fencing: 45, roofing: 65, windows: 65, siding: 65, painting: 49, paint: 49,
-  locksmith: 1, // TEMP: $1 for testing, restore to 24 housekeeper: 45, woodflooring: 55, carpet: 55, hvac: 66,
+  locksmith: 24, housekeeper: 45, woodflooring: 55, carpet: 55, hvac: 66,
   landscaping: 54, irrigation: 54, concrete: 54, kitchen: 80, bathroom: 80,
   pestcontrol: 48, handyman: 40, security: 55
 };
+
+const INTRO_PRICES: Record<string, number> = {
+  fencing: 19, roofing: 24, windows: 24, siding: 24, painting: 19, paint: 19,
+  locksmith: 10, housekeeper: 19, woodflooring: 22, carpet: 22, hvac: 24,
+  landscaping: 22, irrigation: 22, concrete: 22, kitchen: 29, bathroom: 29,
+  pestcontrol: 20, handyman: 17, security: 22
+};
+
+const INTRO_PRICING_EXPIRES = new Date('2026-04-09T23:59:59-04:00');
+const introActive = new Date() < INTRO_PRICING_EXPIRES;
 
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
@@ -61,7 +71,9 @@ export async function GET(req: NextRequest) {
     servicesToShow.forEach((svc: string) => {
       const svcLower = svc.toLowerCase();
       const serviceName = SERVICE_NAMES[svc] || SERVICE_NAMES[svcLower] || svc;
-      const price = SERVICE_PRICES[svc] || SERVICE_PRICES[svcLower] || 45;
+      const fullPrice = SERVICE_PRICES[svc] || SERVICE_PRICES[svcLower] || 45;
+      const introPrice = introActive ? (INTRO_PRICES[svc] || INTRO_PRICES[svcLower] || null) : null;
+      const price = introPrice ?? fullPrice;
 
       results.push({
         id: `${l.id}-${svcLower}`,
@@ -71,6 +83,8 @@ export async function GET(req: NextRequest) {
         servicePrimary: serviceName,
         notes: noteText,
         price,
+        fullPrice: introActive ? fullPrice : undefined,
+        introActive,
         spots: { taken: parseInt(l.assignments) || 0, total: 3 },
         hoursLeft,
         isNew: hoursAgo <= 6,

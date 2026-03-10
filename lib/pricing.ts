@@ -1,10 +1,31 @@
 export const SINGLE_PRICES: Record<string, number> = {
-  locksmith: 1, // TEMP: $1 for testing, restore to 24 handyman: 40, fencing: 45, housekeeper: 45,
+  locksmith: 24, handyman: 40, fencing: 45, housekeeper: 45,
   pestcontrol: 48, painting: 49, concrete: 54, landscaping: 54,
   irrigation: 54, carpet: 55, woodflooring: 55, security: 55,
   roofing: 65, siding: 65, windows: 65, hvac: 66,
   kitchen: 80, bathroom: 80,
 };
+
+// Introductory pricing — ~40-45% of full price, active for first 30 days
+// Expires: April 9, 2026
+export const INTRO_PRICES: Record<string, number> = {
+  locksmith: 10, handyman: 17, fencing: 19, housekeeper: 19,
+  pestcontrol: 20, painting: 19, concrete: 22, landscaping: 22,
+  irrigation: 22, carpet: 22, woodflooring: 22, security: 22,
+  roofing: 24, siding: 24, windows: 24, hvac: 24,
+  kitchen: 29, bathroom: 29,
+};
+
+export const INTRO_PRICING_EXPIRES = new Date('2026-04-09T23:59:59-04:00');
+
+export function isIntroPricingActive(): boolean {
+  return new Date() < INTRO_PRICING_EXPIRES;
+}
+
+export function getIntroPrice(category: string): number | null {
+  if (!isIntroPricingActive()) return null;
+  return INTRO_PRICES[category] ?? null;
+}
 
 export const BUNDLE_DISCOUNTS: Record<number, number> = {
   10: 0.10, 25: 0.15, 50: 0.20,

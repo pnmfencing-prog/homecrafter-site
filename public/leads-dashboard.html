@@ -209,7 +209,9 @@ function renderLeads(leads) {
           '<span class="time-left">⏱ ' + lead.hoursLeft + 'h left</span>' +
         '</div>' +
         '<div class="card-right">' +
+          (lead.fullPrice ? '<span class="card-price" style="font-size:1rem;text-decoration:line-through;color:var(--text-muted)">$' + lead.fullPrice + '</span> ' : '') +
           '<span class="card-price">$' + lead.price + '</span>' +
+          (lead.introActive ? '<div style="font-size:0.6rem;color:#2d8a4e;font-weight:600;letter-spacing:0.5px;margin-top:2px">INTRODUCTORY RATE</div>' : '') +
           '<a href="lead-view.html?id=' + lead.leadId + '" class="card-link view-detail">View Details →</a>' +
           '<button class="card-link claim-btn" style="margin-top:4px;background:var(--gold);color:#fff;border:none;cursor:pointer" data-lead-id="' + lead.leadId + '" data-category="' + lead.servicePrimary + '">Buy Lead — $' + lead.price + '</button>' +
         '</div>' +

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyProToken } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import {
-  SINGLE_PRICES, BUNDLE_DISCOUNTS, PAIRED_BUNDLES,
+  SINGLE_PRICES, BUNDLE_DISCOUNTS, PAIRED_BUNDLES, getIntroPrice, isIntroPricingActive,
   VALID_CATEGORIES, VALID_BUNDLES, VALID_PACK_SIZES,
   getBasePrice, isPairedBundle,
 } from '@/lib/pricing';
@@ -107,7 +107,9 @@ export async function POST(request: NextRequest) {
       if (!VALID_CATEGORIES.includes(cat)) {
         return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
       }
-      const price = SINGLE_PRICES[cat];
+      const introPrice = getIntroPrice(cat);
+      const fullPrice = SINGLE_PRICES[cat];
+      const price = introPrice ?? fullPrice;
       if (!price) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
 
       const metadata: Record<string, string> = {
@@ -115,6 +117,8 @@ export async function POST(request: NextRequest) {
         pack_size: '1',
         lead_id: String(leadId),
         type: 'single',
+        intro_pricing: introPrice ? 'true' : 'false',
+        full_price: String(fullPrice),
       };
 
       let successUrl: string;
