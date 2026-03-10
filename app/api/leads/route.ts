@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     ? await sql`
         SELECT id, zip, services, notes, submitted_at,
           (SELECT COUNT(*) FROM lead_assignments WHERE lead_id = leads.id) as assignments,
-          (SELECT MAX(created_at) FROM lead_assignments WHERE lead_id = leads.id) as last_assignment_at
+          (SELECT MAX(sent_at) FROM lead_assignments WHERE lead_id = leads.id) as last_assignment_at
         FROM leads
         WHERE ${category} = ANY(services)
         ORDER BY submitted_at DESC
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     : await sql`
         SELECT id, zip, services, notes, submitted_at,
           (SELECT COUNT(*) FROM lead_assignments WHERE lead_id = leads.id) as assignments,
-          (SELECT MAX(created_at) FROM lead_assignments WHERE lead_id = leads.id) as last_assignment_at
+          (SELECT MAX(sent_at) FROM lead_assignments WHERE lead_id = leads.id) as last_assignment_at
         FROM leads
         ORDER BY submitted_at DESC
         LIMIT ${limit}
