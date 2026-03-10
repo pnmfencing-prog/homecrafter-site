@@ -217,7 +217,7 @@ function renderLeads(leads) {
           :
             (lead.introActive && lead.spots.taken === 0 ? '<span class="card-price" style="font-size:1rem;text-decoration:line-through;color:var(--text-muted)">$' + lead.fullPrice + '</span> ' : '') +
             '<span class="card-price">$' + (lead.introActive && lead.spots.taken === 0 ? lead.price : (lead.fullPrice || lead.price)) + '</span>' +
-            (lead.introActive && lead.spots.taken === 0 ? ' <span style="font-size:0.6rem;color:#2d8a4e;font-weight:600;letter-spacing:0.5px;vertical-align:middle">🎉 FIRST RESPONDER PRICE</span>' : '')
+            (lead.introActive && lead.spots.taken === 0 ? ' <span style="font-size:0.6rem;color:#2d8a4e;font-weight:600;letter-spacing:0.5px;vertical-align:middle">🎉 1<sup style="text-decoration:underline;font-size:0.45rem">ST</sup> RESPONDER PRICE</span>' : '')
           ) +
           (lead.isSoldOut ? '' : '<a href="lead-view.html?id=' + lead.leadId + '" class="card-link view-detail">View Details →</a>') +
           (lead.isSoldOut ? '' : '<button class="card-link claim-btn" style="margin-top:4px;background:var(--gold);color:#fff;border:none;cursor:pointer" data-lead-id="' + lead.leadId + '" data-category="' + lead.servicePrimary + '">Buy Lead — $' + lead.price + '</button>') +
