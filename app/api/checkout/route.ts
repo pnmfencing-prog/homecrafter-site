@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyProToken } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
+import sql from '@/lib/db';
 import {
   SINGLE_PRICES, BUNDLE_DISCOUNTS, PAIRED_BUNDLES, getIntroPrice, isIntroPricingActive,
   VALID_CATEGORIES, VALID_BUNDLES, VALID_PACK_SIZES,
@@ -107,17 +108,26 @@ export async function POST(request: NextRequest) {
       if (!VALID_CATEGORIES.includes(cat)) {
         return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
       }
-      const introPrice = getIntroPrice(cat);
       const fullPrice = SINGLE_PRICES[cat];
-      const price = introPrice ?? fullPrice;
-      if (!price) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+      if (!fullPrice) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+
+      // Intro price only for first buyer (0 assignments)
+      let price = fullPrice;
+      if (isIntroPricingActive() && leadId) {
+        const assignments = await sql`SELECT count(*)::int as cnt FROM lead_assignments WHERE lead_id = ${leadId}`;
+        const taken = assignments[0]?.cnt || 0;
+        if (taken === 0) {
+          const introPrice = getIntroPrice(cat);
+          if (introPrice) price = introPrice;
+        }
+      }
 
       const metadata: Record<string, string> = {
         category: cat,
         pack_size: '1',
         lead_id: String(leadId),
         type: 'single',
-        intro_pricing: introPrice ? 'true' : 'false',
+        intro_pricing: price < fullPrice ? 'true' : 'false',
         full_price: String(fullPrice),
       };
 
