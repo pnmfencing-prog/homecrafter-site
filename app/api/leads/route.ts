@@ -40,10 +40,12 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get('limit') || '20') || 20, 50);
 
   // Fetch recent leads (public browsing — no contact details)
+  // Include: active leads (within 72h OR sold out within last 24h)
   const leads = category
     ? await sql`
         SELECT id, zip, services, notes, submitted_at,
-          (SELECT COUNT(*) FROM lead_assignments WHERE lead_id = leads.id) as assignments
+          (SELECT COUNT(*) FROM lead_assignments WHERE lead_id = leads.id) as assignments,
+          (SELECT MAX(created_at) FROM lead_assignments WHERE lead_id = leads.id) as last_assignment_at
         FROM leads
         WHERE ${category} = ANY(services)
         ORDER BY submitted_at DESC
@@ -51,7 +53,8 @@ export async function GET(req: NextRequest) {
       `
     : await sql`
         SELECT id, zip, services, notes, submitted_at,
-          (SELECT COUNT(*) FROM lead_assignments WHERE lead_id = leads.id) as assignments
+          (SELECT COUNT(*) FROM lead_assignments WHERE lead_id = leads.id) as assignments,
+          (SELECT MAX(created_at) FROM lead_assignments WHERE lead_id = leads.id) as last_assignment_at
         FROM leads
         ORDER BY submitted_at DESC
         LIMIT ${limit}
@@ -63,6 +66,22 @@ export async function GET(req: NextRequest) {
     const svcs = l.services || [];
     const hoursAgo = Math.round((Date.now() - new Date(l.submitted_at).getTime()) / 3600000);
     const hoursLeft = Math.max(0, 72 - hoursAgo);
+    const taken = parseInt(l.assignments) || 0;
+    const maxSpots = 3;
+    const isSoldOut = taken >= maxSpots;
+    const isExpired = hoursLeft <= 0;
+
+    // Visibility rules:
+    // 1. Sold out (3/3) → show for 24h after last assignment, then hide
+    // 2. Expired (72h) with unsold spots → hide immediately
+    if (isSoldOut) {
+      const lastAssignment = l.last_assignment_at ? new Date(l.last_assignment_at) : new Date(l.submitted_at);
+      const hoursSinceSoldOut = (Date.now() - lastAssignment.getTime()) / 3600000;
+      if (hoursSinceSoldOut > 24) return; // Hide after 24h
+    } else if (isExpired) {
+      return; // Hide expired unsold leads
+    }
+
     const noteText = l.notes ? (l.notes.length > 80 ? l.notes.slice(0, 80) + '...' : l.notes) : '';
 
     // If filtering by category, only show that specific service entry
@@ -85,10 +104,11 @@ export async function GET(req: NextRequest) {
         price,
         fullPrice: introActive ? fullPrice : undefined,
         introActive,
-        spots: { taken: parseInt(l.assignments) || 0, total: 3 },
+        spots: { taken, total: maxSpots },
         hoursLeft,
-        isNew: hoursAgo <= 6,
-        isClosing: hoursLeft <= 12 && hoursLeft > 0,
+        isSoldOut,
+        isNew: hoursAgo <= 6 && !isSoldOut,
+        isClosing: hoursLeft <= 12 && hoursLeft > 0 && !isSoldOut,
         submitted: l.submitted_at,
       });
     });

@@ -190,7 +190,8 @@ function renderLeads(leads) {
   leads.forEach(function(lead) {
     var show = currentFilter === 'all' || lead.services.indexOf(currentFilter) !== -1;
     var badges = lead.services.map(function(s) { return '<span class="service-pill">' + s + '</span>'; }).join('');
-    if (lead.isNew) badges += ' <span class="badge-new">New</span>';
+    if (lead.isSoldOut) badges += ' <span class="badge-closing" style="background:#dc2626;color:#fff">SOLD OUT</span>';
+    else if (lead.isNew) badges += ' <span class="badge-new">New</span>';
     if (lead.isClosing) badges += ' <span class="badge-closing">Closing Soon</span>';
 
     var dots = '';
@@ -198,7 +199,9 @@ function renderLeads(leads) {
       dots += '<span class="dot ' + (i < lead.spots.taken ? 'taken' : 'available') + '"></span>';
     }
 
-    html += '<div class="lead-card" data-category="' + lead.servicePrimary + '" style="display:' + (show ? '' : 'none') + '">' +
+    var cardStyle = 'display:' + (show ? '' : 'none') + ';' + (lead.isSoldOut ? 'opacity:0.6;pointer-events:none;' : '');
+
+    html += '<div class="lead-card" data-category="' + lead.servicePrimary + '" style="' + cardStyle + '">' +
       '<div class="card-badges">' + badges + '</div>' +
       '<div class="card-location">' + (lead.zip && /^\d{5}$/.test(lead.zip) ? lead.zip + ', NJ' : 'New Jersey') + '</div>' +
       (lead.notes ? '<div class="card-notes">"' + lead.notes + '"</div>' : '') +
@@ -206,14 +209,18 @@ function renderLeads(leads) {
         '<div class="card-meta">' +
           '<div class="spots-row"><div class="spots-dots">' + dots + '</div>' +
           '<span class="spots-label">' + lead.spots.taken + ' of ' + lead.spots.total + ' claimed</span></div>' +
-          '<span class="time-left">⏱ ' + lead.hoursLeft + 'h left</span>' +
+          (lead.isSoldOut ? '' : '<span class="time-left">⏱ ' + lead.hoursLeft + 'h left</span>') +
         '</div>' +
         '<div class="card-right">' +
-          (lead.introActive && lead.spots.taken === 0 ? '<span class="card-price" style="font-size:1rem;text-decoration:line-through;color:var(--text-muted)">$' + lead.fullPrice + '</span> ' : '') +
-          '<span class="card-price">$' + (lead.introActive && lead.spots.taken === 0 ? lead.price : (lead.fullPrice || lead.price)) + '</span>' +
-          (lead.introActive && lead.spots.taken === 0 ? ' <span style="font-size:0.6rem;color:#2d8a4e;font-weight:600;letter-spacing:0.5px;vertical-align:middle">🎉 FIRST BUYER DISCOUNT</span>' : '') +
-          '<a href="lead-view.html?id=' + lead.leadId + '" class="card-link view-detail">View Details →</a>' +
-          '<button class="card-link claim-btn" style="margin-top:4px;background:var(--gold);color:#fff;border:none;cursor:pointer" data-lead-id="' + lead.leadId + '" data-category="' + lead.servicePrimary + '">Buy Lead — $' + lead.price + '</button>' +
+          (lead.isSoldOut ?
+            '<span class="card-price" style="color:#dc2626">SOLD OUT</span>'
+          :
+            (lead.introActive && lead.spots.taken === 0 ? '<span class="card-price" style="font-size:1rem;text-decoration:line-through;color:var(--text-muted)">$' + lead.fullPrice + '</span> ' : '') +
+            '<span class="card-price">$' + (lead.introActive && lead.spots.taken === 0 ? lead.price : (lead.fullPrice || lead.price)) + '</span>' +
+            (lead.introActive && lead.spots.taken === 0 ? ' <span style="font-size:0.6rem;color:#2d8a4e;font-weight:600;letter-spacing:0.5px;vertical-align:middle">🎉 FIRST BUYER DISCOUNT</span>' : '')
+          ) +
+          (lead.isSoldOut ? '' : '<a href="lead-view.html?id=' + lead.leadId + '" class="card-link view-detail">View Details →</a>') +
+          (lead.isSoldOut ? '' : '<button class="card-link claim-btn" style="margin-top:4px;background:var(--gold);color:#fff;border:none;cursor:pointer" data-lead-id="' + lead.leadId + '" data-category="' + lead.servicePrimary + '">Buy Lead — $' + lead.price + '</button>') +
         '</div>' +
       '</div>' +
     '</div>';
