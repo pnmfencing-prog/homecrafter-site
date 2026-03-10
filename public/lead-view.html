@@ -860,12 +860,83 @@ body {
           '</div>' +
           '<div class="closing-note">Closes after 72 hours or when all ' + lead.spots.total + ' spots are filled</div>' +
           '<div class="pricing-actions">' +
-            '<a href="#" class="btn btn-primary" onclick="alert(\'Purchase flow coming soon!\');return false;">Purchase This Lead — $' + lead.price + '</a>' +
+            '<a href="#" class="btn btn-primary" id="purchaseBtn" data-lead-id="' + leadId + '" data-category="' + ((lead.services||[])[0]||'').toLowerCase() + '" data-price="' + lead.price + '">Purchase This Lead — $' + lead.price + '</a>' +
             '<a href="/leads-dashboard.html" class="btn btn-outline">Back to Leads</a>' +
           '</div>' +
         '</div>';
 
       document.getElementById('lead-content').innerHTML = html;
+
+      // Wire up purchase button
+      var purchaseBtn = document.getElementById('purchaseBtn');
+      if (purchaseBtn) {
+        purchaseBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          var btn = this;
+          var token = localStorage.getItem('hc_pro_token');
+          var lid = btn.dataset.leadId;
+          var cat = btn.dataset.category;
+          var price = btn.dataset.price;
+
+          btn.textContent = 'Redirecting to checkout...';
+          btn.style.pointerEvents = 'none';
+          btn.style.opacity = '0.7';
+
+          // If logged in, try claim-lead first (uses existing credits)
+          if (token) {
+            fetch('/api/claim-lead', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({ leadId: parseInt(lid), category: cat })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (data.success && data.lead) {
+                var l = data.lead;
+                btn.outerHTML = '<div style="margin-top:8px;padding:16px;background:#f0fdf4;border-radius:8px;font-size:0.85rem;line-height:1.8">' +
+                  '<strong style="color:#166534;font-size:1rem">✓ Lead Claimed!</strong><br>' +
+                  '<strong>' + (l.firstName||'') + ' ' + (l.lastName||'') + '</strong><br>' +
+                  (l.phone ? '📞 <a href="tel:' + l.phone + '">' + l.phone + '</a><br>' : '') +
+                  (l.email ? '✉️ <a href="mailto:' + l.email + '">' + l.email + '</a><br>' : '') +
+                  (l.address ? '📍 ' + l.address + (l.city ? ', ' + l.city : '') + (l.state ? ' ' + l.state : '') + (l.zip ? ' ' + l.zip : '') : '') +
+                  '</div>';
+              } else {
+                goToCheckout(token, cat, lid, btn, price);
+              }
+            })
+            .catch(function() { goToCheckout(token, cat, lid, btn, price); });
+          } else {
+            goToCheckout(null, cat, lid, btn, price);
+          }
+        });
+      }
+
+      function goToCheckout(token, category, leadId, btn, price) {
+        var headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        fetch('/api/checkout', {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({ category: category, leadId: parseInt(leadId) })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.url) {
+            window.location.href = data.url;
+          } else {
+            alert(data.error || 'Checkout error');
+            btn.textContent = 'Purchase This Lead — $' + price;
+            btn.style.pointerEvents = 'auto';
+            btn.style.opacity = '1';
+          }
+        })
+        .catch(function() {
+          alert('Network error');
+          btn.textContent = 'Purchase This Lead — $' + price;
+          btn.style.pointerEvents = 'auto';
+          btn.style.opacity = '1';
+        });
+      }
     })
     .catch(function(err) {
       document.getElementById('lead-content').innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted)">Error loading lead.</div>';
