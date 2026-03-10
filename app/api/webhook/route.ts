@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { sendHomeownerMatchEmail } from '@/lib/email';
+import { sendHomeownerMatchEmail, sendHomeownerSummaryEmail } from '@/lib/email';
 
 const STRIPE_SK = process.env.STRIPE_SECRET_KEY!;
 
@@ -96,6 +96,12 @@ export async function POST(request: NextRequest) {
       // Send homeowner notification if we have a pro account (not guest)
       if (proAccountId) {
         sendHomeownerMatchEmail(leadId, proAccountId, category).catch(() => {});
+      }
+
+      // Check if lead is now fully sold (3/3) — send summary email
+      const totalAssignments = await sql`SELECT count(*)::int as cnt FROM lead_assignments WHERE lead_id = ${leadId}`;
+      if ((totalAssignments[0]?.cnt || 0) >= 3) {
+        sendHomeownerSummaryEmail(leadId).catch(() => {});
       }
     }
 

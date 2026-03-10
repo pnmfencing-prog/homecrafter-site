@@ -3,7 +3,7 @@ import { verifyProToken } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import { VALID_CATEGORIES, categoryMatchesBundle, VALID_BUNDLES } from '@/lib/pricing';
 import sql from '@/lib/db';
-import { sendHomeownerMatchEmail } from '@/lib/email';
+import { sendHomeownerMatchEmail, sendHomeownerSummaryEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -100,6 +100,12 @@ export async function POST(request: NextRequest) {
 
     // Send homeowner notification (fire-and-forget)
     sendHomeownerMatchEmail(leadId, user.id, category).catch(() => {});
+
+    // Check if lead is now fully sold (3/3) — send summary email
+    const totalAssignments = await sql`SELECT count(*)::int as cnt FROM lead_assignments WHERE lead_id = ${leadId}`;
+    if ((totalAssignments[0]?.cnt || 0) >= 3) {
+      sendHomeownerSummaryEmail(leadId).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,

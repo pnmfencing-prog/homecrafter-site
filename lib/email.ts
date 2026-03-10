@@ -276,3 +276,97 @@ export async function sendHomeownerMatchEmail(leadId: number, proAccountId: numb
     // Don't throw — this is a non-critical notification
   }
 }
+
+/**
+ * Send summary email to homeowner when lead closes (3/3 sold or 72h expiry with purchases).
+ * Shows all matched contractors in one comparison view.
+ */
+export async function sendHomeownerSummaryEmail(leadId: number): Promise<boolean> {
+  try {
+    // Get lead info
+    const leads = await sql`
+      SELECT homeowner_name, homeowner_email, services FROM leads WHERE id = ${leadId}
+    `;
+    if (leads.length === 0 || !leads[0].homeowner_email) return false;
+    const lead = leads[0];
+
+    // Get all contractors who purchased this lead
+    const assignments = await sql`
+      SELECT la.category, pa.first_name, pa.last_name, pa.company, pa.email, pa.phone
+      FROM lead_assignments la
+      JOIN pro_accounts pa ON pa.id = la.pro_account_id
+      WHERE la.lead_id = ${leadId}
+      ORDER BY la.sent_at ASC
+    `;
+
+    if (assignments.length === 0) return false;
+
+    const homeownerFirst = (lead.homeowner_name || 'there').split(' ')[0];
+    const svcArr = Array.isArray(lead.services) ? lead.services : [lead.services];
+    const serviceDisplay = svcArr.map((s: string) => SERVICE_DISPLAY_NAMES[s.toLowerCase()] || s).join(' & ');
+
+    // Build contractor cards HTML
+    let proCardsHtml = '';
+    assignments.forEach((pro: any, i: number) => {
+      const proName = [pro.first_name, pro.last_name].filter(Boolean).join(' ');
+      proCardsHtml += `
+      <div style="background:linear-gradient(135deg,#faf9f6,#f5f2eb);border:1px solid #e8e3d9;border-left:4px solid #c4aa6a;border-radius:0 10px 10px 0;padding:20px;margin-bottom:16px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#c4aa6a;margin-bottom:8px;">✦ Pro #${i + 1}</div>
+        <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;color:#1e1845;font-weight:700;margin-bottom:2px;">${proName}</div>
+        ${pro.company ? `<div style="font-size:12px;color:#6b6b6b;font-style:italic;margin-bottom:12px;">${pro.company}</div>` : '<div style="margin-bottom:12px;"></div>'}
+        ${pro.phone ? `<div style="padding:4px 0;font-size:13px;color:#2d2d2d;">📞 <a href="tel:${pro.phone}" style="color:#1e1845;text-decoration:none;font-weight:500;">${pro.phone}</a></div>` : ''}
+        ${pro.email ? `<div style="padding:4px 0;font-size:13px;color:#2d2d2d;">✉️ <a href="mailto:${pro.email}" style="color:#1e1845;text-decoration:none;font-weight:500;">${pro.email}</a></div>` : ''}
+      </div>`;
+    });
+
+    const proCount = assignments.length;
+    const subject = `Your ${serviceDisplay} pros are ready — ${proCount} matched`;
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@400;500;600;700&display=swap');
+  body { font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif; background: #faf9f6; margin: 0; padding: 0; color: #2d2d2d; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="background:linear-gradient(135deg,#1e1845,#2a2260);border-radius:12px 12px 0 0;padding:36px 24px;text-align:center;">
+    <h1 style="font-family:'Cormorant Garamond',Georgia,serif;color:#d4c394;font-size:22px;letter-spacing:4px;margin:0 0 4px;font-weight:300;">HOMECRAFTER</h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:11px;letter-spacing:3px;text-transform:uppercase;margin:0;">Your Pro Summary</p>
+  </div>
+  <div style="background:#fff;padding:36px 28px;border:1px solid #eae7e1;border-top:none;">
+    <p style="font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;color:#1e1845;font-weight:600;margin:0 0 8px;">Hi ${homeownerFirst}! 👋</p>
+    <p style="font-size:14px;color:#555;line-height:1.7;margin:0 0 24px;">
+      Here's a summary of the <strong>${serviceDisplay}</strong> professionals matched to your project.
+      We recommend reaching out to ${proCount > 1 ? 'each of them' : 'them'} for a quote — comparing options ensures you get the best fit and price.
+    </p>
+
+    ${proCardsHtml}
+
+    <div style="background:#faf9f6;border-radius:8px;padding:18px 20px;margin:8px 0 0;text-align:center;">
+      <p style="font-size:13px;color:#555;line-height:1.7;margin:0;">
+        💡 <strong>Tip:</strong> Contractors who respond fastest tend to offer the best deals.
+        Don't hesitate to reach out today!
+      </p>
+    </div>
+  </div>
+  <div style="background:#f8f6f2;border-radius:0 0 12px 12px;padding:20px 24px;text-align:center;border:1px solid #eae7e1;border-top:none;">
+    <p style="font-size:11px;color:#b8b0a4;margin:0;">HomeCrafter — Connecting homeowners with trusted local professionals</p>
+    <p style="margin-top:8px;font-size:10px;color:#ccc;">You received this because you submitted a project request on HomeCrafter.</p>
+  </div>
+</div>
+</body>
+</html>`;
+
+    await sendViaBrevo(lead.homeowner_email, subject, html);
+    console.log(`Homeowner summary email sent: lead=${leadId}, ${proCount} pros, to=${lead.homeowner_email}`);
+    return true;
+  } catch (err) {
+    console.error('sendHomeownerSummaryEmail error:', err);
+    return false;
+  }
+}

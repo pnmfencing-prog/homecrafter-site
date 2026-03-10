@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { sendHomeownerSummaryEmail } from '@/lib/email';
 import { getZipCoords } from '@/lib/geo';
 import {
   build12hReminderHtml,
@@ -217,10 +218,35 @@ export async function GET(request: Request) {
     console.log(`[send-followups] ${notif.notification_type} for lead #${notif.lead_id}: ${emailsSentForNotif} emails sent to contractors`);
   }
 
+  // Check for expired leads with purchases — send summary email
+  // Find leads that expired in the last hour (so we don't re-send)
+  let summariesSent = 0;
+  try {
+    const expiredWithPurchases = await sql`
+      SELECT l.id, l.submitted_at,
+        (SELECT count(*)::int FROM lead_assignments WHERE lead_id = l.id) as assignments
+      FROM leads l
+      WHERE l.status = 'new'
+        AND l.submitted_at < NOW() - INTERVAL '72 hours'
+        AND l.submitted_at > NOW() - INTERVAL '73 hours'
+        AND EXISTS (SELECT 1 FROM lead_assignments WHERE lead_id = l.id)
+    `;
+
+    for (const lead of expiredWithPurchases) {
+      await sendHomeownerSummaryEmail(lead.id);
+      await sql`UPDATE leads SET status = 'closed' WHERE id = ${lead.id}`;
+      summariesSent++;
+      console.log(`[send-followups] Summary email sent for expired lead #${lead.id} (${lead.assignments} purchases)`);
+    }
+  } catch (e: any) {
+    console.error('[send-followups] Summary email check error:', e.message);
+  }
+
   return NextResponse.json({
     processed: pendingNotifications.length,
     sent,
     skipped,
+    summariesSent,
     errors: errors.length > 0 ? errors : undefined,
   });
 }
