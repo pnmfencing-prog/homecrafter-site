@@ -867,7 +867,7 @@ body {
           '</div>' +
           '<div class="closing-note">Closes after 72 hours or when all ' + lead.spots.total + ' spots are filled</div>' +
           '<div class="pricing-actions">' +
-            '<a href="#" class="btn btn-primary" id="purchaseBtn" data-lead-id="' + leadId + '" data-category="' + ((lead.services||[])[0]||'').toLowerCase() + '" data-price="' + lead.price + '">Purchase This Lead — $' + lead.price + '</a>' +
+            '<a href="#" class="btn btn-primary" id="purchaseBtn" data-lead-id="' + leadId + '" data-category="' + (lead.services && lead.services[0] ? lead.services[0].key || lead.services[0] : '').toString().toLowerCase() + '" data-price="' + lead.price + '">Purchase This Lead — $' + lead.price + '</a>' +
             '<a href="/leads-dashboard.html" class="btn btn-outline">Back to Leads</a>' +
           '</div>' +
         '</div>';
@@ -946,7 +946,8 @@ body {
       }
     })
     .catch(function(err) {
-      document.getElementById('lead-content').innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted)">Error loading lead.</div>';
+      console.error('Lead view error:', err);
+      document.getElementById('lead-content').innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted)">Error loading lead: ' + (err.message || err) + '</div>';
     });
 })();
 </script>
