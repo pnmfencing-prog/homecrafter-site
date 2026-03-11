@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Board — PNM Fencing CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --midnight: #1e1845; --midnight-light: #2a2260; --gold: #c4aa6a; --gold-light: #d4c394;
+  --cream: #faf9f6; --cream-dark: #f0ede6; --text: #2d2d2d; --text-muted: #6b6b6b;
+  --green: #2d8a4e; --green-bg: #f0fdf4; --red: #c0392b; --red-bg: #fef2f2;
+  --blue: #2563eb; --blue-bg: #eff6ff; --orange: #d97706; --orange-bg: #fffbeb;
+}
+body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--text); line-height: 1.5; }
+
+/* Header */
+.header { background: linear-gradient(135deg, var(--midnight), var(--midnight-light)); padding: 1.5rem; text-align: center; position: relative; }
+.logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.8rem; letter-spacing: 0.2em; color: var(--gold); }
+.header-sub { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-top: 0.2rem; }
+
+/* Top stats */
+.stats-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem; padding: 1.25rem 1.25rem 0; max-width: 1400px; margin: 0 auto; }
+.stat-pill { background: #fff; border-radius: 10px; padding: 1rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
+.stat-pill:hover { transform: translateY(-2px); }
+.stat-pill.active { border-color: var(--gold); }
+.stat-pill .num { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.stat-pill .label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-top: 0.25rem; }
+.stat-pill.new .num { color: var(--blue); }
+.stat-pill.contacted .num { color: var(--orange); }
+.stat-pill.quoted .num { color: #7c3aed; }
+.stat-pill.scheduled .num { color: var(--midnight); }
+.stat-pill.won .num { color: var(--green); }
+.stat-pill.lost .num { color: var(--red); }
+
+/* Revenue bar */
+.revenue-bar { display: flex; gap: 1.5rem; justify-content: center; padding: 1rem; max-width: 1400px; margin: 0 auto; }
+.revenue-item { font-size: 0.75rem; color: var(--text-muted); }
+.revenue-item strong { color: var(--midnight); font-size: 0.9rem; }
+
+/* Toolbar */
+.toolbar { display: flex; gap: 0.75rem; padding: 0 1.25rem 1rem; max-width: 1400px; margin: 0 auto; align-items: center; flex-wrap: wrap; }
+.search-box { flex: 1; min-width: 200px; padding: 0.6rem 1rem; border: 1px solid #e0ddd6; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; background: #fff; outline: none; }
+.search-box:focus { border-color: var(--gold); }
+.btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em; }
+.btn-primary { background: var(--midnight); color: var(--gold); }
+.btn-primary:hover { background: var(--midnight-light); }
+.btn-outline { background: #fff; color: var(--midnight); border: 1px solid #e0ddd6; }
+.btn-outline:hover { border-color: var(--gold); }
+.btn-source { font-size: 0.65rem; padding: 0.4rem 0.8rem; }
+.btn-source.active { background: var(--midnight); color: var(--gold); }
+
+/* Kanban board */
+.board { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem; padding: 0 1.25rem 2rem; max-width: 1400px; margin: 0 auto; min-height: 60vh; }
+.column { background: var(--cream-dark); border-radius: 12px; padding: 0.75rem; min-height: 300px; }
+.column-header { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); padding: 0.5rem 0.5rem 0.75rem; display: flex; justify-content: space-between; align-items: center; }
+.column-count { background: var(--midnight); color: var(--gold); font-size: 0.55rem; padding: 0.15rem 0.5rem; border-radius: 10px; }
+
+/* Lead cards */
+.lead-card { background: #fff; border-radius: 10px; padding: 0.85rem; margin-bottom: 0.6rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; }
+.lead-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,24,69,0.1); }
+.lead-card.source-angi { border-left-color: #ff6b35; }
+.lead-card.source-website { border-left-color: var(--gold); }
+.lead-card.source-referral { border-left-color: var(--green); }
+.lead-card.source-manual { border-left-color: var(--blue); }
+.lead-card .name { font-weight: 600; font-size: 0.82rem; color: var(--midnight); margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lead-card .service { font-size: 0.65rem; color: var(--gold); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.lead-card .meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.3rem; }
+.lead-card .amount { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 700; color: var(--green); margin-top: 0.3rem; }
+.lead-card .date { font-size: 0.6rem; color: #bbb; margin-top: 0.3rem; }
+
+/* List view */
+.list-view { padding: 0 1.25rem 2rem; max-width: 1400px; margin: 0 auto; display: none; }
+.list-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.list-table th { background: var(--midnight); color: var(--gold-light); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.75rem 1rem; text-align: left; }
+.list-table td { padding: 0.75rem 1rem; font-size: 0.8rem; border-bottom: 1px solid var(--cream-dark); }
+.list-table tr:hover td { background: var(--cream); }
+.status-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.status-badge.new { background: var(--blue-bg); color: var(--blue); }
+.status-badge.contacted { background: var(--orange-bg); color: var(--orange); }
+.status-badge.quoted { background: #f5f3ff; color: #7c3aed; }
+.status-badge.scheduled { background: #f0f0ff; color: var(--midnight); }
+.status-badge.won { background: var(--green-bg); color: var(--green); }
+.status-badge.lost { background: var(--red-bg); color: var(--red); }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-start; padding-top: 5vh; }
+.modal-overlay.show { display: flex; }
+.modal { background: #fff; border-radius: 16px; width: 95%; max-width: 600px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.modal-header { background: var(--midnight); color: var(--gold); padding: 1.25rem 1.5rem; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center; }
+.modal-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 600; }
+.modal-close { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.5rem; cursor: pointer; }
+.modal-body { padding: 1.5rem; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #e0ddd6; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.82rem; outline: none; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--gold); }
+.form-group textarea { min-height: 80px; resize: vertical; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+/* Activity feed */
+.activity-feed { margin-top: 1rem; border-top: 1px solid var(--cream-dark); padding-top: 1rem; }
+.activity-item { display: flex; gap: 0.75rem; padding: 0.5rem 0; font-size: 0.75rem; }
+.activity-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0; }
+.activity-icon.note { background: var(--blue-bg); }
+.activity-icon.call { background: var(--green-bg); }
+.activity-icon.status { background: #f5f3ff; }
+.activity-text { color: var(--text-muted); line-height: 1.4; }
+.activity-text strong { color: var(--text); }
+.activity-date { font-size: 0.6rem; color: #ccc; }
+
+/* Status move buttons */
+.status-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+.status-actions .btn { font-size: 0.65rem; padding: 0.4rem 0.8rem; }
+.btn-green { background: var(--green); color: #fff; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-blue { background: var(--blue); color: #fff; }
+.btn-purple { background: #7c3aed; color: #fff; }
+.btn-dark { background: var(--midnight); color: var(--gold); }
+
+/* View toggle */
+.view-toggle { display: flex; gap: 0.25rem; background: #fff; border-radius: 8px; padding: 0.2rem; border: 1px solid #e0ddd6; }
+.view-toggle .btn { padding: 0.4rem 0.6rem; font-size: 0.7rem; border-radius: 6px; }
+.view-toggle .btn.active { background: var(--midnight); color: var(--gold); }
+
+/* Quick add note */
+.quick-note { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+.quick-note input { flex: 1; }
+.quick-note select { width: 120px; }
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .board { grid-template-columns: repeat(3, 1fr); }
+  .stats-row { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .board { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .form-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">PNM FENCING</div>
+  <div class="header-sub">Sales Board</div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-row" id="statsRow"></div>
+
+<!-- Revenue Bar -->
+<div class="revenue-bar" id="revenueBar"></div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <input type="text" class="search-box" id="searchBox" placeholder="Search leads...">
+  <div class="view-toggle">
+    <button class="btn active" data-view="board" onclick="setView('board')">Board</button>
+    <button class="btn" data-view="list" onclick="setView('list')">List</button>
+  </div>
+  <div id="sourceFilters"></div>
+  <button class="btn btn-primary" onclick="openNewLeadModal()">+ New Lead</button>
+</div>
+
+<!-- Kanban Board -->
+<div class="board" id="board"></div>
+
+<!-- List View -->
+<div class="list-view" id="listView"></div>
+
+<!-- Lead Detail Modal -->
+<div class="modal-overlay" id="leadModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Lead Details</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- New Lead Modal -->
+<div class="modal-overlay" id="newLeadModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>New Lead</h2>
+      <button class="modal-close" onclick="closeNewModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Customer Name</label><input type="text" id="nl-name"></div>
+        <div class="form-group"><label>Phone</label><input type="tel" id="nl-phone"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" id="nl-email"></div>
+        <div class="form-group"><label>Source</label>
+          <select id="nl-source"><option value="manual">Manual</option><option value="angi">Angi</option><option value="website">Website</option><option value="referral">Referral</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Address</label><input type="text" id="nl-address"></div>
+      <div class="form-row">
+        <div class="form-group"><label>City</label><input type="text" id="nl-city"></div>
+        <div class="form-group"><label>State</label><input type="text" id="nl-state" value="NJ"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Zip</label><input type="text" id="nl-zip"></div>
+        <div class="form-group"><label>Service</label>
+          <select id="nl-service"><option value="Fencing">Fencing</option><option value="Railing">Railing</option><option value="Fence & Rail">Fence & Rail</option><option value="Gate">Gate</option><option value="Other">Other</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Notes</label><textarea id="nl-notes" rows="3"></textarea></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="createLead()">Create Lead</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
+var allLeads = [];
+var currentView = 'board';
+var currentFilter = 'all';
+var currentSource = 'all';
+
+var COLUMNS = [
+  { key: 'new', label: 'New', color: '#2563eb' },
+  { key: 'contacted', label: 'Contacted', color: '#d97706' },
+  { key: 'quoted', label: 'Quoted', color: '#7c3aed' },
+  { key: 'scheduled', label: 'Scheduled', color: '#1e1845' },
+  { key: 'won', label: 'Won', color: '#2d8a4e' },
+  { key: 'lost', label: 'Lost', color: '#c0392b' },
+];
+
+function api(method, body) {
+  var opts = { method: method || 'GET', headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  return opts;
+}
+
+function loadLeads() {
+  var params = '?status=' + currentFilter + '&source=' + currentSource;
+  var search = document.getElementById('searchBox').value;
+  if (search) params += '&search=' + encodeURIComponent(search);
+
+  fetch('/api/crm' + params, api('GET'))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      allLeads = data.leads || [];
+      renderStats(data.stats);
+      renderBoard();
+      renderList();
+    });
+}
+
+function renderStats(s) {
+  if (!s) return;
+  var html = '';
+  COLUMNS.forEach(function(col) {
+    var count = s[col.key + '_count'] || 0;
+    var isActive = currentFilter === col.key ? ' active' : '';
+    html += '<div class="stat-pill ' + col.key + isActive + '" onclick="filterByStatus(\'' + col.key + '\')">' +
+      '<div class="num">' + count + '</div>' +
+      '<div class="label">' + col.label + '</div></div>';
+  });
+  document.getElementById('statsRow').innerHTML = html;
+
+  document.getElementById('revenueBar').innerHTML =
+    '<div class="revenue-item">Pipeline: <strong>$' + Number(s.pipeline_value || 0).toLocaleString() + '</strong></div>' +
+    '<div class="revenue-item">Won: <strong style="color:#2d8a4e">$' + Number(s.total_revenue || 0).toLocaleString() + '</strong></div>' +
+    '<div class="revenue-item">Total Leads: <strong>' + s.total + '</strong></div>';
+}
+
+function renderBoard() {
+  var html = '';
+  COLUMNS.forEach(function(col) {
+    var leads = allLeads.filter(function(l) { return l.status === col.key; });
+    html += '<div class="column">' +
+      '<div class="column-header">' + col.label + ' <span class="column-count">' + leads.length + '</span></div>';
+    leads.forEach(function(l) {
+      var sourceClass = 'source-' + (l.source || 'manual');
+      var amount = l.status === 'won' && l.job_value ? '<div class="amount">$' + Number(l.job_value).toLocaleString() + '</div>' : 
+                   l.quoted_amount ? '<div class="amount" style="color:#7c3aed">$' + Number(l.quoted_amount).toLocaleString() + '</div>' : '';
+      var date = new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      html += '<div class="lead-card ' + sourceClass + '" onclick="openLeadDetail(' + l.id + ')">' +
+        '<div class="name">' + (l.customer_name || 'Unknown') + '</div>' +
+        '<div class="service">' + (l.service_type || '') + '</div>' +
+        '<div class="meta">' + (l.customer_phone ? '📞 ' + l.customer_phone : '') + '</div>' +
+        amount +
+        '<div class="date">' + date + ' · ' + (l.source || 'manual') + '</div>' +
+        '</div>';
+    });
+    html += '</div>';
+  });
+  document.getElementById('board').innerHTML = html;
+}
+
+function renderList() {
+  var html = '<table class="list-table"><thead><tr>' +
+    '<th>Name</th><th>Phone</th><th>Service</th><th>Source</th><th>Status</th><th>Amount</th><th>Date</th>' +
+    '</tr></thead><tbody>';
+  allLeads.forEach(function(l) {
+    var amount = l.job_value ? '$' + Number(l.job_value).toLocaleString() : l.quoted_amount ? '$' + Number(l.quoted_amount).toLocaleString() : '—';
+    var date = new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    html += '<tr onclick="openLeadDetail(' + l.id + ')" style="cursor:pointer">' +
+      '<td><strong>' + (l.customer_name || 'Unknown') + '</strong></td>' +
+      '<td>' + (l.customer_phone || '—') + '</td>' +
+      '<td>' + (l.service_type || '—') + '</td>' +
+      '<td>' + (l.source || '—') + '</td>' +
+      '<td><span class="status-badge ' + l.status + '">' + l.status + '</span></td>' +
+      '<td>' + amount + '</td>' +
+      '<td>' + date + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('listView').innerHTML = html;
+}
+
+function filterByStatus(status) {
+  currentFilter = currentFilter === status ? 'all' : status;
+  loadLeads();
+}
+
+function setView(view) {
+  currentView = view;
+  document.getElementById('board').style.display = view === 'board' ? 'grid' : 'none';
+  document.getElementById('listView').style.display = view === 'list' ? 'block' : 'none';
+  document.querySelectorAll('.view-toggle .btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.view === view);
+  });
+}
+
+function openNewLeadModal() { document.getElementById('newLeadModal').classList.add('show'); }
+function closeNewModal() { document.getElementById('newLeadModal').classList.remove('show'); }
+function closeModal() { document.getElementById('leadModal').classList.remove('show'); }
+
+function createLead() {
+  fetch('/api/crm', api('POST', {
+    action: 'create',
+    customer_name: document.getElementById('nl-name').value,
+    customer_phone: document.getElementById('nl-phone').value,
+    customer_email: document.getElementById('nl-email').value,
+    customer_address: document.getElementById('nl-address').value,
+    customer_city: document.getElementById('nl-city').value,
+    customer_state: document.getElementById('nl-state').value,
+    customer_zip: document.getElementById('nl-zip').value,
+    service_type: document.getElementById('nl-service').value,
+    notes: document.getElementById('nl-notes').value,
+    source: document.getElementById('nl-source').value,
+  })).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) { closeNewModal(); loadLeads(); }
+  });
+}
+
+function openLeadDetail(id) {
+  fetch('/api/crm?id=' + id, api('GET'))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var l = data.lead;
+      var act = data.activity || [];
+
+      document.getElementById('modalTitle').textContent = l.customer_name || 'Lead #' + l.id;
+
+      var statusBtns = '';
+      var nextStatuses = {
+        new: [{ s: 'contacted', label: 'Mark Contacted', cls: 'btn-blue' }],
+        contacted: [{ s: 'quoted', label: 'Mark Quoted', cls: 'btn-purple' }, { s: 'lost', label: 'Mark Lost', cls: 'btn-red' }],
+        quoted: [{ s: 'scheduled', label: 'Schedule Job', cls: 'btn-dark' }, { s: 'lost', label: 'Mark Lost', cls: 'btn-red' }],
+        scheduled: [{ s: 'won', label: 'Job Won ✓', cls: 'btn-green' }, { s: 'lost', label: 'Mark Lost', cls: 'btn-red' }],
+        lost: [{ s: 'new', label: 'Reopen', cls: 'btn-blue' }],
+        won: [],
+      };
+      (nextStatuses[l.status] || []).forEach(function(ns) {
+        statusBtns += '<button class="btn ' + ns.cls + '" onclick="updateStatus(' + l.id + ',\'' + ns.s + '\')">' + ns.label + '</button> ';
+      });
+
+      var activityHtml = '';
+      act.forEach(function(a) {
+        var icon = a.activity_type === 'call' ? '📞' : a.activity_type === 'status_change' ? '🔄' : a.activity_type === 'email' ? '✉️' : a.activity_type === 'sms' ? '💬' : '📝';
+        var iconClass = a.activity_type === 'call' ? 'call' : a.activity_type === 'status_change' ? 'status' : 'note';
+        var date = new Date(a.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+        activityHtml += '<div class="activity-item">' +
+          '<div class="activity-icon ' + iconClass + '">' + icon + '</div>' +
+          '<div><div class="activity-text">' + a.description + '</div><div class="activity-date">' + date + '</div></div></div>';
+      });
+
+      var html = '' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +
+          '<span class="status-badge ' + l.status + '" style="font-size:0.7rem">' + l.status.toUpperCase() + '</span>' +
+          '<span style="font-size:0.7rem;color:#bbb">' + (l.source || 'manual') + '</span>' +
+        '</div>' +
+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem 1.5rem;margin-bottom:1.25rem">' +
+          (l.customer_phone ? '<div style="font-size:0.82rem">📞 <a href="tel:' + l.customer_phone + '" style="color:var(--midnight);text-decoration:none;font-weight:500">' + l.customer_phone + '</a></div>' : '') +
+          (l.customer_email ? '<div style="font-size:0.82rem">✉️ <a href="mailto:' + l.customer_email + '" style="color:var(--midnight);text-decoration:none;font-weight:500">' + l.customer_email + '</a></div>' : '') +
+          (l.customer_address ? '<div style="font-size:0.82rem;grid-column:span 2">📍 ' + l.customer_address + (l.customer_city ? ', ' + l.customer_city : '') + (l.customer_state ? ' ' + l.customer_state : '') + (l.customer_zip ? ' ' + l.customer_zip : '') + '</div>' : '') +
+        '</div>' +
+
+        (l.service_type ? '<div style="margin-bottom:0.75rem"><span style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold)">Service</span><br><span style="font-size:0.85rem">' + l.service_type + '</span></div>' : '') +
+
+        '<div class="form-row" style="margin-bottom:1rem">' +
+          '<div class="form-group"><label>Quoted Amount</label><input type="number" id="edit-quoted" value="' + (l.quoted_amount || '') + '" onchange="updateField(' + l.id + ',\'quoted_amount\',this.value)"></div>' +
+          '<div class="form-group"><label>Job Value (Won)</label><input type="number" id="edit-value" value="' + (l.job_value || '') + '" onchange="updateField(' + l.id + ',\'job_value\',this.value)"></div>' +
+        '</div>' +
+
+        (l.notes ? '<div style="background:var(--cream);padding:0.75rem 1rem;border-radius:8px;font-size:0.8rem;margin-bottom:1rem;border-left:3px solid var(--gold)">' + l.notes + '</div>' : '') +
+
+        '<div class="status-actions">' + statusBtns + '</div>' +
+
+        '<div class="quick-note" style="margin-top:1rem">' +
+          '<select id="note-type" style="width:110px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.75rem">' +
+            '<option value="note">📝 Note</option><option value="call">📞 Call</option><option value="email">✉️ Email</option><option value="sms">💬 SMS</option>' +
+          '</select>' +
+          '<input type="text" id="note-text" placeholder="Add a note..." style="flex:1;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.8rem">' +
+          '<button class="btn btn-primary" onclick="addNote(' + l.id + ')">Add</button>' +
+        '</div>' +
+
+        '<div class="activity-feed"><div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.5rem">Activity</div>' + activityHtml + '</div>' +
+
+        '<div style="text-align:right;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--cream-dark)">' +
+          '<button class="btn btn-outline" style="font-size:0.65rem;color:var(--red)" onclick="if(confirm(\'Delete this lead?\'))deleteLead(' + l.id + ')">Delete Lead</button>' +
+        '</div>';
+
+      document.getElementById('modalBody').innerHTML = html;
+      document.getElementById('leadModal').classList.add('show');
+    });
+}
+
+function updateStatus(id, status) {
+  var reason = null;
+  if (status === 'lost') {
+    reason = prompt('Lost reason? (not_interested, hired_other, no_response, price)');
+  }
+  fetch('/api/crm', api('POST', { action: 'update_status', id: id, status: status, lost_reason: reason }))
+    .then(function() { closeModal(); loadLeads(); });
+}
+
+function updateField(id, field, value) {
+  var body = { action: 'update', id: id };
+  body[field] = value || null;
+  fetch('/api/crm', api('POST', body));
+}
+
+function addNote(id) {
+  var type = document.getElementById('note-type').value;
+  var text = document.getElementById('note-text').value;
+  if (!text) return;
+  fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: text }))
+    .then(function() { openLeadDetail(id); });
+}
+
+function deleteLead(id) {
+  fetch('/api/crm', api('POST', { action: 'delete', id: id }))
+    .then(function() { closeModal(); loadLeads(); });
+}
+
+// Search debounce
+var searchTimer;
+document.getElementById('searchBox').addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(loadLeads, 300);
+});
+
+// Close modals on overlay click
+document.getElementById('leadModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+document.getElementById('newLeadModal').addEventListener('click', function(e) { if (e.target === this) closeNewModal(); });
+
+// Init
+loadLeads();
+</script>
+</body>
+</html>
