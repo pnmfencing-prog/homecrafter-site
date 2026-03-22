@@ -104,7 +104,7 @@ export async function sendLeadNotification(contractorEmail: string, contractorNa
     </div>
   </div>
   <div class="footer">
-    <p>HomeCrafter — Connecting homeowners with trusted local professionals</p>
+    <p>HomeCrafter — Connecting you with trusted local professionals</p>
   </div>
 </div>
 </body>
@@ -262,7 +262,7 @@ export async function sendHomeownerMatchEmail(leadId: number, proAccountId: numb
     </div>
   </div>
   <div class="footer">
-    <p>HomeCrafter — Connecting homeowners with trusted local professionals</p>
+    <p>HomeCrafter — Connecting you with trusted local professionals</p>
     <p style="margin-top:8px;font-size:10px;color:#ccc;">You received this because you submitted a project request on HomeCrafter.</p>
   </div>
 </div>
@@ -355,7 +355,7 @@ export async function sendHomeownerSummaryEmail(leadId: number): Promise<boolean
     </div>
   </div>
   <div style="background:#f8f6f2;border-radius:0 0 12px 12px;padding:20px 24px;text-align:center;border:1px solid #eae7e1;border-top:none;">
-    <p style="font-size:11px;color:#b8b0a4;margin:0;">HomeCrafter — Connecting homeowners with trusted local professionals</p>
+    <p style="font-size:11px;color:#b8b0a4;margin:0;">HomeCrafter — Connecting you with trusted local professionals</p>
     <p style="margin-top:8px;font-size:10px;color:#ccc;">You received this because you submitted a project request on HomeCrafter.</p>
   </div>
 </div>
