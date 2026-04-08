@@ -7,7 +7,7 @@ export const SINGLE_PRICES: Record<string, number> = {
 };
 
 // Introductory pricing — ~40-45% of full price, active for first 30 days
-// Expires: April 9, 2026
+// Expires: May 9, 2026
 export const INTRO_PRICES: Record<string, number> = {
   locksmith: 10, handyman: 17, fencing: 19, housekeeper: 19,
   pestcontrol: 20, painting: 19, concrete: 22, landscaping: 22,
@@ -16,7 +16,7 @@ export const INTRO_PRICES: Record<string, number> = {
   kitchen: 29, bathroom: 29,
 };
 
-export const INTRO_PRICING_EXPIRES = new Date('2026-04-09T23:59:59-04:00');
+export const INTRO_PRICING_EXPIRES = new Date('2026-05-09T23:59:59-04:00');
 
 export function isIntroPricingActive(): boolean {
   return new Date() < INTRO_PRICING_EXPIRES;
