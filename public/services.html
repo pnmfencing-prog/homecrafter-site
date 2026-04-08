@@ -838,7 +838,7 @@ body {
           </div>
           <div style="flex:1;">
             <label>Zip</label>
-            <input type="text" id="formZip" autocomplete="postal-code" placeholder="07760" maxlength="5" style="width:100%;padding:14px 18px;border:1px solid #eae7e1;border-radius:4px;font-size:14px;font-family:'Montserrat',sans-serif;background:#faf9f6;transition:all 0.3s;">
+            <input type="text" id="formZip" autocomplete="postal-code" placeholder="07760" maxlength="5" required style="width:100%;padding:14px 18px;border:1px solid #eae7e1;border-radius:4px;font-size:14px;font-family:'Montserrat',sans-serif;background:#faf9f6;transition:all 0.3s;">
           </div>
         </div>
         <label>Share Your Vision — the more details, the better!</label>
@@ -1062,6 +1062,8 @@ document.getElementById('serviceForm').addEventListener('submit', async function
   const errEl = document.getElementById('serviceError');
   if (checked.length === 0) { errEl.style.display = 'block'; return; }
   errEl.style.display = 'none';
+  const zipVal = document.getElementById('formZip').value.trim();
+  if (!zipVal || !/^\d{5}$/.test(zipVal)) { alert('Please enter a valid 5-digit ZIP code so we can match you with local pros.'); document.getElementById('formZip').focus(); return; }
   const btn = document.getElementById('submitBtn');
   btn.disabled = true; btn.textContent = 'Submitting...';
   const data = {
