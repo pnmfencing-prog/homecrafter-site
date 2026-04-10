@@ -1,14 +1,3 @@
-import { sendBrevoEmail } from './email';
-
-export async function sendFreeLeadBlast(leadId: number) {
-  // This is called from the notify endpoint or a cron
-  // Logic: if lead has 0 purchases after X hours, blast matching contractors
-  // with a "Claim this lead for free" email
-  
-  // The actual blast is handled by the Python script for now
-  // This module provides the email template
-}
-
 export function getFreeLeadEmailHtml(leadData: {
   category: string;
   zip: string;
