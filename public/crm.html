@@ -131,12 +131,14 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 
 /* Responsive */
 @media (max-width: 1200px) {
-  .board { grid-template-columns: repeat(3, 1fr); }
+  .board { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0.75rem; padding-bottom: 1rem; }
+  .board .column { min-width: 260px; flex-shrink: 0; }
   .stats-row { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 768px) {
-  .board { grid-template-columns: 1fr; }
-  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .board { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0.75rem; padding-bottom: 1rem; }
+  .board .column { min-width: 240px; flex-shrink: 0; }
+  .stats-row { grid-template-columns: repeat(3, 1fr); }
   .form-row { grid-template-columns: 1fr; }
 }
 </style>
