@@ -359,7 +359,7 @@ function openLeadDetail(id) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       var l = data.lead;
-      var act = data.activity || [];
+      var act = (data.activity || []).sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); });
 
       document.getElementById('modalTitle').textContent = l.customer_name || 'Lead #' + l.id;
 
@@ -450,6 +450,8 @@ function openLeadDetail(id) {
 
       document.getElementById('modalBody').innerHTML = html;
       document.getElementById('leadModal').classList.add('show');
+      var chatEl = document.getElementById('chatThread');
+      if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
     });
 }
 
