@@ -420,14 +420,11 @@ function openLeadDetail(id) {
               var date = new Date(a.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
               if (isChat) {
-                return '<div style="display:flex;justify-content:' + (isOutbound ? 'flex-end' : 'flex-start') + ';margin-bottom:0.5rem;width:100%">' +
-                  (isInbound ? '' : '<div style="min-width:20%"></div>') +
-                  '<div style="max-width:75%;padding:0.6rem 0.85rem;border-radius:' + (isOutbound ? '12px 12px 4px 12px' : '12px 12px 12px 4px') + ';background:' + (isOutbound ? 'var(--midnight)' : '#fff') + ';color:' + (isOutbound ? '#fff' : 'var(--text)') + ';font-size:0.8rem;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,0.06)">' +
+                return '<div style="margin-bottom:0.5rem;' + (isOutbound ? 'margin-left:25%;text-align:right' : 'margin-right:25%;text-align:left') + '">' +
+                  '<div style="display:inline-block;text-align:left;max-width:100%;padding:0.6rem 0.85rem;border-radius:' + (isOutbound ? '12px 12px 4px 12px' : '12px 12px 12px 4px') + ';background:' + (isOutbound ? 'var(--midnight)' : '#fff') + ';color:' + (isOutbound ? '#fff' : 'var(--text)') + ';font-size:0.8rem;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,0.06)">' +
                     '<div>' + msg + '</div>' +
                     '<div style="font-size:0.6rem;color:' + (isOutbound ? 'rgba(255,255,255,0.5)' : '#999') + ';margin-top:0.3rem;text-align:right">' + (isOutbound ? 'Sent' : 'Received') + ' · ' + date + '</div>' +
-                  '</div>' +
-                  (isOutbound ? '' : '<div style="min-width:20%"></div>') +
-                '</div>';
+                  '</div></div>';
               } else {
                 var icon = a.activity_type === 'call' ? '📞' : a.activity_type === 'email' ? '✉️' : '📝';
                 return '<div style="text-align:center;margin:0.75rem 0;font-size:0.7rem;color:var(--text-muted)">' +
