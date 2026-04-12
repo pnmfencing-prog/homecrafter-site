@@ -164,6 +164,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
     <button class="btn" data-view="list" onclick="setView('list')">List</button>
   </div>
   <div id="sourceFilters"></div>
+  <label class="btn btn-outline" style="cursor:pointer">📁 Import CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(this)"></label>
   <button class="btn btn-primary" onclick="openNewLeadModal()">+ New Lead</button>
 </div>
 
@@ -489,6 +490,35 @@ function addNote(id) {
 function deleteLead(id) {
   fetch('/api/crm', api('POST', { action: 'delete', id: id }))
     .then(function() { closeModal(); loadLeads(); });
+}
+
+function importCSV(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var lines = e.target.result.split('\n').filter(function(l) { return l.trim(); });
+    if (lines.length < 2) { alert('CSV must have a header row + data'); return; }
+    var headers = lines[0].split(',').map(function(h) { return h.trim().replace(/^["']|["']$/g, ''); });
+    var rows = [];
+    for (var i = 1; i < lines.length; i++) {
+      var vals = lines[i].match(/("([^"]*)"|[^,]*)/g) || [];
+      var row = {};
+      headers.forEach(function(h, idx) {
+        row[h] = (vals[idx] || '').trim().replace(/^["']|["']$/g, '');
+      });
+      rows.push(row);
+    }
+    if (!confirm('Import ' + rows.length + ' leads from CSV?')) return;
+    fetch('/api/crm-import', api('POST', { rows: rows }))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        alert('Imported: ' + d.imported + '\nSkipped (dupes): ' + d.skipped + (d.errors.length ? '\nErrors: ' + d.errors.length : ''));
+        loadLeads();
+      });
+  };
+  reader.readAsText(file);
+  input.value = '';
 }
 
 // Search debounce
