@@ -471,8 +471,13 @@ function addNote(id) {
   var type = document.getElementById('note-type').value;
   var text = document.getElementById('note-text').value;
   if (!text) return;
-  fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: text }))
-    .then(function() { openLeadDetail(id); });
+  // Auto-prefix SMS messages so chat knows direction
+  var desc = text;
+  if (type === 'sms' && !text.startsWith('📤') && !text.startsWith('📥')) {
+    desc = '📤 ' + text;
+  }
+  fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: desc }))
+    .then(function() { document.getElementById('note-text').value = ''; openLeadDetail(id); });
 }
 
 function deleteLead(id) {
