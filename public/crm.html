@@ -392,6 +392,12 @@ function openLeadDetail(id) {
           '<span style="font-size:0.7rem;color:#bbb">' + (l.source || 'manual') + '</span>' +
         '</div>' +
 
+        (l.chat_token ? '<div style="margin-bottom:1rem;padding:0.6rem 0.85rem;background:#eff6ff;border-radius:8px;font-size:0.7rem;display:flex;align-items:center;gap:0.5rem">' +
+          '<span>💬</span><span style="color:var(--text-muted)">Customer chat link:</span>' +
+          '<a href="/chat.html?t=' + l.chat_token + '" target="_blank" style="color:var(--blue);text-decoration:none;font-weight:600;word-break:break-all">homecrafter.ai/chat.html?t=' + l.chat_token + '</a>' +
+          '<button onclick="navigator.clipboard.writeText(\'https://homecrafter.ai/chat.html?t=' + l.chat_token + '\')" style="border:none;background:none;cursor:pointer;font-size:0.8rem" title="Copy link">📋</button>' +
+        '</div>' : '') +
+
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem 1.5rem;margin-bottom:1.25rem">' +
           (l.customer_phone ? '<div style="font-size:0.82rem">📞 <a href="tel:' + l.customer_phone + '" style="color:var(--midnight);text-decoration:none;font-weight:500">' + l.customer_phone + '</a></div>' : '') +
           (l.customer_email ? '<div style="font-size:0.82rem">✉️ <a href="mailto:' + l.customer_email + '" style="color:var(--midnight);text-decoration:none;font-weight:500">' + l.customer_email + '</a></div>' : '') +

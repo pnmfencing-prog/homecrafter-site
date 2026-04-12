@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Chat — PNM Fencing</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --midnight: #1e1845; --gold: #c4aa6a; --cream: #faf9f6; --text: #2d2d2d; }
+body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+
+.header { background: var(--midnight); padding: 1rem 1.25rem; display: flex; align-items: center; gap: 0.75rem; }
+.header-logo { font-size: 1rem; font-weight: 700; color: var(--gold); letter-spacing: 0.15em; }
+.header-info { font-size: 0.7rem; color: rgba(255,255,255,0.6); }
+.header-dot { width: 8px; height: 8px; border-radius: 50%; background: #2d8a4e; margin-left: auto; }
+.header-status { font-size: 0.6rem; color: rgba(255,255,255,0.5); margin-left: 0.3rem; }
+
+.messages { flex: 1; overflow-y: auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
+
+.msg { margin-bottom: 0.6rem; }
+.msg.out { text-align: right; margin-left: 20%; }
+.msg.in { text-align: left; margin-right: 20%; }
+.msg .bubble { display: inline-block; text-align: left; max-width: 100%; padding: 0.6rem 0.9rem; font-size: 0.85rem; line-height: 1.5; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.msg.out .bubble { background: var(--midnight); color: #fff; border-radius: 14px 14px 4px 14px; }
+.msg.in .bubble { background: #fff; color: var(--text); border-radius: 14px 14px 14px 4px; }
+.msg .time { font-size: 0.55rem; color: #aaa; margin-top: 0.2rem; }
+
+.compose { display: flex; gap: 0.5rem; padding: 0.75rem 1rem; background: #fff; border-top: 1px solid #eee; }
+.compose input { flex: 1; padding: 0.7rem 1rem; border: 1px solid #e0ddd6; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 0.85rem; outline: none; }
+.compose input:focus { border-color: var(--gold); }
+.compose button { background: var(--midnight); color: var(--gold); border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+.loading { text-align: center; padding: 3rem; color: #999; font-size: 0.85rem; }
+.error { text-align: center; padding: 3rem; color: #c0392b; font-size: 0.85rem; }
+
+.welcome { text-align: center; padding: 2rem 1.5rem 1rem; }
+.welcome h2 { font-size: 1rem; color: var(--midnight); margin-bottom: 0.5rem; }
+.welcome p { font-size: 0.8rem; color: #888; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-logo">PNM FENCING</div>
+    <div class="header-info" id="headerInfo">Loading...</div>
+  </div>
+  <div class="header-dot"></div>
+  <div class="header-status">Online</div>
+</div>
+
+<div class="messages" id="messages">
+  <div class="loading">Loading conversation...</div>
+</div>
+
+<div class="compose">
+  <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off">
+  <button onclick="sendMsg()" id="sendBtn">➤</button>
+</div>
+
+<script>
+var TOKEN = new URLSearchParams(window.location.search).get('t') || '';
+var pollTimer = null;
+
+function timeStr(t) {
+  return new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function renderMessages(data) {
+  var el = document.getElementById('messages');
+  if (!data.messages.length) {
+    el.innerHTML = '<div class="welcome"><h2>Welcome! 👋</h2><p>Send us a message and our team will respond shortly.</p></div>';
+  } else {
+    var html = '';
+    data.messages.forEach(function(m) {
+      var cls = m.fromCustomer ? 'in' : 'out';
+      html += '<div class="msg ' + cls + '">' +
+        '<div class="bubble">' + m.text + '</div>' +
+        '<div class="time">' + timeStr(m.time) + '</div></div>';
+    });
+    el.innerHTML = html;
+  }
+  el.scrollTop = el.scrollHeight;
+}
+
+function loadMessages() {
+  fetch('/api/chat?token=' + TOKEN)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) {
+        document.getElementById('messages').innerHTML = '<div class="error">Chat not found.</div>';
+        return;
+      }
+      document.getElementById('headerInfo').textContent = (data.lead.service || 'Project') + ' Inquiry';
+      renderMessages(data);
+    });
+}
+
+function sendMsg() {
+  var input = document.getElementById('msgInput');
+  var text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  document.getElementById('sendBtn').disabled = true;
+
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: TOKEN, message: text })
+  }).then(function() {
+    document.getElementById('sendBtn').disabled = false;
+    loadMessages();
+  });
+}
+
+document.getElementById('msgInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') sendMsg();
+});
+
+// Poll for new messages every 5 seconds
+if (TOKEN) {
+  loadMessages();
+  pollTimer = setInterval(loadMessages, 5000);
+} else {
+  document.getElementById('messages').innerHTML = '<div class="error">No chat token provided.</div>';
+}
+</script>
+</body>
+</html>

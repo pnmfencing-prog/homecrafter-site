@@ -72,9 +72,10 @@ export async function POST(request: NextRequest) {
   const { action } = body;
 
   if (action === 'create') {
+    const chatToken = [...Array(16)].map(() => Math.random().toString(36)[2]).join('');
     const result = await sql`
-      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source)
-      VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'})
+      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, chat_token)
+      VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'}, ${chatToken})
       RETURNING *
     `;
     await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${result[0].id}, 'status_change', 'Lead created')`;
@@ -112,7 +113,8 @@ export async function POST(request: NextRequest) {
 
   if (action === 'add_note') {
     const { id, activity_type, description } = body;
-    await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${id}, ${activity_type || 'note'}, ${description})`;
+    const isFromCustomer = description?.startsWith('📥') || false;
+    await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${id}, ${activity_type || 'note'}, ${description}, ${isFromCustomer})`;
     await sql`UPDATE crm_leads SET updated_at = NOW() WHERE id = ${id}`;
     return NextResponse.json({ success: true });
   }
