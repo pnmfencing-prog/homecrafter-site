@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
     if (leads.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const leadId = parseInt(id);
     const activity = await sql`SELECT * FROM crm_activity WHERE crm_lead_id = ${leadId} ORDER BY created_at DESC LIMIT 50`;
-    return NextResponse.json({ lead: leads[0], activity });
+    const quotes = await sql`SELECT * FROM crm_quotes WHERE crm_lead_id = ${leadId} ORDER BY created_at DESC`;
+    return NextResponse.json({ lead: leads[0], activity, quotes });
   }
 
   // Build filtered query using tagged templates
