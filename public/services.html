@@ -854,8 +854,15 @@ body {
 
       <div class="sms-consent">
         <label class="consent-label">
-          <input type="checkbox" id="smsConsent" checked>
-          <span>By submitting, I agree to receive SMS/text messages from HomeCrafter regarding my project. Message & data rates may apply. Reply STOP to unsubscribe at any time. <a href="/privacy-policy.html" target="_blank">Privacy Policy</a> · <a href="/terms-and-conditions.html" target="_blank">Terms</a></span>
+          <input type="checkbox" id="smsConsent">
+          <span>I agree to receive SMS/text messages from HomeCrafter about my project, including estimates, scheduling updates, and follow-ups. Message frequency varies. Msg & data rates may apply. Reply STOP to cancel at any time. This consent is not required to submit this form or receive services.</span>
+        </label>
+      </div>
+
+      <div class="sms-consent">
+        <label class="consent-label">
+          <input type="checkbox" id="privacyConsent" required>
+          <span>I have read and agree to the <a href="/privacy-policy.html" target="_blank">Privacy Policy</a> and <a href="/terms-and-conditions.html" target="_blank">Terms & Conditions</a>.</span>
         </label>
       </div>
 
@@ -1076,6 +1083,7 @@ document.getElementById('serviceForm').addEventListener('submit', async function
     address: [document.getElementById('formAddress').value, document.getElementById('formCity').value, document.getElementById('formState').value, document.getElementById('formZip').value].filter(Boolean).join(', ') || addr || '',
     zip: document.getElementById('formZip').value || '',
     uid: uid || '',
+    smsConsent: document.getElementById('smsConsent').checked,
     notes: document.getElementById('notes').value, website_url: document.getElementById('website_url').value, submitted: new Date().toISOString(),
     details: (() => {
       const d = {};
