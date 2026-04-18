@@ -62,10 +62,26 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .lead-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,24,69,0.1); }
 .lead-card.dragging { opacity: 0.4; transform: scale(0.95); }
 .column.drag-over { background: rgba(196,170,106,0.15); outline: 2px dashed var(--gold); outline-offset: -4px; }
-.lead-card.source-angi { border-left-color: #ff6b35; }
-.lead-card.source-website { border-left-color: var(--gold); }
-.lead-card.source-referral { border-left-color: var(--green); }
-.lead-card.source-manual { border-left-color: var(--blue); }
+.lead-card.unread { border-left-color: var(--red) !important; }
+.lead-card.unread::before { content: ''; position: absolute; top: 8px; left: -8px; width: 8px; height: 8px; background: var(--red); border-radius: 50%; }
+.lead-card { position: relative; }
+.lead-card.source-angi:not(.unread) { border-left-color: #ff6b35; }
+.lead-card.source-website:not(.unread) { border-left-color: var(--gold); }
+.lead-card.source-referral:not(.unread) { border-left-color: var(--green); }
+.lead-card.source-manual:not(.unread) { border-left-color: var(--blue); }
+.last-msg-tag { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.1rem 0.4rem; border-radius: 4px; float: right; }
+.last-msg-tag.customer { background: var(--red-bg); color: var(--red); }
+.last-msg-tag.you { background: var(--green-bg); color: var(--green); }
+
+/* Column filters */
+.col-filters { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+.col-filter-btn { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid #e0ddd6; background: #fff; cursor: pointer; color: var(--text-muted); transition: all 0.15s; }
+.col-filter-btn.active { background: var(--midnight); color: var(--gold); border-color: var(--midnight); }
+
+/* Global read/unread filter */
+.read-filter { display: flex; gap: 0.25rem; background: #fff; border-radius: 8px; padding: 0.2rem; border: 1px solid #e0ddd6; }
+.read-filter .btn { padding: 0.4rem 0.6rem; font-size: 0.65rem; border-radius: 6px; }
+.read-filter .btn.active { background: var(--midnight); color: var(--gold); }
 .lead-card .name { font-weight: 600; font-size: 0.82rem; color: var(--midnight); margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lead-card .service { font-size: 0.65rem; color: var(--gold); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
 .lead-card .meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.3rem; }
@@ -133,15 +149,25 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 
 /* Responsive */
 @media (max-width: 1200px) {
-  .board { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0.75rem; padding-bottom: 1rem; }
-  .board .column { min-width: 260px; flex-shrink: 0; }
+  .board { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0.75rem; padding-bottom: 1rem; scroll-snap-type: x mandatory; }
+  .board .column { min-width: 260px; flex-shrink: 0; scroll-snap-align: center; }
   .stats-row { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 768px) {
-  .board { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0.75rem; padding-bottom: 1rem; }
-  .board .column { min-width: 240px; flex-shrink: 0; }
+  .board { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 0; padding-bottom: 1rem; scroll-snap-type: x mandatory; scroll-behavior: smooth; }
+  .board .column { min-width: calc(100vw - 2.5rem); flex-shrink: 0; scroll-snap-align: center; margin: 0 0.375rem; }
   .stats-row { grid-template-columns: repeat(3, 1fr); }
   .form-row { grid-template-columns: 1fr; }
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .read-filter { justify-content: center; }
+  
+  /* Swipe indicator dots */
+  .swipe-dots { display: flex; justify-content: center; gap: 6px; padding: 0.5rem 0 0.75rem; }
+  .swipe-dot { width: 8px; height: 8px; border-radius: 50%; background: #d0cdc6; transition: all 0.2s; }
+  .swipe-dot.active { background: var(--midnight); width: 20px; border-radius: 4px; }
+}
+@media (min-width: 769px) {
+  .swipe-dots { display: none; }
 }
 </style>
 </head>
@@ -165,6 +191,11 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
     <button class="btn active" data-view="board" onclick="setView('board')">Board</button>
     <button class="btn" data-view="list" onclick="setView('list')">List</button>
   </div>
+  <div class="read-filter">
+    <button class="btn active" data-rf="all" onclick="setReadFilter('all')">All</button>
+    <button class="btn" data-rf="unread" onclick="setReadFilter('unread')">Unread</button>
+    <button class="btn" data-rf="read" onclick="setReadFilter('read')">Read</button>
+  </div>
   <div id="sourceFilters"></div>
   <label class="btn btn-outline" style="cursor:pointer">📁 Import CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(this)"></label>
   <button class="btn btn-primary" onclick="openNewLeadModal()">+ New Lead</button>
@@ -172,6 +203,9 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 
 <!-- Kanban Board -->
 <div class="board" id="board"></div>
+
+<!-- Swipe Dots (mobile) -->
+<div class="swipe-dots" id="swipeDots"></div>
 
 <!-- List View -->
 <div class="list-view" id="listView"></div>
@@ -228,6 +262,8 @@ var allLeads = [];
 var currentView = 'board';
 var currentFilter = 'all';
 var currentSource = 'all';
+var readFilter = 'all';
+var colMsgFilters = {}; // per-column: 'all', 'customer', 'you'
 
 var COLUMNS = [
   { key: 'new', label: 'New', color: '#2563eb' },
@@ -281,15 +317,33 @@ function renderBoard() {
   var html = '';
   COLUMNS.forEach(function(col) {
     var leads = allLeads.filter(function(l) { return l.status === col.key; });
+    
+    // Apply read/unread filter
+    if (readFilter === 'unread') leads = leads.filter(function(l) { return !l.is_read; });
+    if (readFilter === 'read') leads = leads.filter(function(l) { return l.is_read; });
+    
+    // Apply per-column message filter
+    var cmf = colMsgFilters[col.key] || 'all';
+    if (cmf === 'customer') leads = leads.filter(function(l) { return l.last_message_by === 'customer'; });
+    if (cmf === 'you') leads = leads.filter(function(l) { return l.last_message_by === 'you'; });
+    
     html += '<div class="column" data-status="' + col.key + '" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">' +
-      '<div class="column-header">' + col.label + ' <span class="column-count">' + leads.length + '</span></div>';
+      '<div class="column-header">' + col.label + ' <span class="column-count">' + leads.length + '</span></div>' +
+      '<div class="col-filters">' +
+        '<button class="col-filter-btn' + (cmf === 'all' ? ' active' : '') + '" onclick="setColFilter(\'' + col.key + '\',\'all\')">All</button>' +
+        '<button class="col-filter-btn' + (cmf === 'customer' ? ' active' : '') + '" onclick="setColFilter(\'' + col.key + '\',\'customer\')">Needs Reply</button>' +
+        '<button class="col-filter-btn' + (cmf === 'you' ? ' active' : '') + '" onclick="setColFilter(\'' + col.key + '\',\'you\')">Waiting</button>' +
+      '</div>';
     leads.forEach(function(l) {
       var sourceClass = 'source-' + (l.source || 'manual');
+      var unreadClass = !l.is_read ? ' unread' : '';
       var amount = l.status === 'won' && l.job_value ? '<div class="amount">$' + Number(l.job_value).toLocaleString() + '</div>' : 
                    l.quoted_amount ? '<div class="amount" style="color:#7c3aed">$' + Number(l.quoted_amount).toLocaleString() + '</div>' : '';
       var date = new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      html += '<div class="lead-card ' + sourceClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" onclick="openLeadDetail(' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">' +
-        '<div class="name">' + (l.customer_name || 'Unknown') + '</div>' +
+      var lastMsgTag = l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '">' + (l.last_message_by === 'customer' ? '← Customer' : '→ You') + '</span>' : '';
+      
+      html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" onclick="openLeadDetail(' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">' +
+        '<div class="name">' + (l.customer_name || 'Unknown') + lastMsgTag + '</div>' +
         '<div class="service">' + (l.service_type || '') + '</div>' +
         '<div class="meta">' + (l.customer_phone ? '📞 ' + l.customer_phone : '') + '</div>' +
         amount +
@@ -299,6 +353,19 @@ function renderBoard() {
     html += '</div>';
   });
   document.getElementById('board').innerHTML = html;
+}
+
+function setReadFilter(filter) {
+  readFilter = filter;
+  document.querySelectorAll('.read-filter .btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.rf === filter);
+  });
+  renderBoard();
+}
+
+function setColFilter(colKey, filter) {
+  colMsgFilters[colKey] = filter;
+  renderBoard();
 }
 
 function renderList() {
@@ -365,6 +432,14 @@ function openLeadDetail(id) {
       var act = (data.activity || []).sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); });
 
       document.getElementById('modalTitle').textContent = l.customer_name || 'Lead #' + l.id;
+      
+      // Auto-mark as read when opening
+      if (!l.is_read) {
+        fetch('/api/crm', api('POST', { action: 'toggle_read', id: l.id, is_read: true }));
+        var localLead = allLeads.find(function(x) { return x.id === l.id; });
+        if (localLead) localLead.is_read = true;
+        renderBoard();
+      }
 
       var statusBtns = '';
       var nextStatuses = {
@@ -392,7 +467,11 @@ function openLeadDetail(id) {
       var html = '' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +
           '<span class="status-badge ' + l.status + '" style="font-size:0.7rem">' + l.status.toUpperCase() + '</span>' +
-          '<span style="font-size:0.7rem;color:#bbb">' + (l.source || 'manual') + '</span>' +
+          '<div style="display:flex;gap:0.5rem;align-items:center">' +
+            (l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '" style="font-size:0.6rem">Last: ' + (l.last_message_by === 'customer' ? 'Customer' : 'You') + '</span>' : '') +
+            '<button class="btn btn-outline" style="font-size:0.6rem;padding:0.25rem 0.5rem" onclick="toggleRead(' + l.id + ')">Mark Unread</button>' +
+            '<span style="font-size:0.7rem;color:#bbb">' + (l.source || 'manual') + '</span>' +
+          '</div>' +
         '</div>' +
 
         (l.chat_token ? '<div style="margin-bottom:1rem;padding:0.6rem 0.85rem;background:#eff6ff;border-radius:8px;font-size:0.7rem;display:flex;align-items:center;gap:0.5rem">' +
@@ -519,6 +598,15 @@ function addNote(id) {
     .then(function() { document.getElementById('note-text').value = ''; openLeadDetail(id); });
 }
 
+function toggleRead(id) {
+  var lead = allLeads.find(function(l) { return l.id === id; });
+  if (!lead) return;
+  var newRead = !lead.is_read;
+  lead.is_read = newRead;
+  fetch('/api/crm', api('POST', { action: 'toggle_read', id: id, is_read: newRead }))
+    .then(function() { closeModal(); renderBoard(); });
+}
+
 function deleteLead(id) {
   fetch('/api/crm', api('POST', { action: 'delete', id: id }))
     .then(function() { closeModal(); loadLeads(); });
@@ -628,8 +716,35 @@ document.getElementById('searchBox').addEventListener('input', function() {
 document.getElementById('leadModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 document.getElementById('newLeadModal').addEventListener('click', function(e) { if (e.target === this) closeNewModal(); });
 
+// Swipe dots for mobile
+function initSwipeDots() {
+  var dotsEl = document.getElementById('swipeDots');
+  if (!dotsEl || window.innerWidth > 768) { if (dotsEl) dotsEl.innerHTML = ''; return; }
+  dotsEl.innerHTML = COLUMNS.map(function(col, i) {
+    return '<div class="swipe-dot' + (i === 0 ? ' active' : '') + '" data-idx="' + i + '" onclick="scrollToCol(' + i + ')">' + '</div>';
+  }).join('');
+  
+  var board = document.getElementById('board');
+  board.addEventListener('scroll', function() {
+    var colWidth = board.scrollWidth / COLUMNS.length;
+    var activeIdx = Math.round(board.scrollLeft / colWidth);
+    dotsEl.querySelectorAll('.swipe-dot').forEach(function(d, i) {
+      d.classList.toggle('active', i === activeIdx);
+    });
+  });
+}
+
+function scrollToCol(idx) {
+  var board = document.getElementById('board');
+  var colWidth = board.scrollWidth / COLUMNS.length;
+  board.scrollTo({ left: colWidth * idx, behavior: 'smooth' });
+}
+
+window.addEventListener('resize', initSwipeDots);
+
 // Init
 loadLeads();
+initSwipeDots();
 </script>
 </body>
 </html>

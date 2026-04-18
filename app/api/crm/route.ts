@@ -116,7 +116,14 @@ export async function POST(request: NextRequest) {
     const { id, activity_type, description } = body;
     const isFromCustomer = description?.startsWith('📥') || false;
     await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${id}, ${activity_type || 'note'}, ${description}, ${isFromCustomer})`;
-    await sql`UPDATE crm_leads SET updated_at = NOW() WHERE id = ${id}`;
+    const sender = isFromCustomer ? 'customer' : 'you';
+    await sql`UPDATE crm_leads SET updated_at = NOW(), last_message_by = ${sender}, last_message_at = NOW(), is_read = ${!isFromCustomer} WHERE id = ${id}`;
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'toggle_read') {
+    const { id, is_read } = body;
+    await sql`UPDATE crm_leads SET is_read = ${is_read} WHERE id = ${id}`;
     return NextResponse.json({ success: true });
   }
 
