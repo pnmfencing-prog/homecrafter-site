@@ -60,6 +60,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 /* Lead cards */
 .lead-card { background: #fff; border-radius: 10px; padding: 0.85rem; margin-bottom: 0.6rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; }
 .lead-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,24,69,0.1); }
+.lead-card.dragging { opacity: 0.4; transform: scale(0.95); }
+.column.drag-over { background: rgba(196,170,106,0.15); outline: 2px dashed var(--gold); outline-offset: -4px; }
 .lead-card.source-angi { border-left-color: #ff6b35; }
 .lead-card.source-website { border-left-color: var(--gold); }
 .lead-card.source-referral { border-left-color: var(--green); }
@@ -279,14 +281,14 @@ function renderBoard() {
   var html = '';
   COLUMNS.forEach(function(col) {
     var leads = allLeads.filter(function(l) { return l.status === col.key; });
-    html += '<div class="column">' +
+    html += '<div class="column" data-status="' + col.key + '" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">' +
       '<div class="column-header">' + col.label + ' <span class="column-count">' + leads.length + '</span></div>';
     leads.forEach(function(l) {
       var sourceClass = 'source-' + (l.source || 'manual');
       var amount = l.status === 'won' && l.job_value ? '<div class="amount">$' + Number(l.job_value).toLocaleString() + '</div>' : 
                    l.quoted_amount ? '<div class="amount" style="color:#7c3aed">$' + Number(l.quoted_amount).toLocaleString() + '</div>' : '';
       var date = new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      html += '<div class="lead-card ' + sourceClass + '" onclick="openLeadDetail(' + l.id + ')">' +
+      html += '<div class="lead-card ' + sourceClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" onclick="openLeadDetail(' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">' +
         '<div class="name">' + (l.customer_name || 'Unknown') + '</div>' +
         '<div class="service">' + (l.service_type || '') + '</div>' +
         '<div class="meta">' + (l.customer_phone ? '📞 ' + l.customer_phone : '') + '</div>' +
@@ -549,6 +551,70 @@ function importCSV(input) {
   };
   reader.readAsText(file);
   input.value = '';
+}
+
+// Drag and drop
+var draggedId = null;
+var draggedEl = null;
+
+function onDragStart(e) {
+  draggedId = e.target.dataset.id;
+  draggedEl = e.target;
+  e.target.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', draggedId);
+  // Slight delay so the dragging class applies visually
+  setTimeout(function() { if (draggedEl) draggedEl.style.opacity = '0.4'; }, 0);
+}
+
+function onDragEnd(e) {
+  e.target.classList.remove('dragging');
+  e.target.style.opacity = '';
+  draggedId = null;
+  draggedEl = null;
+  document.querySelectorAll('.column.drag-over').forEach(function(c) { c.classList.remove('drag-over'); });
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  var col = e.target.closest('.column');
+  if (col) col.classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+  var col = e.target.closest('.column');
+  if (col && !col.contains(e.relatedTarget)) col.classList.remove('drag-over');
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  var col = e.target.closest('.column');
+  if (!col || !draggedId) return;
+  col.classList.remove('drag-over');
+  var newStatus = col.dataset.status;
+  var id = parseInt(draggedId);
+  
+  // Find current status
+  var lead = allLeads.find(function(l) { return l.id === id; });
+  if (!lead || lead.status === newStatus) return;
+  
+  // If dropping to "lost", ask for reason
+  var reason = null;
+  if (newStatus === 'lost') {
+    reason = prompt('Lost reason? (not_interested, hired_other, no_response, price)');
+    if (reason === null) return; // cancelled
+  }
+  
+  // Optimistic UI update
+  lead.status = newStatus;
+  renderBoard();
+  
+  // API call
+  fetch('/api/crm', api('POST', { action: 'update_status', id: id, status: newStatus, lost_reason: reason }))
+    .then(function(r) { return r.json(); })
+    .then(function() { loadLeads(); })
+    .catch(function() { loadLeads(); }); // reload on error to revert
 }
 
 // Search debounce
