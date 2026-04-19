@@ -437,10 +437,30 @@ function saveEventTime(id) {
 }
 
 function rescheduleEvent(id) {
-  var newDate = prompt('New date (YYYY-MM-DD):');
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:2000;display:flex;justify-content:center;align-items:center';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 10px 40px rgba(0,0,0,0.3);text-align:center;min-width:280px';
+  var today = fmtDate(new Date());
+  box.innerHTML = '<div style="font-weight:600;font-size:0.85rem;margin-bottom:1rem;color:var(--midnight)">Reschedule To</div>' +
+    '<input type="date" id="reschedule-date-input" value="' + today + '" style="width:100%;padding:0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:1.1rem;font-family:Montserrat;text-align:center;margin-bottom:1rem">' +
+    '<div style="display:flex;gap:0.5rem;justify-content:center">' +
+      '<button class="btn btn-primary" onclick="saveReschedule(' + id + ')">Save</button>' +
+      '<button class="btn btn-outline" onclick="this.closest(\'div[style*=fixed]\').remove()">Cancel</button>' +
+    '</div>';
+  overlay.appendChild(box);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function saveReschedule(id) {
+  var newDate = document.getElementById('reschedule-date-input').value;
   if (!newDate) return;
   fetch('/api/calendar', api('POST', { action: 'update', id: id, event_date: newDate, status: 'scheduled' }))
-    .then(function() { loadMonth(); });
+    .then(function() {
+      document.querySelector('div[style*="fixed"][style*="z-index:2000"]').remove();
+      loadMonth();
+    });
 }
 
 var missedVisible = false;
