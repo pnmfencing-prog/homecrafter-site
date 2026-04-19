@@ -502,6 +502,11 @@ function openLeadDetail(id) {
 
         '<div class="status-actions">' + statusBtns + '</div>' +
 
+        '<div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap">' +
+          '<button class="btn btn-outline" style="font-size:0.65rem" onclick="addToCalendar(' + l.id + ',\'' + (l.customer_name || '').replace(/'/g, "\\'") + '\',\'' + (l.customer_address || '').replace(/'/g, "\\'") + (l.customer_city ? ", " + l.customer_city.replace(/'/g, "\\'") : '') + '\')">📅 Add to Calendar</button>' +
+          '<a class="btn btn-outline" href="/proposals.html" style="font-size:0.65rem;text-decoration:none">📄 Proposals</a>' +
+        '</div>' +
+
         // Materials / Quotes section
         (function() {
           var quotes = data.quotes || [];
@@ -582,6 +587,26 @@ function updateStatus(id, status) {
   }
   fetch('/api/crm', api('POST', { action: 'update_status', id: id, status: status, lost_reason: reason }))
     .then(function() { closeModal(); loadLeads(); });
+}
+
+function addToCalendar(leadId, name, address) {
+  var title = prompt('Event title:', name + ' — estimate');
+  if (!title) return;
+  var type = prompt('Type: appointment, task, follow_up, reminder', 'appointment');
+  if (!type) type = 'appointment';
+  var date = prompt('Date (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+  if (!date) return;
+  var time = prompt('Time (HH:MM, 24h):', '10:00');
+
+  fetch('/api/calendar', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'create', title: title, event_type: type, event_date: date, event_time: time || null, location: address || null, crm_lead_id: leadId })
+  }).then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success || data.event) alert('✅ Added to calendar');
+      else alert('❌ ' + (data.error || 'Failed'));
+    });
 }
 
 function updateField(id, field, value) {
