@@ -418,7 +418,7 @@ function editEventTime(id, currentTime) {
     '<input type="time" id="edit-time-input" value="' + (currentTime || '') + '" style="width:100%;padding:0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:1.1rem;font-family:Montserrat;text-align:center;margin-bottom:1rem">' +
     '<div style="display:flex;gap:0.5rem;justify-content:center">' +
       '<button class="btn btn-primary" onclick="saveEventTime(' + id + ')">Save</button>' +
-      '<button class="btn btn-outline" onclick="this.closest(\'div[style*=fixed]\').remove()">Cancel</button>' +
+      '<button class="btn btn-outline" onclick="document.getElementById(\'time-edit-overlay\').remove()">Cancel</button>' +
     '</div>';
   overlay.appendChild(box);
   overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
@@ -448,7 +448,7 @@ function rescheduleEvent(id) {
     '<input type="date" id="reschedule-date-input" value="' + today + '" style="width:100%;padding:0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:1.1rem;font-family:Montserrat;text-align:center;margin-bottom:1rem">' +
     '<div style="display:flex;gap:0.5rem;justify-content:center">' +
       '<button class="btn btn-primary" onclick="saveReschedule(' + id + ')">Save</button>' +
-      '<button class="btn btn-outline" onclick="this.closest(\'div[style*=fixed]\').remove()">Cancel</button>' +
+      '<button class="btn btn-outline" onclick="document.getElementById(\'reschedule-overlay\').remove()">Cancel</button>' +
     '</div>';
   overlay.appendChild(box);
   overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
@@ -457,14 +457,15 @@ function rescheduleEvent(id) {
 
 function saveReschedule(id) {
   var newDate = document.getElementById('reschedule-date-input').value;
-  if (!newDate) return;
+  if (!newDate) { alert('Please select a date'); return; }
   var el = document.getElementById('reschedule-overlay');
   fetch('/api/calendar', api('POST', { action: 'update', id: id, event_date: newDate, status: 'scheduled' }))
     .then(function(r) { return r.json(); })
-    .then(function() {
+    .then(function(d) {
       if (el) el.remove();
       loadMonth();
-    });
+    })
+    .catch(function(err) { alert('Error: ' + err.message); });
 }
 
 var missedVisible = false;
