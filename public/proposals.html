@@ -234,7 +234,8 @@ function openDetail(id) {
       
       html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1.25rem">';
       html += '<a class="btn btn-primary" href="/api/proposals/pdf?estimate_no=' + p.estimate_no + '&token=' + ADMIN_TOKEN + '" target="_blank" style="text-decoration:none">📄 View PDF</a>';
-      if (p.status === 'draft') html += '<button class="btn btn-primary" onclick="updateStatus(' + p.id + ',\'sent\')">✉️ Mark Sent</button>';
+      if (p.client_email && p.status !== 'signed') html += '<button class="btn btn-green" onclick="sendProposal(' + p.id + ',\'' + (p.client_email || '') + '\')">✉️ Send to Customer</button>';
+      if (p.status === 'draft') html += '<button class="btn btn-outline" onclick="updateStatus(' + p.id + ',\'sent\')">Mark Sent</button>';
       if (p.status === 'sent') html += '<button class="btn btn-green" onclick="updateStatus(' + p.id + ',\'signed\')">Mark Signed ✓</button>';
       if (p.status !== 'cancelled' && p.status !== 'signed') html += '<button class="btn btn-outline" style="color:var(--red)" onclick="updateStatus(' + p.id + ',\'cancelled\')">Cancel</button>';
       if (p.status === 'cancelled') html += '<button class="btn btn-outline" onclick="updateStatus(' + p.id + ',\'draft\')">Reopen</button>';
@@ -251,6 +252,16 @@ function closeModal() { document.getElementById('detailModal').classList.remove(
 function updateStatus(id, status) {
   fetch('/api/proposals', api('POST', { action: 'update_status', id: id, status: status }))
     .then(function() { closeModal(); loadProposals(); });
+}
+
+function sendProposal(id, email) {
+  if (!confirm('Send proposal to ' + email + '?')) return;
+  fetch('/api/proposals/send', api('POST', { id: id }))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) { alert('✅ Proposal sent to ' + email); closeModal(); loadProposals(); }
+      else alert('❌ ' + (data.error || 'Failed to send'));
+    });
 }
 
 function deleteProposal(id) {
