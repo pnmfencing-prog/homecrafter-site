@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         SELECT ce.*, cl.customer_name, cl.customer_phone
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
-        WHERE ce.status IN ('missed', 'scheduled') AND ce.event_date < CURRENT_DATE
+        WHERE ce.status IN ('missed', 'scheduled') AND (ce.event_date < CURRENT_DATE OR (ce.event_date = CURRENT_DATE AND ce.event_time < LOCALTIME))
           AND ce.event_date >= ${from}::date AND ce.event_date <= ${to}::date
         ORDER BY ce.event_date DESC
       `;
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         SELECT ce.*, cl.customer_name, cl.customer_phone
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
-        WHERE ce.status IN ('missed', 'scheduled') AND ce.event_date < CURRENT_DATE
+        WHERE ce.status IN ('missed', 'scheduled') AND (ce.event_date < CURRENT_DATE OR (ce.event_date = CURRENT_DATE AND ce.event_time < LOCALTIME))
         ORDER BY ce.event_date DESC
         LIMIT 50
       `;
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     SELECT ce.*, cl.customer_name, cl.customer_phone
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
-    WHERE ce.event_date < CURRENT_DATE AND ce.status IN ('scheduled', 'missed')
+    WHERE (ce.event_date < CURRENT_DATE OR (ce.event_date = CURRENT_DATE AND ce.event_time < LOCALTIME)) AND ce.status IN ('scheduled', 'missed')
     ORDER BY ce.event_date DESC
     LIMIT 10
   `;
