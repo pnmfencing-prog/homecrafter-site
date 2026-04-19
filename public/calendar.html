@@ -409,8 +409,8 @@ function deleteEvent(id) {
     .then(function() { loadMonth(); });
 }
 function editEventTime(id, currentTime) {
-  // Create a temporary time input overlay
   var overlay = document.createElement('div');
+  overlay.id = 'time-edit-overlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:2000;display:flex;justify-content:center;align-items:center';
   var box = document.createElement('div');
   box.style.cssText = 'background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 10px 40px rgba(0,0,0,0.3);text-align:center;min-width:250px';
@@ -429,15 +429,17 @@ function editEventTime(id, currentTime) {
 function saveEventTime(id) {
   var newTime = document.getElementById('edit-time-input').value;
   if (!newTime) return;
+  var el = document.getElementById('time-edit-overlay');
   fetch('/api/calendar', api('POST', { action: 'update', id: id, event_time: newTime }))
     .then(function() {
-      document.querySelector('div[style*="fixed"][style*="z-index:2000"]').remove();
+      if (el) el.remove();
       loadMonth();
     });
 }
 
 function rescheduleEvent(id) {
   var overlay = document.createElement('div');
+  overlay.id = 'reschedule-overlay';
   overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:2000;display:flex;justify-content:center;align-items:center';
   var box = document.createElement('div');
   box.style.cssText = 'background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 10px 40px rgba(0,0,0,0.3);text-align:center;min-width:280px';
@@ -456,9 +458,11 @@ function rescheduleEvent(id) {
 function saveReschedule(id) {
   var newDate = document.getElementById('reschedule-date-input').value;
   if (!newDate) return;
+  var el = document.getElementById('reschedule-overlay');
   fetch('/api/calendar', api('POST', { action: 'update', id: id, event_date: newDate, status: 'scheduled' }))
+    .then(function(r) { return r.json(); })
     .then(function() {
-      document.querySelector('div[style*="fixed"][style*="z-index:2000"]').remove();
+      if (el) el.remove();
       loadMonth();
     });
 }
