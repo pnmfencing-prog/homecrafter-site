@@ -39,6 +39,34 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ events });
   }
 
+  // Missed/overdue events
+  const missed = searchParams.get('missed');
+  if (missed === 'true') {
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    let events;
+    if (from && to) {
+      events = await sql`
+        SELECT ce.*, cl.customer_name, cl.customer_phone
+        FROM calendar_events ce
+        LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+        WHERE ce.status IN ('missed', 'scheduled') AND ce.event_date < CURRENT_DATE
+          AND ce.event_date >= ${from}::date AND ce.event_date <= ${to}::date
+        ORDER BY ce.event_date DESC
+      `;
+    } else {
+      events = await sql`
+        SELECT ce.*, cl.customer_name, cl.customer_phone
+        FROM calendar_events ce
+        LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+        WHERE ce.status IN ('missed', 'scheduled') AND ce.event_date < CURRENT_DATE
+        ORDER BY ce.event_date DESC
+        LIMIT 50
+      `;
+    }
+    return NextResponse.json({ events });
+  }
+
   // Default: upcoming 14 days
   const events = await sql`
     SELECT ce.*, cl.customer_name, cl.customer_phone, cl.service_type

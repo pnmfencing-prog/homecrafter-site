@@ -113,11 +113,27 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
       <button class="btn btn-outline btn-sm" onclick="nextMonth()">→</button>
       <button class="btn btn-outline btn-sm" style="margin-left:0.5rem" onclick="goToday()">Today</button>
     </div>
+    <button class="btn btn-outline" style="color:var(--red);border-color:var(--red)" onclick="toggleMissedView()">⚠️ Missed</button>
     <button class="btn btn-primary" onclick="openNewEvent()">+ New Event</button>
   </div>
 
   <!-- Calendar Grid -->
   <div class="cal-grid" id="calGrid"></div>
+
+  <!-- Missed View -->
+  <div id="missedView" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div class="day-title" style="margin:0"><span>⚠️ All Missed Tasks</span></div>
+      <div style="display:flex;gap:0.5rem;align-items:center">
+        <label style="font-size:0.65rem;color:var(--text-muted)">From:</label>
+        <input type="date" id="missed-from" style="padding:0.3rem 0.5rem;border:1px solid #e0ddd6;border-radius:6px;font-size:0.7rem;font-family:Montserrat" onchange="loadMissed()">
+        <label style="font-size:0.65rem;color:var(--text-muted)">To:</label>
+        <input type="date" id="missed-to" style="padding:0.3rem 0.5rem;border:1px solid #e0ddd6;border-radius:6px;font-size:0.7rem;font-family:Montserrat" onchange="loadMissed()">
+        <button class="btn btn-outline btn-sm" onclick="toggleMissedView()">✕ Close</button>
+      </div>
+    </div>
+    <div id="missedList"></div>
+  </div>
 
   <!-- Day View -->
   <div class="day-view" id="dayView"></div>
@@ -393,6 +409,52 @@ function rescheduleEvent(id) {
   if (!newDate) return;
   fetch('/api/calendar', api('POST', { action: 'update', id: id, event_date: newDate, status: 'scheduled' }))
     .then(function() { loadMonth(); });
+}
+
+var missedVisible = false;
+
+function toggleMissedView() {
+  missedVisible = !missedVisible;
+  document.getElementById('missedView').style.display = missedVisible ? 'block' : 'none';
+  document.getElementById('calGrid').style.display = missedVisible ? 'none' : 'grid';
+  document.getElementById('dayView').style.display = missedVisible ? 'none' : 'block';
+  if (missedVisible) loadMissed();
+}
+
+function loadMissed() {
+  var from = document.getElementById('missed-from').value;
+  var to = document.getElementById('missed-to').value;
+  var params = '?missed=true';
+  if (from) params += '&from=' + from;
+  if (to) params += '&to=' + to;
+  
+  fetch('/api/calendar' + params, api('GET'))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var events = data.events || [];
+      var html = '';
+      if (!events.length) {
+        html = '<div style="text-align:center;padding:2rem;color:var(--text-muted)">No missed tasks 🎉</div>';
+      }
+      events.forEach(function(e) {
+        var d = new Date(e.event_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        var typeIcon = e.event_type === 'task' ? '📋' : e.event_type === 'follow_up' ? '🔄' : e.event_type === 'reminder' ? '⏰' : '📅';
+        html += '<div class="event-card missed" style="border-left-color:var(--red)">' +
+          '<div class="event-info">' +
+            '<div class="event-title">' + typeIcon + ' ' + e.title + '</div>' +
+            '<div class="event-time" style="color:var(--red)">' + d + (e.event_time ? ' · ' + fmtTime12(e.event_time) : '') + '</div>' +
+            (e.customer_name ? '<div class="event-meta">👤 ' + e.customer_name + '</div>' : '') +
+            (e.description ? '<div class="event-meta">' + e.description.substring(0, 100) + '</div>' : '') +
+          '</div>' +
+          '<div class="event-actions">' +
+            '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ');loadMissed()">✓ Done</button>' +
+            '<button class="btn btn-outline btn-sm" onclick="rescheduleEvent(' + e.id + ');loadMissed()">↻ Move</button>' +
+            '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="deleteEvent(' + e.id + ');setTimeout(loadMissed,500)">🗑</button>' +
+          '</div>' +
+        '</div>';
+      });
+      document.getElementById('missedList').innerHTML = html;
+    });
 }
 
 document.getElementById('eventModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
