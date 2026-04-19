@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendar — PNM Fencing</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --midnight: #1e1845; --midnight-light: #2a2260; --gold: #c4aa6a; --gold-light: #d4c394;
+  --cream: #faf9f6; --cream-dark: #f0ede6; --text: #2d2d2d; --text-muted: #6b6b6b;
+  --green: #2d8a4e; --green-bg: #f0fdf4; --red: #c0392b; --red-bg: #fef2f2;
+  --blue: #2563eb; --blue-bg: #eff6ff; --orange: #d97706; --orange-bg: #fffbeb;
+  --purple: #7c3aed;
+}
+body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--text); line-height: 1.5; }
+.header { background: linear-gradient(135deg, var(--midnight), var(--midnight-light)); padding: 1.5rem; text-align: center; }
+.logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.8rem; letter-spacing: 0.2em; color: var(--gold); }
+.header-sub { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-top: 0.2rem; }
+.header-nav { display: flex; gap: 1rem; justify-content: center; margin-top: 0.75rem; }
+.header-nav a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; transition: color 0.2s; }
+.header-nav a:hover, .header-nav a.active { color: var(--gold); }
+
+.container { max-width: 900px; margin: 0 auto; padding: 1.25rem; }
+.btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-primary { background: var(--midnight); color: var(--gold); }
+.btn-outline { background: #fff; color: var(--midnight); border: 1px solid #e0ddd6; }
+.btn-green { background: var(--green); color: #fff; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-sm { padding: 0.3rem 0.6rem; font-size: 0.65rem; }
+
+/* Calendar grid */
+.cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.cal-title { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 600; color: var(--midnight); }
+.cal-nav { display: flex; gap: 0.5rem; align-items: center; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: #e0ddd6; border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; }
+.cal-day-header { background: var(--midnight); color: var(--gold-light); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.6rem; text-align: center; }
+.cal-day { background: #fff; min-height: 80px; padding: 0.4rem; cursor: pointer; transition: background 0.15s; position: relative; }
+.cal-day:hover { background: var(--cream); }
+.cal-day.other-month { background: var(--cream-dark); opacity: 0.5; }
+.cal-day.today { background: var(--blue-bg); }
+.cal-day.selected { outline: 2px solid var(--gold); outline-offset: -2px; }
+.cal-day .day-num { font-size: 0.75rem; font-weight: 600; color: var(--text); }
+.cal-day.today .day-num { color: var(--blue); font-weight: 700; }
+.cal-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin: 1px; }
+.cal-dot.appointment { background: var(--blue); }
+.cal-dot.task { background: var(--orange); }
+.cal-dot.follow_up { background: var(--purple); }
+.cal-dot.reminder { background: var(--green); }
+.cal-dots { margin-top: 0.25rem; }
+.cal-event-preview { font-size: 0.55rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+
+/* Day view / agenda */
+.day-view { margin-top: 1rem; }
+.day-title { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; color: var(--midnight); margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; }
+.event-card { background: #fff; border-radius: 10px; padding: 0.85rem; margin-bottom: 0.6rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border-left: 3px solid var(--blue); display: flex; justify-content: space-between; align-items: flex-start; }
+.event-card.task { border-left-color: var(--orange); }
+.event-card.follow_up { border-left-color: var(--purple); }
+.event-card.completed { opacity: 0.5; border-left-color: var(--green); }
+.event-card.missed { border-left-color: var(--red); }
+.event-card.cancelled { opacity: 0.4; text-decoration: line-through; }
+.event-info .event-title { font-weight: 600; font-size: 0.85rem; color: var(--midnight); }
+.event-info .event-time { font-size: 0.7rem; color: var(--gold); font-weight: 600; margin-top: 0.15rem; }
+.event-info .event-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; }
+.event-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
+
+/* Overdue section */
+.overdue-section { background: var(--red-bg); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
+.overdue-title { font-size: 0.7rem; font-weight: 700; color: var(--red); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.5rem; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-start; padding-top: 10vh; }
+.modal-overlay.show { display: flex; }
+.modal { background: #fff; border-radius: 16px; width: 95%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.modal-header { background: var(--midnight); color: var(--gold); padding: 1.25rem 1.5rem; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center; }
+.modal-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; }
+.modal-close { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.5rem; cursor: pointer; }
+.modal-body { padding: 1.5rem; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #e0ddd6; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.82rem; outline: none; }
+.form-group input:focus, .form-group select:focus { border-color: var(--gold); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+@media (max-width: 768px) {
+  .cal-day { min-height: 50px; padding: 0.25rem; }
+  .cal-event-preview { display: none; }
+  .form-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">PNM FENCING</div>
+  <div class="header-sub">Calendar & Tasks</div>
+  <div class="header-nav">
+    <a href="/crm.html">Sales Board</a>
+    <a href="/calendar.html" class="active">Calendar</a>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Overdue -->
+  <div id="overdueSection" style="display:none"></div>
+
+  <!-- Calendar Header -->
+  <div class="cal-header">
+    <div class="cal-nav">
+      <button class="btn btn-outline btn-sm" onclick="prevMonth()">←</button>
+      <span class="cal-title" id="calTitle"></span>
+      <button class="btn btn-outline btn-sm" onclick="nextMonth()">→</button>
+      <button class="btn btn-outline btn-sm" style="margin-left:0.5rem" onclick="goToday()">Today</button>
+    </div>
+    <button class="btn btn-primary" onclick="openNewEvent()">+ New Event</button>
+  </div>
+
+  <!-- Calendar Grid -->
+  <div class="cal-grid" id="calGrid"></div>
+
+  <!-- Day View -->
+  <div class="day-view" id="dayView"></div>
+</div>
+
+<!-- New Event Modal -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="eventModalTitle">New Event</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Title</label><input type="text" id="ev-title" placeholder="e.g. Fence install — Mike Thompson"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Date</label><input type="date" id="ev-date"></div>
+        <div class="form-group"><label>Type</label>
+          <select id="ev-type">
+            <option value="appointment">📅 Appointment</option>
+            <option value="task">📋 Task</option>
+            <option value="follow_up">🔄 Follow Up</option>
+            <option value="reminder">⏰ Reminder</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Start Time</label><input type="time" id="ev-time"></div>
+        <div class="form-group"><label>End Time</label><input type="time" id="ev-end"></div>
+      </div>
+      <div class="form-group"><label>Location</label><input type="text" id="ev-location" placeholder="Address or location"></div>
+      <div class="form-group"><label>Notes</label><textarea id="ev-desc" rows="2" style="resize:vertical"></textarea></div>
+      <div class="form-group"><label>Link to CRM Lead</label>
+        <select id="ev-lead"><option value="">— None —</option></select>
+      </div>
+      <div class="form-row">
+        <label style="font-size:0.75rem;display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+          <input type="checkbox" id="ev-allday"> All day event
+        </label>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.75rem" onclick="saveEvent()">Save Event</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
+var currentMonth = new Date();
+var selectedDate = new Date();
+var monthEvents = [];
+var crmLeads = [];
+
+function api(method, body) {
+  var opts = { method: method || 'GET', headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  return opts;
+}
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function fmtDate(d) { return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+function fmtMonth(d) { return d.getFullYear() + '-' + pad(d.getMonth()+1); }
+function fmtTime12(t) {
+  if (!t) return 'All day';
+  var parts = t.split(':'); var h = parseInt(parts[0]); var m = parts[1];
+  var ampm = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+  return h + ':' + m + ' ' + ampm;
+}
+
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function loadMonth() {
+  var ym = fmtMonth(currentMonth);
+  document.getElementById('calTitle').textContent = MONTHS[currentMonth.getMonth()] + ' ' + currentMonth.getFullYear();
+  
+  fetch('/api/calendar?month=' + ym, api('GET'))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      monthEvents = data.events || [];
+      renderCalendar();
+      loadDayView(selectedDate);
+    });
+  
+  // Load overdue
+  fetch('/api/calendar', api('GET'))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      renderOverdue(data.overdue || []);
+    });
+}
+
+function renderOverdue(overdue) {
+  var el = document.getElementById('overdueSection');
+  if (!overdue.length) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  var html = '<div class="overdue-section"><div class="overdue-title">⚠️ Overdue (' + overdue.length + ')</div>';
+  overdue.forEach(function(e) {
+    var d = new Date(e.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid rgba(192,57,43,0.15)">' +
+      '<div><strong style="font-size:0.8rem">' + e.title + '</strong><br><span style="font-size:0.65rem;color:var(--red)">Was ' + d + '</span></div>' +
+      '<div style="display:flex;gap:0.25rem">' +
+        '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ')">✓ Done</button>' +
+        '<button class="btn btn-outline btn-sm" onclick="cancelEvent(' + e.id + ')">✕</button>' +
+      '</div></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderCalendar() {
+  var year = currentMonth.getFullYear();
+  var month = currentMonth.getMonth();
+  var firstDay = new Date(year, month, 1).getDay();
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+  var daysInPrev = new Date(year, month, 0).getDate();
+  var today = fmtDate(new Date());
+  var sel = fmtDate(selectedDate);
+  
+  var html = '';
+  DAYS.forEach(function(d) { html += '<div class="cal-day-header">' + d + '</div>'; });
+  
+  // Previous month days
+  for (var i = firstDay - 1; i >= 0; i--) {
+    html += '<div class="cal-day other-month"><span class="day-num">' + (daysInPrev - i) + '</span></div>';
+  }
+  
+  // Current month days
+  for (var d = 1; d <= daysInMonth; d++) {
+    var dateStr = year + '-' + pad(month+1) + '-' + pad(d);
+    var isToday = dateStr === today ? ' today' : '';
+    var isSel = dateStr === sel ? ' selected' : '';
+    var dayEvents = monthEvents.filter(function(e) { return e.event_date === dateStr; });
+    
+    var dots = '';
+    if (dayEvents.length) {
+      dots = '<div class="cal-dots">';
+      dayEvents.slice(0, 4).forEach(function(e) {
+        dots += '<span class="cal-dot ' + (e.event_type || 'appointment') + '"></span>';
+      });
+      if (dayEvents.length > 4) dots += '<span style="font-size:0.5rem;color:#999">+' + (dayEvents.length-4) + '</span>';
+      dots += '</div>';
+      if (dayEvents.length <= 2) {
+        dayEvents.slice(0, 2).forEach(function(e) {
+          dots += '<div class="cal-event-preview">' + (e.event_time ? fmtTime12(e.event_time) + ' ' : '') + e.title + '</div>';
+        });
+      }
+    }
+    
+    html += '<div class="cal-day' + isToday + isSel + '" onclick="selectDay(\'' + dateStr + '\')">' +
+      '<span class="day-num">' + d + '</span>' + dots + '</div>';
+  }
+  
+  // Next month padding
+  var totalCells = firstDay + daysInMonth;
+  var remaining = (7 - (totalCells % 7)) % 7;
+  for (var i = 1; i <= remaining; i++) {
+    html += '<div class="cal-day other-month"><span class="day-num">' + i + '</span></div>';
+  }
+  
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+function selectDay(dateStr) {
+  selectedDate = new Date(dateStr + 'T12:00:00');
+  renderCalendar();
+  loadDayView(selectedDate);
+}
+
+function loadDayView(date) {
+  var dateStr = fmtDate(date);
+  var dayEvents = monthEvents.filter(function(e) { return e.event_date === dateStr; });
+  var dayLabel = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  
+  var html = '<div class="day-title"><span>' + dayLabel + '</span>' +
+    '<button class="btn btn-outline btn-sm" onclick="openNewEvent(\'' + dateStr + '\')">+ Add</button></div>';
+  
+  if (!dayEvents.length) {
+    html += '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.85rem">Nothing scheduled</div>';
+  }
+  
+  dayEvents.forEach(function(e) {
+    var statusClass = e.status === 'completed' ? ' completed' : e.status === 'missed' ? ' missed' : e.status === 'cancelled' ? ' cancelled' : '';
+    var typeClass = e.event_type === 'task' ? ' task' : e.event_type === 'follow_up' ? ' follow_up' : '';
+    var typeIcon = e.event_type === 'task' ? '📋' : e.event_type === 'follow_up' ? '🔄' : e.event_type === 'reminder' ? '⏰' : '📅';
+    
+    html += '<div class="event-card' + typeClass + statusClass + '">' +
+      '<div class="event-info">' +
+        '<div class="event-title">' + typeIcon + ' ' + e.title + '</div>' +
+        '<div class="event-time">' + (e.event_time ? fmtTime12(e.event_time) + (e.end_time ? ' – ' + fmtTime12(e.end_time) : '') : 'All day') + '</div>' +
+        (e.location ? '<div class="event-meta">📍 ' + e.location + '</div>' : '') +
+        (e.customer_name ? '<div class="event-meta">👤 ' + e.customer_name + (e.customer_phone ? ' · ' + e.customer_phone : '') + '</div>' : '') +
+        (e.description ? '<div class="event-meta" style="margin-top:0.3rem">' + e.description + '</div>' : '') +
+        '<div class="event-meta" style="margin-top:0.25rem"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;color:' + 
+          (e.status === 'completed' ? 'var(--green)' : e.status === 'missed' ? 'var(--red)' : e.status === 'cancelled' ? '#999' : 'var(--blue)') + 
+          '">' + e.status + '</span></div>' +
+      '</div>' +
+      '<div class="event-actions">' +
+        (e.status === 'scheduled' ? '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ')">✓</button>' : '') +
+        (e.status === 'scheduled' ? '<button class="btn btn-outline btn-sm" onclick="cancelEvent(' + e.id + ')">✕</button>' : '') +
+        (e.status !== 'scheduled' ? '<button class="btn btn-outline btn-sm" onclick="rescheduleEvent(' + e.id + ')">↻</button>' : '') +
+        '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="deleteEvent(' + e.id + ')">🗑</button>' +
+      '</div>' +
+    '</div>';
+  });
+  
+  document.getElementById('dayView').innerHTML = html;
+}
+
+function prevMonth() { currentMonth.setMonth(currentMonth.getMonth() - 1); loadMonth(); }
+function nextMonth() { currentMonth.setMonth(currentMonth.getMonth() + 1); loadMonth(); }
+function goToday() { currentMonth = new Date(); selectedDate = new Date(); loadMonth(); }
+
+function openNewEvent(dateStr) {
+  document.getElementById('ev-title').value = '';
+  document.getElementById('ev-date').value = dateStr || fmtDate(selectedDate);
+  document.getElementById('ev-time').value = '';
+  document.getElementById('ev-end').value = '';
+  document.getElementById('ev-type').value = 'appointment';
+  document.getElementById('ev-location').value = '';
+  document.getElementById('ev-desc').value = '';
+  document.getElementById('ev-lead').value = '';
+  document.getElementById('ev-allday').checked = false;
+  document.getElementById('eventModalTitle').textContent = 'New Event';
+  
+  // Load CRM leads for dropdown
+  fetch('/api/crm', api('GET')).then(function(r) { return r.json(); }).then(function(data) {
+    var sel = document.getElementById('ev-lead');
+    sel.innerHTML = '<option value="">— None —</option>';
+    (data.leads || []).forEach(function(l) {
+      sel.innerHTML += '<option value="' + l.id + '">' + (l.customer_name || 'Lead #' + l.id) + '</option>';
+    });
+  });
+  
+  document.getElementById('eventModal').classList.add('show');
+}
+
+function closeModal() { document.getElementById('eventModal').classList.remove('show'); }
+
+function saveEvent() {
+  var body = {
+    action: 'create',
+    title: document.getElementById('ev-title').value,
+    event_date: document.getElementById('ev-date').value,
+    event_time: document.getElementById('ev-time').value || null,
+    end_time: document.getElementById('ev-end').value || null,
+    event_type: document.getElementById('ev-type').value,
+    location: document.getElementById('ev-location').value || null,
+    description: document.getElementById('ev-desc').value || null,
+    crm_lead_id: document.getElementById('ev-lead').value || null,
+    all_day: document.getElementById('ev-allday').checked,
+  };
+  if (!body.title || !body.event_date) { alert('Title and date required'); return; }
+  
+  fetch('/api/calendar', api('POST', body))
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) { closeModal(); loadMonth(); } });
+}
+
+function completeEvent(id) {
+  fetch('/api/calendar', api('POST', { action: 'complete', id: id }))
+    .then(function() { loadMonth(); });
+}
+function cancelEvent(id) {
+  fetch('/api/calendar', api('POST', { action: 'cancel', id: id }))
+    .then(function() { loadMonth(); });
+}
+function deleteEvent(id) {
+  if (!confirm('Delete this event?')) return;
+  fetch('/api/calendar', api('POST', { action: 'delete', id: id }))
+    .then(function() { loadMonth(); });
+}
+function rescheduleEvent(id) {
+  var newDate = prompt('New date (YYYY-MM-DD):');
+  if (!newDate) return;
+  fetch('/api/calendar', api('POST', { action: 'update', id: id, event_date: newDate, status: 'scheduled' }))
+    .then(function() { loadMonth(); });
+}
+
+document.getElementById('eventModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+loadMonth();
+</script>
+</body>
+</html>

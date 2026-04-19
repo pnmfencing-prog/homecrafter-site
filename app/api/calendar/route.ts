@@ -1,0 +1,109 @@
+import { NextRequest, NextResponse } from 'next/server';
+import sql from '@/lib/db';
+
+function isAdmin(request: NextRequest): boolean {
+  const auth = request.headers.get('authorization') || '';
+  const token = auth.replace('Bearer ', '');
+  return token === (process.env.ADMIN_TOKEN || 'hc-admin-2026');
+}
+
+export async function GET(request: NextRequest) {
+  if (!isAdmin(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = new URL(request.url);
+  const date = searchParams.get('date'); // specific date
+  const month = searchParams.get('month'); // YYYY-MM
+  const status = searchParams.get('status');
+
+  if (date) {
+    const events = await sql`
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.service_type
+      FROM calendar_events ce
+      LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      WHERE ce.event_date = ${date}
+      ORDER BY ce.event_time ASC NULLS LAST
+    `;
+    return NextResponse.json({ events });
+  }
+
+  if (month) {
+    const startDate = `${month}-01`;
+    const events = await sql`
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.service_type
+      FROM calendar_events ce
+      LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      WHERE ce.event_date >= ${startDate}::date 
+        AND ce.event_date < (${startDate}::date + INTERVAL '1 month')
+      ORDER BY ce.event_date ASC, ce.event_time ASC NULLS LAST
+    `;
+    return NextResponse.json({ events });
+  }
+
+  // Default: upcoming 14 days
+  const events = await sql`
+    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.service_type
+    FROM calendar_events ce
+    LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+    WHERE ce.event_date >= CURRENT_DATE
+      AND ce.event_date <= CURRENT_DATE + INTERVAL '14 days'
+    ORDER BY ce.event_date ASC, ce.event_time ASC NULLS LAST
+  `;
+  
+  // Also get overdue
+  const overdue = await sql`
+    SELECT ce.*, cl.customer_name, cl.customer_phone
+    FROM calendar_events ce
+    LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+    WHERE ce.event_date < CURRENT_DATE AND ce.status IN ('scheduled', 'missed')
+    ORDER BY ce.event_date DESC
+    LIMIT 10
+  `;
+  
+  return NextResponse.json({ events, overdue });
+}
+
+export async function POST(request: NextRequest) {
+  if (!isAdmin(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body = await request.json();
+  const { action } = body;
+
+  if (action === 'create') {
+    const result = await sql`
+      INSERT INTO calendar_events (title, description, event_type, event_date, event_time, end_time, all_day, crm_lead_id, location)
+      VALUES (${body.title}, ${body.description || null}, ${body.event_type || 'appointment'}, 
+              ${body.event_date}, ${body.event_time || null}, ${body.end_time || null},
+              ${body.all_day || false}, ${body.crm_lead_id || null}, ${body.location || null})
+      RETURNING *
+    `;
+    return NextResponse.json({ success: true, event: result[0] });
+  }
+
+  if (action === 'update') {
+    const { id, ...fields } = body;
+    if (fields.title !== undefined) await sql`UPDATE calendar_events SET title = ${fields.title}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.event_date !== undefined) await sql`UPDATE calendar_events SET event_date = ${fields.event_date}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.event_time !== undefined) await sql`UPDATE calendar_events SET event_time = ${fields.event_time}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.status !== undefined) await sql`UPDATE calendar_events SET status = ${fields.status}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.location !== undefined) await sql`UPDATE calendar_events SET location = ${fields.location}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.description !== undefined) await sql`UPDATE calendar_events SET description = ${fields.description}, updated_at = NOW() WHERE id = ${id}`;
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'complete') {
+    await sql`UPDATE calendar_events SET status = 'completed', updated_at = NOW() WHERE id = ${body.id}`;
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'cancel') {
+    await sql`UPDATE calendar_events SET status = 'cancelled', updated_at = NOW() WHERE id = ${body.id}`;
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'delete') {
+    await sql`DELETE FROM calendar_events WHERE id = ${body.id}`;
+    return NextResponse.json({ success: true });
+  }
+
+  return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+}
