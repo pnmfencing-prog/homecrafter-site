@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposals — PNM Fencing</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --midnight: #1e1845; --midnight-light: #2a2260; --gold: #c4aa6a; --gold-light: #d4c394;
+  --cream: #faf9f6; --cream-dark: #f0ede6; --text: #2d2d2d; --text-muted: #6b6b6b;
+  --green: #2d8a4e; --green-bg: #f0fdf4; --red: #c0392b; --red-bg: #fef2f2;
+  --blue: #2563eb; --blue-bg: #eff6ff; --orange: #d97706; --orange-bg: #fffbeb; --purple: #7c3aed;
+}
+body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--text); line-height: 1.5; }
+.header { background: linear-gradient(135deg, var(--midnight), var(--midnight-light)); padding: 1.5rem; text-align: center; }
+.logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.8rem; letter-spacing: 0.2em; color: var(--gold); }
+.header-sub { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-top: 0.2rem; }
+.header-nav { display: flex; gap: 1rem; justify-content: center; margin-top: 0.75rem; }
+.header-nav a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; transition: color 0.2s; }
+.header-nav a:hover, .header-nav a.active { color: var(--gold); }
+.container { max-width: 900px; margin: 0 auto; padding: 1.25rem; }
+.btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-primary { background: var(--midnight); color: var(--gold); }
+.btn-outline { background: #fff; color: var(--midnight); border: 1px solid #e0ddd6; }
+.btn-green { background: var(--green); color: #fff; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-sm { padding: 0.3rem 0.6rem; font-size: 0.65rem; }
+
+/* Stats */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
+.stat-card { background: #fff; border-radius: 10px; padding: 1rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+.stat-card:hover { transform: translateY(-2px); }
+.stat-card.active { border-color: var(--gold); }
+.stat-card .num { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 700; }
+.stat-card .label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-top: 0.25rem; }
+.stat-card.draft .num { color: var(--orange); }
+.stat-card.sent .num { color: var(--blue); }
+.stat-card.signed .num { color: var(--green); }
+.stat-card.all .num { color: var(--midnight); }
+
+/* Proposal cards */
+.proposal-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.proposal-card { background: #fff; border-radius: 10px; padding: 1rem 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s; border-left: 3px solid var(--blue); }
+.proposal-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,24,69,0.1); }
+.proposal-card.draft { border-left-color: var(--orange); }
+.proposal-card.sent { border-left-color: var(--blue); }
+.proposal-card.signed { border-left-color: var(--green); }
+.proposal-card.cancelled { border-left-color: #ccc; opacity: 0.6; }
+.prop-info .prop-name { font-weight: 600; font-size: 0.9rem; color: var(--midnight); }
+.prop-info .prop-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
+.prop-right { text-align: right; }
+.prop-right .prop-amount { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 700; color: var(--green); }
+.prop-right .prop-status { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.15rem; }
+.prop-right .prop-status.draft { color: var(--orange); }
+.prop-right .prop-status.sent { color: var(--blue); }
+.prop-right .prop-status.signed { color: var(--green); }
+.prop-right .prop-status.cancelled { color: #999; }
+
+/* Detail modal */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-start; padding-top: 5vh; }
+.modal-overlay.show { display: flex; }
+.modal { background: #fff; border-radius: 16px; width: 95%; max-width: 550px; max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.modal-header { background: var(--midnight); color: var(--gold); padding: 1.25rem 1.5rem; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center; }
+.modal-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; }
+.modal-close { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.5rem; cursor: pointer; }
+.modal-body { padding: 1.5rem; }
+.detail-row { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--cream-dark); font-size: 0.8rem; }
+.detail-row .label { color: var(--text-muted); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.detail-row .value { font-weight: 500; }
+
+.revenue-bar { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 1.25rem; }
+.revenue-item { font-size: 0.75rem; color: var(--text-muted); }
+.revenue-item strong { color: var(--midnight); font-size: 0.9rem; }
+
+.toolbar { display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center; }
+.search-box { flex: 1; padding: 0.6rem 1rem; border: 1px solid #e0ddd6; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; background: #fff; outline: none; }
+.search-box:focus { border-color: var(--gold); }
+
+@media (max-width: 768px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">PNM FENCING</div>
+  <div class="header-sub">Proposals</div>
+  <div class="header-nav">
+    <a href="/crm.html">Sales Board</a>
+    <a href="/calendar.html">Calendar</a>
+    <a href="/proposals.html" class="active">Proposals</a>
+  </div>
+</div>
+
+<div class="container">
+  <div class="stats-row" id="statsRow"></div>
+  <div class="revenue-bar" id="revenueBar"></div>
+  
+  <div class="toolbar">
+    <input type="text" class="search-box" id="searchBox" placeholder="Search proposals...">
+    <button class="btn btn-primary" onclick="alert('Tell Trent the job details and he will generate the proposal')">+ New Proposal</button>
+  </div>
+
+  <div class="proposal-list" id="proposalList"></div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Proposal Details</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
+var allProposals = [];
+var currentFilter = 'all';
+
+function api(method, body) {
+  var opts = { method: method || 'GET', headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  return opts;
+}
+
+function loadProposals() {
+  var search = document.getElementById('searchBox').value.toLowerCase();
+  fetch('/api/proposals' + (currentFilter !== 'all' ? '?status=' + currentFilter : ''), api('GET'))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      allProposals = data.proposals || [];
+      renderStats(data.stats);
+      renderList(search);
+    });
+}
+
+function renderStats(s) {
+  if (!s) return;
+  var filters = [
+    { key: 'all', label: 'All', count: s.total, cls: 'all' },
+    { key: 'draft', label: 'Draft', count: s.draft_count, cls: 'draft' },
+    { key: 'sent', label: 'Sent', count: s.sent_count, cls: 'sent' },
+    { key: 'signed', label: 'Signed', count: s.signed_count, cls: 'signed' },
+  ];
+  var html = '';
+  filters.forEach(function(f) {
+    var active = currentFilter === f.key ? ' active' : '';
+    html += '<div class="stat-card ' + f.cls + active + '" onclick="filterBy(\'' + f.key + '\')">' +
+      '<div class="num">' + f.count + '</div><div class="label">' + f.label + '</div></div>';
+  });
+  document.getElementById('statsRow').innerHTML = html;
+  document.getElementById('revenueBar').innerHTML =
+    '<div class="revenue-item">Signed: <strong style="color:var(--green)">$' + Number(s.signed_value || 0).toLocaleString() + '</strong></div>' +
+    '<div class="revenue-item">Pending: <strong>$' + Number(s.pending_value || 0).toLocaleString() + '</strong></div>';
+}
+
+function renderList(search) {
+  var filtered = allProposals;
+  if (search) {
+    filtered = filtered.filter(function(p) {
+      return (p.client_name || '').toLowerCase().includes(search) ||
+             (p.estimate_no || '').includes(search) ||
+             (p.client_address || '').toLowerCase().includes(search);
+    });
+  }
+  if (!filtered.length) {
+    document.getElementById('proposalList').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)">No proposals yet</div>';
+    return;
+  }
+  var html = '';
+  filtered.forEach(function(p) {
+    var date = new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    var specs = [p.footage ? p.footage + 'ft' : '', p.height || '', p.color || '', p.material || ''].filter(Boolean).join(' · ');
+    html += '<div class="proposal-card ' + p.status + '" onclick="openDetail(' + p.id + ')">' +
+      '<div class="prop-info">' +
+        '<div class="prop-name">#' + p.estimate_no + ' — ' + (p.client_name || 'Unknown') + '</div>' +
+        '<div class="prop-meta">' + specs + ' · ' + date + '</div>' +
+        (p.client_address ? '<div class="prop-meta">📍 ' + p.client_address + (p.client_city ? ', ' + p.client_city : '') + '</div>' : '') +
+      '</div>' +
+      '<div class="prop-right">' +
+        '<div class="prop-amount">$' + Number(p.total || 0).toLocaleString() + '</div>' +
+        '<div class="prop-status ' + p.status + '">' + p.status + '</div>' +
+      '</div>' +
+    '</div>';
+  });
+  document.getElementById('proposalList').innerHTML = html;
+}
+
+function filterBy(status) {
+  currentFilter = status;
+  loadProposals();
+}
+
+function openDetail(id) {
+  fetch('/api/proposals?id=' + id, api('GET'))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var p = data.proposal;
+      document.getElementById('modalTitle').textContent = '#' + p.estimate_no + ' — ' + (p.client_name || 'Proposal');
+      
+      var statusColor = p.status === 'signed' ? 'var(--green)' : p.status === 'sent' ? 'var(--blue)' : p.status === 'draft' ? 'var(--orange)' : '#999';
+      var spot = p.spot_holding_fee || 150;
+      
+      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +
+        '<span style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:' + statusColor + '">' + p.status + '</span>' +
+        '<span style="font-family:Cormorant Garamond;font-size:1.5rem;font-weight:700;color:var(--green)">$' + Number(p.total || 0).toLocaleString() + '</span>' +
+      '</div>';
+      
+      var rows = [
+        ['Client', p.client_name],
+        ['Email', p.client_email],
+        ['Address', [p.client_address, p.client_city, p.client_state, p.client_zip].filter(Boolean).join(', ')],
+        ['Footage', p.footage ? p.footage + ' LF' : ''],
+        ['Height', p.height],
+        ['Material', (p.color || '') + ' ' + (p.material || '')],
+        ['Gates', p.gate_count || 0],
+        ['Panels', p.panels],
+        ['Spot Fee', '$' + Number(spot).toFixed(0)],
+        ['Deposit (50%)', '$' + Number(p.deposit || 0).toLocaleString()],
+        ['Delivery (25%)', '$' + Number(p.installment_2 || 0).toLocaleString()],
+        ['Completion (25%)', '$' + Number(p.installment_3 || 0).toLocaleString()],
+      ];
+      rows.forEach(function(r) {
+        if (r[1]) html += '<div class="detail-row"><span class="label">' + r[0] + '</span><span class="value">' + r[1] + '</span></div>';
+      });
+      
+      if (p.notes) html += '<div style="margin-top:1rem;padding:0.75rem;background:var(--cream);border-radius:8px;font-size:0.8rem;border-left:3px solid var(--gold)">' + p.notes + '</div>';
+      
+      html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1.25rem">';
+      if (p.status === 'draft') html += '<button class="btn btn-primary" onclick="updateStatus(' + p.id + ',\'sent\')">Mark Sent</button>';
+      if (p.status === 'sent') html += '<button class="btn btn-green" onclick="updateStatus(' + p.id + ',\'signed\')">Mark Signed ✓</button>';
+      if (p.status !== 'cancelled' && p.status !== 'signed') html += '<button class="btn btn-outline" style="color:var(--red)" onclick="updateStatus(' + p.id + ',\'cancelled\')">Cancel</button>';
+      if (p.status === 'cancelled') html += '<button class="btn btn-outline" onclick="updateStatus(' + p.id + ',\'draft\')">Reopen</button>';
+      html += '<button class="btn btn-outline" style="color:var(--red);margin-left:auto" onclick="if(confirm(\'Delete?\'))deleteProposal(' + p.id + ')">🗑 Delete</button>';
+      html += '</div>';
+      
+      document.getElementById('modalBody').innerHTML = html;
+      document.getElementById('detailModal').classList.add('show');
+    });
+}
+
+function closeModal() { document.getElementById('detailModal').classList.remove('show'); }
+
+function updateStatus(id, status) {
+  fetch('/api/proposals', api('POST', { action: 'update_status', id: id, status: status }))
+    .then(function() { closeModal(); loadProposals(); });
+}
+
+function deleteProposal(id) {
+  fetch('/api/proposals', api('POST', { action: 'delete', id: id }))
+    .then(function() { closeModal(); loadProposals(); });
+}
+
+var searchTimer;
+document.getElementById('searchBox').addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  var s = this.value.toLowerCase();
+  searchTimer = setTimeout(function() { renderList(s); }, 300);
+});
+
+document.getElementById('detailModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+loadProposals();
+</script>
+</body>
+</html>
