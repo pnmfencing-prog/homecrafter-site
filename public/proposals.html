@@ -233,8 +233,7 @@ function openDetail(id) {
       if (p.notes) html += '<div style="margin-top:1rem;padding:0.75rem;background:var(--cream);border-radius:8px;font-size:0.8rem;border-left:3px solid var(--gold)">' + p.notes + '</div>';
       
       html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1.25rem">';
-      html += '<a class="btn btn-primary" href="/proposals-pdf/proposal-' + p.estimate_no + '.pdf" target="_blank" style="text-decoration:none">📄 View PDF</a>';
-      html += '<a class="btn btn-outline" href="/proposals-pdf/proposal-' + p.estimate_no + '.pdf" download="PNM-Estimate-' + p.estimate_no + '.pdf" style="text-decoration:none">⬇ Download</a>';
+      html += '<a class="btn btn-primary" href="/api/proposals/pdf?estimate_no=' + p.estimate_no + '&token=' + ADMIN_TOKEN + '" target="_blank" style="text-decoration:none">📄 View PDF</a>';
       if (p.status === 'draft') html += '<button class="btn btn-primary" onclick="updateStatus(' + p.id + ',\'sent\')">✉️ Mark Sent</button>';
       if (p.status === 'sent') html += '<button class="btn btn-green" onclick="updateStatus(' + p.id + ',\'signed\')">Mark Signed ✓</button>';
       if (p.status !== 'cancelled' && p.status !== 'signed') html += '<button class="btn btn-outline" style="color:var(--red)" onclick="updateStatus(' + p.id + ',\'cancelled\')">Cancel</button>';
