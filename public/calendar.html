@@ -113,7 +113,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
       <button class="btn btn-outline btn-sm" onclick="nextMonth()">→</button>
       <button class="btn btn-outline btn-sm" style="margin-left:0.5rem" onclick="goToday()">Today</button>
     </div>
-    <button class="btn btn-outline" style="color:var(--red);border-color:var(--red)" onclick="toggleMissedView()">⚠️ Missed</button>
+    <button class="btn btn-outline" id="missedBtn" style="color:var(--red);border-color:var(--red)" onclick="toggleMissedView()">⚠️ Missed</button>
     <button class="btn btn-primary" onclick="openNewEvent()">+ New Event</button>
   </div>
 
@@ -474,6 +474,16 @@ function toggleMissedView() {
   document.getElementById('missedView').style.display = missedVisible ? 'block' : 'none';
   document.getElementById('calGrid').style.display = missedVisible ? 'none' : 'grid';
   document.getElementById('dayView').style.display = missedVisible ? 'none' : 'block';
+  var btn = document.getElementById('missedBtn');
+  if (missedVisible) {
+    btn.style.background = 'var(--red)';
+    btn.style.color = '#fff';
+    btn.style.borderColor = 'var(--red)';
+  } else {
+    btn.style.background = '#fff';
+    btn.style.color = 'var(--red)';
+    btn.style.borderColor = 'var(--red)';
+  }
   if (missedVisible) loadMissed();
 }
 
