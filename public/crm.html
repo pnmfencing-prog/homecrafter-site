@@ -348,7 +348,7 @@ function renderBoard() {
       var lastMsgTag = l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '">' + (l.last_message_by === 'customer' ? '← Customer' : '→ You') + '</span>' : '';
       
       html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" onclick="openLeadDetail(' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">' +
-        '<div class="name">' + (l.customer_name || 'Unknown') + lastMsgTag + '</div>' +
+        '<div class="name"><span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + (l.lead_code || l.id) + '</span><a href="https://t.me/share/url?url=%23' + (l.lead_code || l.id) + '+' + encodeURIComponent(l.customer_name || 'Lead') + '&text=Schedule+event+for+%23' + (l.lead_code || l.id) + '+' + encodeURIComponent(l.customer_name || '') + '" style="color:var(--midnight);text-decoration:none" title="Tap to send to Trent">' + (l.customer_name || 'Unknown') + '</a>' + lastMsgTag + '</div>' +
         '<div class="service">' + (l.service_type || '') + '</div>' +
         '<div class="meta">' + (l.customer_phone ? '📞 ' + l.customer_phone : '') + '</div>' +
         amount +
@@ -436,7 +436,7 @@ function openLeadDetail(id) {
       var l = data.lead;
       var act = (data.activity || []).sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); });
 
-      document.getElementById('modalTitle').textContent = l.customer_name || 'Lead #' + l.id;
+      document.getElementById('modalTitle').textContent = '#' + (l.lead_code || l.id) + ' — ' + (l.customer_name || 'Lead');
       
       // Auto-mark as read when opening
       if (!l.is_read) {
