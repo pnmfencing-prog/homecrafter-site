@@ -248,7 +248,7 @@ function renderCalendar() {
     var dateStr = year + '-' + pad(month+1) + '-' + pad(d);
     var isToday = dateStr === today ? ' today' : '';
     var isSel = dateStr === sel ? ' selected' : '';
-    var dayEvents = monthEvents.filter(function(e) { return e.event_date === dateStr; });
+    var dayEvents = monthEvents.filter(function(e) { return (e.event_date || '').substring(0, 10) === dateStr; });
     
     var dots = '';
     if (dayEvents.length) {
@@ -287,7 +287,7 @@ function selectDay(dateStr) {
 
 function loadDayView(date) {
   var dateStr = fmtDate(date);
-  var dayEvents = monthEvents.filter(function(e) { return e.event_date === dateStr; });
+  var dayEvents = monthEvents.filter(function(e) { return (e.event_date || '').substring(0, 10) === dateStr; });
   var dayLabel = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   
   var html = '<div class="day-title"><span>' + dayLabel + '</span>' +
