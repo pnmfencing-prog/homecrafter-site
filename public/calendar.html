@@ -124,11 +124,15 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <div id="missedView" style="display:none">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
       <div class="day-title" style="margin:0"><span>⚠️ All Missed Tasks</span></div>
-      <div style="display:flex;gap:0.5rem;align-items:center">
-        <label style="font-size:0.65rem;color:var(--text-muted)">From:</label>
-        <input type="date" id="missed-from" style="padding:0.3rem 0.5rem;border:1px solid #e0ddd6;border-radius:6px;font-size:0.7rem;font-family:Montserrat" onchange="loadMissed()">
-        <label style="font-size:0.65rem;color:var(--text-muted)">To:</label>
-        <input type="date" id="missed-to" style="padding:0.3rem 0.5rem;border:1px solid #e0ddd6;border-radius:6px;font-size:0.7rem;font-family:Montserrat" onchange="loadMissed()">
+      <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">
+        <select id="missed-range" style="padding:0.4rem 0.6rem;border:1px solid #e0ddd6;border-radius:6px;font-size:0.72rem;font-family:Montserrat;background:#fff" onchange="applyMissedRange()">
+          <option value="all">All Time</option>
+          <option value="7">Last 7 Days</option>
+          <option value="14">Last 14 Days</option>
+          <option value="30">Last 30 Days</option>
+          <option value="60">Last 60 Days</option>
+          <option value="90">Last 90 Days</option>
+        </select>
         <button class="btn btn-outline btn-sm" onclick="toggleMissedView()">✕ Close</button>
       </div>
     </div>
@@ -421,12 +425,19 @@ function toggleMissedView() {
   if (missedVisible) loadMissed();
 }
 
+function applyMissedRange() {
+  loadMissed();
+}
+
 function loadMissed() {
-  var from = document.getElementById('missed-from').value;
-  var to = document.getElementById('missed-to').value;
+  var range = document.getElementById('missed-range').value;
   var params = '?missed=true';
-  if (from) params += '&from=' + from;
-  if (to) params += '&to=' + to;
+  if (range !== 'all') {
+    var to = new Date();
+    var from = new Date();
+    from.setDate(from.getDate() - parseInt(range));
+    params += '&from=' + fmtDate(from) + '&to=' + fmtDate(to);
+  }
   
   fetch('/api/calendar' + params, api('GET'))
     .then(function(r) { return r.json(); })
