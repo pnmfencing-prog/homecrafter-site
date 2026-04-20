@@ -15,7 +15,6 @@
     "bcryptjs": "^3.0.3",
     "csv-parse": "^6.1.0",
     "jsonwebtoken": "^9.0.3",
-    "jspdf": "^4.2.1",
     "next": "16.1.6",
     "nodemailer": "^8.0.1",
     "react": "19.2.3",

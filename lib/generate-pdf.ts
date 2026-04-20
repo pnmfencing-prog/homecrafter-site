@@ -1,4 +1,5 @@
-import { jsPDF } from 'jspdf';
+// Minimal PDF generator — zero dependencies, raw PDF spec
+// Generates a clean proposal PDF without any npm packages
 
 interface ProposalData {
   estimate_no: string;
@@ -26,89 +27,80 @@ interface ProposalData {
   created_at?: string;
 }
 
-export function generateProposalPDF(p: ProposalData): Promise<Buffer> {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' });
-  const W = 612;
-  const M = 45; // margin
-  const RW = W - 2 * M; // usable width
+function esc(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
 
+function fmt(n: number): string {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export function generateProposalPDF(p: ProposalData): Promise<Buffer> {
   const spot = p.spot_holding_fee || 150;
   const gateText = p.gate_count && p.gate_count > 0 ? `${p.gate_count} GATE${p.gate_count > 1 ? 'S' : ''}` : 'NO GATES';
-  const dateStr = p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+  const dateStr = p.created_at 
+    ? new Date(p.created_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+    : new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
   const fullAddr = [p.client_address, p.client_city, p.client_state, p.client_zip].filter(Boolean).join(', ');
-  const fmt = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  let y = M;
+  // Build content stream for page 1
+  let y = 750; // Start from top (PDF coords: 0,0 is bottom-left)
+  const M = 50;
+  const W = 562; // 612 - 50
+
+  let stream = '';
+  
+  function text(x: number, yPos: number, content: string, size: number = 10, bold: boolean = false) {
+    const font = bold ? '/F2' : '/F1';
+    stream += `BT ${font} ${size} Tf ${x} ${yPos} Td (${esc(content)}) Tj ET\n`;
+  }
+
+  function grayText(x: number, yPos: number, content: string, size: number = 10, gray: number = 0.4) {
+    stream += `BT ${gray} g /F1 ${size} Tf ${x} ${yPos} Td (${esc(content)}) Tj 0 g ET\n`;
+  }
+
+  function line(x1: number, y1: number, x2: number, y2: number, gray: number = 0.8) {
+    stream += `${gray} G 0.5 w ${x1} ${y1} m ${x2} ${y2} l S\n`;
+  }
 
   // === HEADER ===
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text('PNM FENCING NJ LLC', M, y + 14);
-  y += 28;
+  text(M, y, 'PNM FENCING NJ LLC', 18, true);
+  y -= 18;
+  grayText(M, y, 'PO Box ___ Oakhurst, NJ 07712  |  1-(908)-692-4847', 9, 0.4);
+  y -= 24;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(102, 102, 102);
-  doc.text('PO Box ___ Oakhurst, NJ 07712  |  1-(908)-692-4847', M, y);
-  y += 20;
-
-  // Proposal For + Estimate info
-  const yFor = y;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(0, 0, 0);
-  doc.text('Proposal For:', M, yFor + 12);
-
+  // Proposal For
+  text(M, y, 'Proposal For:', 13, true);
   // Right side
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(102, 102, 102);
-  doc.text('Estimate No:', 420, yFor + 4, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.text(p.estimate_no, 425, yFor + 4);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Date:', 420, yFor + 18, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.text(dateStr, 425, yFor + 18);
+  text(400, y + 2, 'Estimate No:', 9, true);
+  grayText(470, y + 2, p.estimate_no, 10);
+  text(400, y - 14, 'Date:', 9, true);
+  grayText(470, y - 14, dateStr, 10);
 
-  // Client info
-  let cy = yFor + 26;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(0, 0, 0);
-  doc.text(p.client_name || '', M + 20, cy);
-  cy += 15;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(60, 60, 60);
-  if (p.client_email) { doc.text(p.client_email, M + 20, cy); cy += 14; }
-  if (fullAddr) { doc.text(fullAddr, M + 20, cy); cy += 14; }
+  y -= 20;
+  text(M + 20, y, p.client_name || '', 11, true);
+  y -= 14;
+  if (p.client_email) { grayText(M + 20, y, p.client_email, 10, 0.25); y -= 14; }
+  if (fullAddr) { grayText(M + 20, y, fullAddr, 10, 0.25); y -= 14; }
 
-  // Divider
-  y = Math.max(cy, yFor + 40) + 8;
-  doc.setDrawColor(200, 200, 200);
-  doc.line(M, y, W - M, y);
-  y += 14;
+  y -= 8;
+  line(M, y, W, y, 0.78);
+  y -= 16;
 
   // === DESCRIPTION TABLE ===
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
-  doc.text('Description', M, y);
-  doc.text('Amount', W - M, y, { align: 'right' });
-  y += 6;
-  doc.setDrawColor(51, 51, 51);
-  doc.line(M, y, W - M, y);
-  y += 12;
+  text(M, y, 'Description', 10, true);
+  text(460, y, 'Amount', 10, true);
+  y -= 8;
+  line(M, y, W, y, 0.2);
+  y -= 16;
 
-  // Description text
   const descLines = p.description_override ? p.description_override.split('\n') : [
     `Supply and install up to approximately ${p.footage} linear feet of ${p.height || '6ft'} high`,
     `${(p.color || 'WHITE').toUpperCase()} ${p.material || 'vinyl'} solid privacy fencing ${gateText}`,
     `7" heavy duty rails`,
-    `Standard post caps`,
-    `Disposal of packing materials included.`,
-    p.removal_footage && p.removal_footage > 0
+    'Standard post caps',
+    'Disposal of packing materials included.',
+    (p.removal_footage && p.removal_footage > 0)
       ? `Removal of ${p.removal_footage}ft of ${p.removal_type || 'existing fence'} included.`
       : 'No removal of existing fence.',
     'Delivery included.',
@@ -124,65 +116,35 @@ export function generateProposalPDF(p: ProposalData): Promise<Buffer> {
     'PNM not responsible for earth settling.',
   ];
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(42, 42, 42);
-
-  const amountY = y + 4;
-  descLines.forEach(line => {
-    if (line === '') { y += 6; return; }
-    doc.text(line, M, y);
-    y += 13;
+  const amountY = y;
+  descLines.forEach(l => {
+    if (l === '') { y -= 8; return; }
+    grayText(M, y, l, 10, 0.15);
+    y -= 13;
   });
 
-  // Amount on right
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.text(fmt(p.total) + '*', W - M, amountY, { align: 'right' });
+  // Amount
+  text(460, amountY, fmt(p.total) + '*', 12, true);
 
-  y += 6;
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(9);
-  doc.setTextColor(102, 102, 102);
-  doc.text('*Indicates non-taxable item', M, y);
-  y += 12;
-
-  doc.setDrawColor(200, 200, 200);
-  doc.line(M, y, W - M, y);
-  y += 12;
+  y -= 8;
+  grayText(M, y, '*Indicates non-taxable item', 9, 0.4);
+  y -= 14;
+  line(M, y, W, y, 0.78);
+  y -= 16;
 
   // === TOTALS ===
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(85, 85, 85);
-  doc.text('Subtotal', 440, y, { align: 'right' });
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(0, 0, 0);
-  doc.text(fmt(p.total), W - M, y, { align: 'right' });
-  y += 16;
-
-  doc.setDrawColor(200, 200, 200);
-  doc.line(400, y, W - M, y);
-  y += 4;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('Total', 440, y + 10, { align: 'right' });
-  doc.text(fmt(p.total), W - M, y + 10, { align: 'right' });
-  y += 28;
+  grayText(390, y, 'Subtotal', 10, 0.35);
+  text(460, y, fmt(p.total), 11, true);
+  y -= 14;
+  line(380, y, W, y, 0.78);
+  y -= 6;
+  text(390, y, 'Total', 12, true);
+  text(460, y, fmt(p.total), 12, true);
+  y -= 26;
 
   // === NOTES ===
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.text('Notes', M, y);
-  y += 16;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-  doc.setTextColor(42, 42, 42);
+  text(M, y, 'Notes', 12, true);
+  y -= 18;
 
   const noteLines = [
     `Payment terms: deposit paid in advance: ${fmt(p.deposit)}`,
@@ -205,77 +167,86 @@ export function generateProposalPDF(p: ProposalData): Promise<Buffer> {
     'All past due balances will be assessed with a penalty interest rate of 28% APR.',
   ];
 
-  noteLines.forEach(line => {
-    if (line === '') { y += 5; return; }
-    doc.text(line, M, y);
-    y += 12;
+  noteLines.forEach(l => {
+    if (l === '') { y -= 6; return; }
+    grayText(M, y, l, 9.5, 0.15);
+    y -= 12;
   });
-  y += 8;
-
-  // Check if we need a new page for cancellation + signature
-  if (y > 580) {
-    doc.addPage();
-    y = M;
-  }
+  y -= 8;
 
   // === CANCELLATION ===
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
-  const cancelTitle = doc.splitTextToSize('YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.', RW);
-  doc.text(cancelTitle, M, y);
-  y += cancelTitle.length * 11 + 6;
+  text(M, y, 'YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE', 8, true);
+  y -= 10;
+  text(M, y, 'THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.', 8, true);
+  y -= 14;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(42, 42, 42);
   const cancelLines = [
     'IF YOU WISH TO CANCEL THIS CONTRACT, YOU MUST EITHER:',
-    '1. SEND A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION BY',
-    '   REGISTERED OR CERTIFIED MAIL, RETURN RECEIPT REQUESTED; OR',
-    '2. PERSONALLY DELIVER A SIGNED AND DATED WRITTEN NOTICE OF',
-    '   CANCELLATION TO:',
+    '1. SEND A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION BY REGISTERED',
+    '   OR CERTIFIED MAIL, RETURN RECEIPT REQUESTED; OR',
+    '2. PERSONALLY DELIVER A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION TO:',
     '',
-    'PNM Fencing NJ LLC',
-    'PO Box ___ Oakhurst, NJ 07712',
-    '1-(908)-692-4847',
+    'PNM Fencing NJ LLC, PO Box ___ Oakhurst, NJ 07712, 1-(908)-692-4847',
     '',
-    'If you cancel this contract within the three day period, you are entitled to',
-    'a full refund of your money. Refunds must be made within 30 days.',
+    'If you cancel within three days, you are entitled to a full refund within 30 days.',
   ];
-  cancelLines.forEach(line => {
-    if (line === '') { y += 5; return; }
-    doc.text(line, M, y);
-    y += 11;
+  cancelLines.forEach(l => {
+    if (l === '') { y -= 5; return; }
+    grayText(M, y, l, 8, 0.15);
+    y -= 10;
   });
-  y += 12;
+  y -= 12;
 
   // === SIGNATURE ===
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(9);
-  doc.setTextColor(85, 85, 85);
-  doc.text('*Acknowledgment of terms above', M, y);
-  y += 18;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
+  grayText(M, y, '*Acknowledgment of terms above', 9, 0.35);
+  y -= 18;
   ['Print Name:', 'Sign X:', 'Date:'].forEach(label => {
-    doc.text(label, M, y);
-    doc.line(M + 80, y + 2, 380, y + 2);
-    y += 22;
+    text(M, y, label, 10, false);
+    line(M + 80, y - 2, 350, y - 2, 0.0);
+    y -= 22;
   });
 
   // Footer
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(9);
-  doc.setTextColor(102, 102, 102);
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.text(`PNM - Proposal ${p.estimate_no} - ${dateStr}  ${i} / ${totalPages}`, W / 2, 760, { align: 'center' });
+  grayText(220, 30, `PNM - Proposal ${p.estimate_no} - ${dateStr}  1 / 1`, 9, 0.4);
+
+  // === BUILD RAW PDF ===
+  const objects: string[] = [];
+  let objCount = 0;
+
+  function addObj(content: string): number {
+    objCount++;
+    objects.push(`${objCount} 0 obj\n${content}\nendobj`);
+    return objCount;
   }
 
-  const arrayBuf = doc.output('arraybuffer');
-  return Promise.resolve(Buffer.from(arrayBuf));
+  // 1: Catalog
+  addObj('<< /Type /Catalog /Pages 2 0 R >>');
+  // 2: Pages
+  addObj('<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  // 3: Page
+  addObj(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 6 0 R /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> >>`);
+  // 4: Helvetica
+  addObj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  // 5: Helvetica-Bold
+  addObj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  // 6: Content stream
+  const streamBytes = Buffer.from(stream, 'latin1');
+  addObj(`<< /Length ${streamBytes.length} >>\nstream\n${stream}endstream`);
+
+  // Build file
+  let pdf = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objects.forEach(obj => {
+    offsets.push(Buffer.byteLength(pdf, 'latin1'));
+    pdf += obj + '\n';
+  });
+
+  const xrefOffset = Buffer.byteLength(pdf, 'latin1');
+  pdf += `xref\n0 ${objCount + 1}\n0000000000 65535 f \n`;
+  offsets.forEach(off => {
+    pdf += off.toString().padStart(10, '0') + ' 00000 n \n';
+  });
+  pdf += `trailer\n<< /Size ${objCount + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return Promise.resolve(Buffer.from(pdf, 'latin1'));
 }
