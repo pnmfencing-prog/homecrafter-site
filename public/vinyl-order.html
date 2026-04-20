@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vinyl Fence Order Form — PNM Fencing</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Montserrat', sans-serif; background: #f8f9fa; color: #2d2d2d; line-height: 1.5; padding: 1rem; }
+.container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; }
+.header { background: linear-gradient(135deg, #1e1845, #2a2260); padding: 2rem; text-align: center; color: #c4aa6a; }
+.header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.1em; }
+.header p { font-size: 0.8rem; margin-top: 0.5rem; color: rgba(255,255,255,0.7); }
+.form { padding: 2rem; }
+.section { margin-bottom: 2rem; }
+.section h3 { font-size: 1rem; font-weight: 600; color: #1e1845; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #f0f0f0; }
+.form-row { display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 120px; }
+.form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #555; margin-bottom: 0.3rem; }
+.form-control { width: 100%; padding: 0.7rem; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; transition: border-color 0.2s; }
+.form-control:focus { outline: none; border-color: #c4aa6a; }
+.checkbox-group { display: flex; gap: 1rem; flex-wrap: wrap; }
+.checkbox-group label { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; cursor: pointer; }
+.checkbox-group input { width: auto; }
+.radio-group { display: flex; gap: 1rem; flex-wrap: wrap; }
+.radio-group label { display: flex; align-items: center; gap: 0.3rem; font-weight: 500; cursor: pointer; }
+.radio-group input { width: auto; }
+.price-display { background: #f8f9fa; padding: 1rem; border-radius: 8px; text-align: right; font-weight: 600; color: #1e1845; }
+.total-section { background: linear-gradient(135deg, #1e1845, #2a2260); color: #c4aa6a; padding: 1.5rem; margin: 2rem -2rem -2rem; }
+.total-row { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+.total-row.grand { font-size: 1.2rem; font-weight: 700; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem; margin-top: 1rem; }
+.btn { background: #c4aa6a; color: #1e1845; border: none; padding: 1rem 2rem; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 1rem; width: 100%; transition: all 0.2s; }
+.btn:hover { background: #d4c394; transform: translateY(-1px); }
+@media (max-width: 600px) { .form-row { flex-direction: column; gap: 0.5rem; } .checkbox-group, .radio-group { flex-direction: column; gap: 0.5rem; } }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>VINYL FENCE ORDER</h1>
+    <p>PNM Fencing NJ LLC</p>
+  </div>
+
+  <form class="form" onsubmit="return false">
+    <!-- PANELS -->
+    <div class="section">
+      <h3>Panels (6ft Height - $77 each)</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" class="form-control" id="panels" min="0" value="0" onchange="calculate()">
+        </div>
+        <div class="form-group">
+          <label>Lattice Type</label>
+          <div class="radio-group">
+            <label><input type="radio" name="lattice" value="none" checked onchange="calculate()"> None</label>
+            <label><input type="radio" name="lattice" value="diamond" onchange="calculate()"> Diamond (+$21)</label>
+            <label><input type="radio" name="lattice" value="square" onchange="calculate()"> Square (+$21)</label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Color</label>
+          <div class="radio-group">
+            <label><input type="radio" name="color" value="white" checked onchange="calculate()"> White</label>
+            <label><input type="radio" name="color" value="colored" onchange="calculate()"> Beige/Gray/Clay (+25%)</label>
+          </div>
+        </div>
+      </div>
+      <div class="price-display" id="panelTotal">$0.00</div>
+    </div>
+
+    <!-- GATES -->
+    <div class="section">
+      <h3>4' Gates ($170 each)</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" class="form-control" id="gates" min="0" value="0" onchange="calculate()">
+        </div>
+      </div>
+      <div class="price-display" id="gateTotal">$0.00</div>
+    </div>
+
+    <!-- CAPS -->
+    <div class="section">
+      <h3>Post Caps</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Flat Caps ($1 each)</label>
+          <input type="number" class="form-control" id="flatCaps" min="0" value="0" onchange="calculate()">
+        </div>
+        <div class="form-group">
+          <label>New England Caps ($3 each)</label>
+          <input type="number" class="form-control" id="newEnglandCaps" min="0" value="0" onchange="calculate()">
+        </div>
+      </div>
+      <div class="price-display" id="capTotal">$0.00</div>
+    </div>
+
+    <!-- POSTS -->
+    <div class="section">
+      <h3>Posts</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Corner Posts</label>
+          <input type="number" class="form-control" id="cornerPosts" min="0" value="0" onchange="calculate()">
+        </div>
+        <div class="form-group">
+          <label>Line Posts</label>
+          <input type="number" class="form-control" id="linePosts" min="0" value="0" onchange="calculate()">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>End Posts</label>
+          <input type="number" class="form-control" id="endPosts" min="0" value="0" onchange="calculate()">
+        </div>
+        <div class="form-group">
+          <label>Blank Posts</label>
+          <input type="number" class="form-control" id="blankPosts" min="0" value="0" onchange="calculate()">
+        </div>
+      </div>
+      <div class="price-display" id="postTotal">Contact for pricing</div>
+    </div>
+
+    <!-- HARDWARE -->
+    <div class="section">
+      <h3>Hardware & Accessories</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Metal Beams ($55 each)</label>
+          <input type="number" class="form-control" id="metalBeams" min="0" value="0" onchange="calculate()">
+        </div>
+        <div class="form-group">
+          <label>Hinges ($26 each)</label>
+          <input type="number" class="form-control" id="hinges" min="0" value="0" onchange="calculate()">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Latches ($26 each)</label>
+          <input type="number" class="form-control" id="latches" min="0" value="0" onchange="calculate()">
+        </div>
+      </div>
+      <div class="price-display" id="hardwareTotal">$0.00</div>
+    </div>
+
+    <!-- TOTALS -->
+    <div class="total-section">
+      <div class="total-row">
+        <span>Subtotal:</span>
+        <span id="subtotal">$0.00</span>
+      </div>
+      <div class="total-row">
+        <span>Sales Tax (3.3125%):</span>
+        <span id="tax">$0.00</span>
+      </div>
+      <div class="total-row grand">
+        <span>TOTAL:</span>
+        <span id="grandTotal">$0.00</span>
+      </div>
+    </div>
+
+  </form>
+</div>
+
+<script>
+const TAX_RATE = 1.033125;
+
+function fmt(amount) {
+  return '$' + amount.toFixed(2);
+}
+
+function calculate() {
+  // Panels
+  const panels = parseInt(document.getElementById('panels').value) || 0;
+  const lattice = document.querySelector('input[name="lattice"]:checked').value;
+  const color = document.querySelector('input[name="color"]:checked').value;
+  
+  let panelPrice = 77;
+  if (lattice !== 'none') panelPrice += 21;
+  if (color === 'colored') panelPrice *= 1.25;
+  
+  const panelTotal = panels * panelPrice;
+  document.getElementById('panelTotal').textContent = fmt(panelTotal);
+
+  // Gates
+  const gates = parseInt(document.getElementById('gates').value) || 0;
+  const gateTotal = gates * 170;
+  document.getElementById('gateTotal').textContent = fmt(gateTotal);
+
+  // Caps
+  const flatCaps = parseInt(document.getElementById('flatCaps').value) || 0;
+  const newEnglandCaps = parseInt(document.getElementById('newEnglandCaps').value) || 0;
+  const capTotal = (flatCaps * 1) + (newEnglandCaps * 3);
+  document.getElementById('capTotal').textContent = fmt(capTotal);
+
+  // Hardware
+  const metalBeams = parseInt(document.getElementById('metalBeams').value) || 0;
+  const hinges = parseInt(document.getElementById('hinges').value) || 0;
+  const latches = parseInt(document.getElementById('latches').value) || 0;
+  const hardwareTotal = (metalBeams * 55) + (hinges * 26) + (latches * 26);
+  document.getElementById('hardwareTotal').textContent = fmt(hardwareTotal);
+
+  // Posts (no pricing)
+  const cornerPosts = parseInt(document.getElementById('cornerPosts').value) || 0;
+  const linePosts = parseInt(document.getElementById('linePosts').value) || 0;
+  const endPosts = parseInt(document.getElementById('endPosts').value) || 0;
+  const blankPosts = parseInt(document.getElementById('blankPosts').value) || 0;
+  const totalPosts = cornerPosts + linePosts + endPosts + blankPosts;
+  document.getElementById('postTotal').textContent = totalPosts > 0 ? 'Contact for pricing' : '$0.00';
+
+  // Totals
+  const subtotal = panelTotal + gateTotal + capTotal + hardwareTotal;
+  const tax = subtotal * (TAX_RATE - 1);
+  const grandTotal = subtotal * TAX_RATE;
+
+  document.getElementById('subtotal').textContent = fmt(subtotal);
+  document.getElementById('tax').textContent = fmt(tax);
+  document.getElementById('grandTotal').textContent = fmt(grandTotal);
+}
+
+calculate();
+</script>
+</body>
+</html>
