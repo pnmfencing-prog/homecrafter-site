@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { generateProposalPDF } from '@/lib/generate-pdf';
 
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
@@ -110,33 +109,6 @@ export async function POST(request: NextRequest) {
 </td></tr></table>
 </body></html>`;
 
-  // Generate PDF attachment
-  const pdfBuffer = await generateProposalPDF({
-    estimate_no: p.estimate_no,
-    client_name: p.client_name,
-    client_email: p.client_email,
-    client_address: p.client_address,
-    client_city: p.client_city,
-    client_state: p.client_state,
-    client_zip: p.client_zip,
-    footage: Number(p.footage) || 0,
-    height: p.height,
-    color: p.color,
-    material: p.material,
-    gate_count: Number(p.gate_count) || 0,
-    panels: Number(p.panels) || 0,
-    removal_type: p.removal_type,
-    removal_footage: Number(p.removal_footage) || 0,
-    total: Number(p.total) || 0,
-    deposit: Number(p.deposit) || 0,
-    installment_2: Number(p.installment_2) || 0,
-    installment_3: Number(p.installment_3) || 0,
-    spot_holding_fee: Number(p.spot_holding_fee) || 150,
-    description_override: p.description_override,
-    created_at: p.created_at,
-  });
-  const pdfBase64 = pdfBuffer.toString('base64');
-
   // Send via Brevo
   const brevoKey = process.env.BREVO_API_KEY;
   if (!brevoKey) return NextResponse.json({ error: 'Brevo API key not configured' }, { status: 500 });
@@ -153,10 +125,6 @@ export async function POST(request: NextRequest) {
       to: [{ email: p.client_email, name: p.client_name || undefined }],
       subject: `Proposal #${p.estimate_no} from ${companyName}`,
       htmlContent: emailHtml,
-      attachment: [{
-        content: pdfBase64,
-        name: `PNM-Estimate-${p.estimate_no}.pdf`,
-      }],
     }),
   });
 

@@ -233,7 +233,6 @@ function openDetail(id) {
       if (p.notes) html += '<div style="margin-top:1rem;padding:0.75rem;background:var(--cream);border-radius:8px;font-size:0.8rem;border-left:3px solid var(--gold)">' + p.notes + '</div>';
       
       html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1.25rem">';
-      html += '<a class="btn btn-primary" href="/api/proposals?id=' + p.id + '&format=pdf&token=' + ADMIN_TOKEN + '" target="_blank" style="text-decoration:none">📄 View PDF</a>';
       if (p.client_email && p.status !== 'signed') html += '<button class="btn btn-green" onclick="sendProposal(' + p.id + ',\'' + (p.client_email || '') + '\')">✉️ Send to Customer</button>';
       if (p.status === 'draft') html += '<button class="btn btn-outline" onclick="updateStatus(' + p.id + ',\'sent\')">Mark Sent</button>';
       if (p.status === 'sent') html += '<button class="btn btn-green" onclick="updateStatus(' + p.id + ',\'signed\')">Mark Signed ✓</button>';
@@ -256,9 +255,6 @@ function updateStatus(id, status) {
 
 function sendProposal(id, email) {
   if (!confirm('Send proposal to ' + email + '?')) return;
-  // Open PDF immediately
-  window.open('/api/proposals?id=' + id + '&format=pdf&token=' + ADMIN_TOKEN, '_blank');
-  // Send email in background
   fetch('/api/proposals/send', api('POST', { id: id }))
     .then(function(r) { return r.json(); })
     .then(function(data) {
