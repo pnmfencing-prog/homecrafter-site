@@ -42,15 +42,17 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 
 /* Proposal cards */
 .proposal-list { display: flex; flex-direction: column; gap: 0.6rem; }
-.proposal-card { background: #fff; border-radius: 10px; padding: 1rem 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s; border-left: 3px solid var(--blue); }
+.proposal-card { background: #fff; border-radius: 10px; padding: 1rem 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; border-left: 3px solid var(--blue); }
 .proposal-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,24,69,0.1); }
+.edit-btn { background: var(--midnight); color: var(--gold); border: none; border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.65rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-left: 1rem; }
+.edit-btn:hover { background: var(--midnight-light); transform: translateY(-1px); }
 .proposal-card.draft { border-left-color: var(--orange); }
 .proposal-card.sent { border-left-color: var(--blue); }
 .proposal-card.signed { border-left-color: var(--green); }
 .proposal-card.cancelled { border-left-color: #ccc; opacity: 0.6; }
 .prop-info .prop-name { font-weight: 600; font-size: 0.9rem; color: var(--midnight); }
 .prop-info .prop-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
-.prop-right { text-align: right; }
+.prop-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
 .prop-right .prop-amount { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 700; color: var(--green); }
 .prop-right .prop-status { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.15rem; }
 .prop-right .prop-status.draft { color: var(--orange); }
@@ -75,7 +77,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .revenue-item strong { color: var(--midnight); font-size: 0.9rem; }
 
 .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center; }
-.search-box { flex: 1; padding: 0.6rem 1rem; border: 1px solid #e0ddd6; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; background: #fff; outline: none; }
+.search-box { flex: 1; padding: 1rem; height: 3rem; border: 1px solid #e0ddd6; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; background: #fff; outline: none; }
 .search-box:focus { border-color: var(--gold); }
 
 @media (max-width: 768px) {
@@ -177,7 +179,7 @@ function renderList(search) {
   filtered.forEach(function(p) {
     var date = new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     var specs = [p.footage ? p.footage + 'ft' : '', p.height || '', p.color || '', p.material || ''].filter(Boolean).join(' · ');
-    html += '<div class="proposal-card ' + p.status + '" onclick="openDetail(' + p.id + ')">' +
+    html += '<div class="proposal-card ' + p.status + '">' +
       '<div class="prop-info">' +
         '<div class="prop-name">#' + p.estimate_no + ' — ' + (p.client_name || 'Unknown') + '</div>' +
         '<div class="prop-meta">' + specs + ' · ' + date + '</div>' +
@@ -186,6 +188,7 @@ function renderList(search) {
       '<div class="prop-right">' +
         '<div class="prop-amount">$' + Number(p.total || 0).toLocaleString() + '</div>' +
         '<div class="prop-status ' + p.status + '">' + p.status + '</div>' +
+        '<button class="edit-btn" onclick="openDetail(' + p.id + ')">Edit</button>' +
       '</div>' +
     '</div>';
   });

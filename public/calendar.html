@@ -352,7 +352,7 @@ function loadDayView(date) {
     var typeClass = e.event_type === 'task' ? ' task' : e.event_type === 'follow_up' ? ' follow_up' : '';
     var typeIcon = e.event_type === 'task' ? '📋' : e.event_type === 'follow_up' ? '🔄' : e.event_type === 'reminder' ? '⏰' : '📅';
     
-    html += '<div class="event-card' + typeClass + statusClass + '" data-event-id="' + e.id + '" onclick="editEvent(' + e.id + ')" style="cursor:pointer" title="Tap to edit">' +
+    html += '<div class="event-card' + typeClass + statusClass + '" data-event-id="' + e.id + '">' +
       '<div class="event-info">' +
         '<div class="event-title">' + typeIcon + ' ' + e.title + '</div>' +
         '<div class="event-time" style="cursor:pointer" onclick="event.stopPropagation();editEventTime(' + e.id + ',\'' + (e.event_time || '') + '\')" title="Tap to change time">' + (e.event_time ? fmtTime12(e.event_time) + (e.end_time ? ' – ' + fmtTime12(e.end_time) : '') : 'All day') + ' ✎</div>' +
