@@ -126,6 +126,12 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
     <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block"></span> Reminder</span>
   </div>
 
+  <!-- Search Bar -->
+  <div style="margin-bottom:0.75rem;display:flex;justify-content:center;align-items:center;gap:0.5rem">
+    <input type="text" id="eventSearch" placeholder="Search events..." style="width:300px;max-width:80%;padding:0.5rem 1rem;border:1px solid var(--cream-dark);border-radius:20px;font-size:0.8rem;background:#fff;outline:none" onkeyup="searchEvents(this.value)" oninput="updateSearchState()">
+    <button id="clearSearch" style="display:none;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0.25rem" onclick="clearSearch()" title="Clear search">✕</button>
+  </div>
+
   <!-- Calendar Grid -->
   <div class="cal-grid" id="calGrid"></div>
 
@@ -197,6 +203,7 @@ var currentMonth = new Date();
 var selectedDate = new Date();
 var monthEvents = [];
 var crmLeads = [];
+var currentSearch = '';
 
 function api(method, body) {
   var opts = { method: method || 'GET', headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } };
@@ -277,7 +284,15 @@ function renderCalendar() {
     var dateStr = year + '-' + pad(month+1) + '-' + pad(d);
     var isToday = dateStr === today ? ' today' : '';
     var isSel = dateStr === sel ? ' selected' : '';
-    var dayEvents = monthEvents.filter(function(e) { return (e.event_date || '').substring(0, 10) === dateStr; });
+    var dayEvents = monthEvents.filter(function(e) { 
+      var matchesDate = (e.event_date || '').substring(0, 10) === dateStr;
+      var matchesSearch = !currentSearch || 
+        (e.title || '').toLowerCase().includes(currentSearch.toLowerCase()) ||
+        (e.description || '').toLowerCase().includes(currentSearch.toLowerCase()) ||
+        (e.location || '').toLowerCase().includes(currentSearch.toLowerCase()) ||
+        (e.customer_name || '').toLowerCase().includes(currentSearch.toLowerCase());
+      return matchesDate && matchesSearch;
+    });
     
     var dots = '';
     if (dayEvents.length) {
@@ -316,7 +331,15 @@ function selectDay(dateStr) {
 
 function loadDayView(date) {
   var dateStr = fmtDate(date);
-  var dayEvents = monthEvents.filter(function(e) { return (e.event_date || '').substring(0, 10) === dateStr; });
+  var dayEvents = monthEvents.filter(function(e) { 
+    var matchesDate = (e.event_date || '').substring(0, 10) === dateStr;
+    var matchesSearch = !currentSearch || 
+      (e.title || '').toLowerCase().includes(currentSearch.toLowerCase()) ||
+      (e.description || '').toLowerCase().includes(currentSearch.toLowerCase()) ||
+      (e.location || '').toLowerCase().includes(currentSearch.toLowerCase()) ||
+      (e.customer_name || '').toLowerCase().includes(currentSearch.toLowerCase());
+    return matchesDate && matchesSearch;
+  });
   var dayLabel = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   
   var html = '<div class="day-title"><span>' + dayLabel + '</span>' +
@@ -550,6 +573,40 @@ if (paramDate) {
   var d = new Date(paramDate + 'T12:00:00');
   if (!isNaN(d)) { currentMonth = new Date(d); selectedDate = new Date(d); }
 }
+
+function searchEvents(query) {
+  currentSearch = query.trim();
+  renderCalendar(); // Re-render with filtered events
+  // If searching, also update day view if visible
+  var dayView = document.getElementById('dayView');
+  if (dayView.style.display !== 'none') {
+    selectDay(fmtDate(selectedDate));
+  }
+}
+
+function updateSearchState() {
+  var searchBox = document.getElementById('eventSearch');
+  var clearBtn = document.getElementById('clearSearch');
+  if (searchBox.value.trim()) {
+    clearBtn.style.display = 'block';
+    searchBox.style.borderColor = 'var(--gold)';
+  } else {
+    clearBtn.style.display = 'none';
+    searchBox.style.borderColor = 'var(--cream-dark)';
+  }
+}
+
+function clearSearch() {
+  document.getElementById('eventSearch').value = '';
+  currentSearch = '';
+  updateSearchState();
+  renderCalendar();
+  var dayView = document.getElementById('dayView');
+  if (dayView.style.display !== 'none') {
+    selectDay(fmtDate(selectedDate));
+  }
+}
+
 loadMonth();
 if (paramDate) {
   setTimeout(function() { selectDay(paramDate); }, 500);
