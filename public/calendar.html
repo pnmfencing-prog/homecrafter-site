@@ -64,6 +64,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .event-info .event-time { font-size: 0.7rem; color: var(--gold); font-weight: 600; margin-top: 0.15rem; }
 .event-info .event-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; }
 .event-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
+.edit-btn { background: var(--midnight); color: var(--gold); border: none; border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.65rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.edit-btn:hover { background: var(--midnight-light); transform: translateY(-1px); }
 
 /* Overdue section */
 .overdue-section { background: var(--red-bg); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
@@ -181,7 +183,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
         </select>
       </div>
       <div class="form-group"><label>Location</label><input type="text" id="ev-location" placeholder="Address or location"></div>
-      <div class="form-group"><label>Notes</label><textarea id="ev-desc" rows="2" style="resize:vertical"></textarea></div>
+      <div class="form-group"><label>Notes</label><textarea id="ev-desc" rows="5" style="resize:vertical;min-height:120px"></textarea></div>
       <div class="form-group"><label>Link to CRM Lead</label>
         <select id="ev-lead"><option value="">— None —</option></select>
       </div>
@@ -364,6 +366,7 @@ function loadDayView(date) {
           '">' + e.status + '</span></div>' +
       '</div>' +
       '<div class="event-actions">' +
+        '<button class="edit-btn" onclick="editEvent(' + e.id + ')">Edit</button>' +
         (e.status === 'scheduled' ? '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ')">✓</button>' : '') +
         (e.status === 'scheduled' ? '<button class="btn btn-outline btn-sm" onclick="cancelEvent(' + e.id + ')">✕</button>' : '') +
         (e.status !== 'scheduled' ? '<button class="btn btn-outline btn-sm" onclick="rescheduleEvent(' + e.id + ')">↻</button>' : '') +
@@ -466,6 +469,16 @@ function editEvent(id) {
   document.getElementById('ev-type').value = event.event_type || 'appointment';
   document.getElementById('ev-lead').value = event.crm_lead_id || '';
   document.getElementById('ev-allday').checked = event.all_day || false;
+  
+  // Load CRM leads for dropdown
+  fetch('/api/crm', api('GET')).then(function(r) { return r.json(); }).then(function(data) {
+    var sel = document.getElementById('ev-lead');
+    sel.innerHTML = '<option value="">— None —</option>';
+    (data.leads || []).forEach(function(l) {
+      sel.innerHTML += '<option value="' + l.id + '">' + (l.customer_name || 'Lead #' + l.id) + '</option>';
+    });
+    sel.value = event.crm_lead_id || '';
+  });
   
   // Store event ID for saving
   document.getElementById('eventModal').dataset.editingId = id;
@@ -584,6 +597,7 @@ function loadMissed() {
             (e.description ? '<div class="event-meta">' + e.description.substring(0, 100) + '</div>' : '') +
           '</div>' +
           '<div class="event-actions">' +
+            '<button class="edit-btn" onclick="editEvent(' + e.id + ')">Edit</button>' +
             '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ');loadMissed()">✓ Done</button>' +
             '<button class="btn btn-outline btn-sm" onclick="rescheduleEvent(' + e.id + ');loadMissed()">↻ Move</button>' +
             '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="deleteEvent(' + e.id + ');setTimeout(loadMissed,500)">🗑</button>' +
