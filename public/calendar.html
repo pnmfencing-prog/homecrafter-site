@@ -66,6 +66,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .event-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
 .edit-btn { background: var(--midnight); color: var(--gold); border: none; border-radius: 6px; padding: 0.4rem 0.8rem; font-size: 0.65rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
 .edit-btn:hover { background: var(--midnight-light); transform: translateY(-1px); }
+.contact-link { color: var(--blue); text-decoration: none; font-weight: 500; }
+.contact-link:hover { text-decoration: underline; }
 
 /* Overdue section */
 .overdue-section { background: var(--red-bg); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
@@ -224,6 +226,26 @@ function fmtTime12(t) {
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+function formatCustomerInfo(e) {
+  if (!e.customer_name) return '';
+  var parts = ['👤 ' + e.customer_name];
+  
+  if (e.customer_phone) {
+    var cleanPhone = e.customer_phone.replace(/[^\d+]/g, '');
+    if (cleanPhone.length >= 10) {
+      parts.push('<a href="tel:' + cleanPhone + '" class="contact-link" onclick="event.stopPropagation()">' + e.customer_phone + '</a>');
+    } else {
+      parts.push(e.customer_phone);
+    }
+  }
+  
+  if (e.customer_email) {
+    parts.push('<a href="mailto:' + e.customer_email + '" class="contact-link" onclick="event.stopPropagation()">' + e.customer_email + '</a>');
+  }
+  
+  return '<div class="event-meta">' + parts.join(' · ') + '</div>';
+}
+
 function loadMonth() {
   var ym = fmtMonth(currentMonth);
   document.getElementById('calTitle').textContent = MONTHS[currentMonth.getMonth()] + ' ' + currentMonth.getFullYear();
@@ -359,7 +381,7 @@ function loadDayView(date) {
         '<div class="event-title">' + typeIcon + ' ' + e.title + '</div>' +
         '<div class="event-time" style="cursor:pointer" onclick="event.stopPropagation();editEventTime(' + e.id + ',\'' + (e.event_time || '') + '\')" title="Tap to change time">' + (e.event_time ? fmtTime12(e.event_time) + (e.end_time ? ' – ' + fmtTime12(e.end_time) : '') : 'All day') + ' ✎</div>' +
         (e.location ? '<div class="event-meta">📍 ' + e.location + '</div>' : '') +
-        (e.customer_name ? '<div class="event-meta">👤 ' + e.customer_name + (e.customer_phone ? ' · ' + e.customer_phone : '') + '</div>' : '') +
+        formatCustomerInfo(e) +
         (e.description ? '<div class="event-meta" style="margin-top:0.3rem">' + e.description + '</div>' : '') +
         '<div class="event-meta" style="margin-top:0.25rem"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;color:' + 
           (e.status === 'completed' ? 'var(--green)' : e.status === 'missed' ? 'var(--red)' : e.status === 'cancelled' ? '#999' : 'var(--blue)') + 
@@ -593,7 +615,7 @@ function loadMissed() {
           '<div class="event-info">' +
             '<div class="event-title">' + typeIcon + ' ' + e.title + '</div>' +
             '<div class="event-time" style="color:var(--red)">' + d + (e.event_time ? ' · ' + fmtTime12(e.event_time) : '') + '</div>' +
-            (e.customer_name ? '<div class="event-meta">👤 ' + e.customer_name + '</div>' : '') +
+            formatCustomerInfo(e) +
             (e.description ? '<div class="event-meta">' + e.description.substring(0, 100) + '</div>' : '') +
           '</div>' +
           '<div class="event-actions">' +
