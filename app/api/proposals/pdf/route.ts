@@ -187,7 +187,7 @@ PNM not responsible for earth settling.`}</div>
         }
         
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/proposals/sign');
+        xhr.open('POST', 'https://homecrafter.ai/api/proposals/sign');
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.onload = function() {
           if (xhr.status === 200) {
