@@ -50,7 +50,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .proposal-card.sent { border-left-color: var(--blue); }
 .proposal-card.signed { border-left-color: var(--green); }
 .proposal-card.cancelled { border-left-color: #ccc; opacity: 0.6; }
-.prop-info .prop-name { font-weight: 600; font-size: 0.9rem; color: var(--midnight); }
+.prop-info .prop-name { font-weight: 600; font-size: 0.9rem; color: var(--midnight); cursor: pointer; }
+.prop-info .prop-name:hover { color: var(--blue); text-decoration: underline; }
 .prop-info .prop-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
 .prop-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
 .prop-right .prop-amount { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 700; color: var(--green); }
@@ -196,7 +197,7 @@ function renderList(search) {
     var specs = [p.footage ? p.footage + 'ft' : '', p.height || '', p.color || '', p.material || ''].filter(Boolean).join(' · ');
     html += '<div class="proposal-card ' + p.status + '">' +
       '<div class="prop-info">' +
-        '<div class="prop-name">#' + p.estimate_no + ' — ' + (p.client_name || 'Unknown') + '</div>' +
+        '<div class="prop-name" onclick="openDetail(' + p.id + ')">#' + p.estimate_no + ' — ' + (p.client_name || 'Unknown') + '</div>' +
         '<div class="prop-meta">' + specs + ' · ' + date + '</div>' +
         (p.client_address ? '<div class="prop-meta">📍 ' + p.client_address + (p.client_city ? ', ' + p.client_city : '') + '</div>' : '') +
       '</div>' +
