@@ -144,19 +144,19 @@ PNM not responsible for earth settling.`}</div>
     </div>
   ` : `
     <div id="signature-section">
-      <div style="margin: 20px 0;">
-        <label for="signer-name" style="font-weight:bold;">Print Your Name:</label><br>
-        <input type="text" id="signer-name" style="padding: 8px; font-size: 14px; width: 300px; margin: 5px 0; border: 1px solid #ccc;" placeholder="Enter your full name">
+      <div style="margin: 15px 0;">
+        <label for="signer-name" style="font-weight:bold; font-size: 12px;">Print Your Name:</label><br>
+        <input type="text" id="signer-name" style="padding: 6px; font-size: 12px; width: 250px; margin: 5px 0; border: 1px solid #ccc;" placeholder="Enter your full name">
       </div>
       
-      <div style="margin: 20px 0;">
+      <div style="margin: 15px 0;">
         <p style="font-weight:bold;">Sign Below:</p>
         <canvas id="signature-canvas" 
-                style="border: 2px solid #333; background: white; touch-action: none; cursor: crosshair;"
-                width="400" height="150"></canvas>
-        <div style="margin: 10px 0;">
-          <button id="clear-signature" style="padding: 10px 20px; margin-right: 10px; background: #dc3545; color: white; border: none; cursor: pointer;">Clear</button>
-          <button id="save-signature" style="padding: 10px 20px; background: #28a745; color: white; border: none; cursor: pointer;">Sign & Save</button>
+                style="border: 1px solid #333; background: white; touch-action: none; cursor: crosshair;"
+                width="250" height="80"></canvas>
+        <div style="margin: 8px 0;">
+          <button id="clear-signature" style="padding: 6px 12px; margin-right: 8px; background: #dc3545; color: white; border: none; cursor: pointer; font-size: 12px;">Clear</button>
+          <button id="save-signature" style="padding: 6px 12px; background: #28a745; color: white; border: none; cursor: pointer; font-size: 12px;">Sign & Save</button>
         </div>
         <p style="font-size: 9pt; color: #666; margin-top: 10px;">Sign with your finger on mobile or mouse on desktop</p>
       </div>
