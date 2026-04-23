@@ -236,6 +236,7 @@ function openDetail(id) {
       if (p.notes) html += '<div style="margin-top:1rem;padding:0.75rem;background:var(--cream);border-radius:8px;font-size:0.8rem;border-left:3px solid var(--gold)">' + p.notes + '</div>';
       
       html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1.25rem">';
+      html += '<button class="btn btn-outline" onclick="viewPDF(' + p.id + ')">📄 View PDF</button>';
       if (p.client_email && p.status !== 'signed') html += '<button class="btn btn-green" onclick="sendProposal(' + p.id + ',\'' + (p.client_email || '') + '\')">✉️ Send to Customer</button>';
       if (p.status === 'draft') html += '<button class="btn btn-outline" onclick="updateStatus(' + p.id + ',\'sent\')">Mark Sent</button>';
       if (p.status === 'sent') html += '<button class="btn btn-green" onclick="updateStatus(' + p.id + ',\'signed\')">Mark Signed ✓</button>';
@@ -269,6 +270,11 @@ function sendProposal(id, email) {
 function deleteProposal(id) {
   fetch('/api/proposals', api('POST', { action: 'delete', id: id }))
     .then(function() { closeModal(); loadProposals(); });
+}
+
+function viewPDF(id) {
+  // Open PDF in new tab via API endpoint
+  window.open('/api/proposals/pdf?id=' + id, '_blank');
 }
 
 var searchTimer;
