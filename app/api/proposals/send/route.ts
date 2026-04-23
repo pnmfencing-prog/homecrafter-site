@@ -88,12 +88,21 @@ export async function POST(request: NextRequest) {
     </tr>
   </table>
 
-  <p style="font-size:13px;color:#333;line-height:1.7;margin-top:25px;">
-    The full proposal with terms, conditions, and signature block is attached. Please review and let us know if you have any questions.
-  </p>
+  <div style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:20px;margin:25px 0;text-align:center;">
+    <p style="font-size:14px;color:#333;margin-bottom:15px;font-weight:600;">
+      📄 View & Sign Your Proposal
+    </p>
+    <a href="https://homecrafter.ai/api/proposals/pdf?estimate_no=${p.estimate_no}&token=hc-admin-2026" 
+       style="display:inline-block;background:#1e1845;color:#c4aa6a;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;">
+      VIEW PROPOSAL & SIGN ONLINE
+    </a>
+    <p style="font-size:11px;color:#666;margin-top:10px;">
+      Mobile-friendly • Digital signature • Instant confirmation
+    </p>
+  </div>
 
   <p style="font-size:13px;color:#333;">
-    To lock in your pricing and reserve your spot on the calendar, simply reply to this email or call us at <strong>1-(908)-692-4847</strong>.
+    To lock in your pricing and reserve your spot on the calendar, simply sign online above or call us at <strong>1-(908)-692-4847</strong>.
   </p>
 </td></tr>
 
