@@ -122,26 +122,6 @@ export async function POST(request: NextRequest) {
   const brevoKey = process.env.BREVO_API_KEY;
   if (!brevoKey) return NextResponse.json({ error: 'Brevo API key not configured' }, { status: 500 });
 
-  // Generate proposal PDF HTML for attachment
-  const pdfUrl = `https://homecrafter.ai/api/proposals/pdf?estimate_no=${p.estimate_no}&token=${process.env.ADMIN_TOKEN || 'hc-admin-2026'}`;
-  
-  // Fetch the proposal HTML to attach as PDF-like document
-  let attachment: any[] = [];
-  try {
-    const pdfRes = await fetch(pdfUrl);
-    if (pdfRes.ok) {
-      const pdfHtml = await pdfRes.text();
-      const base64Content = Buffer.from(pdfHtml).toString('base64');
-      attachment = [{
-        content: base64Content,
-        name: `PNM-Fencing-Proposal-${p.estimate_no}.html`,
-        contentType: 'text/html'
-      }];
-    }
-  } catch (e) {
-    console.error('Failed to generate attachment:', e);
-  }
-
   const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -154,7 +134,6 @@ export async function POST(request: NextRequest) {
       to: [{ email: p.client_email, name: p.client_name || undefined }],
       subject: `Proposal #${p.estimate_no} from ${companyName}`,
       htmlContent: emailHtml,
-      attachment: attachment.length > 0 ? attachment : undefined,
     }),
   });
 
