@@ -273,8 +273,13 @@ function deleteProposal(id) {
 }
 
 function viewPDF(id) {
-  // Open PDF in new tab via API endpoint
-  window.open('/api/proposals/pdf?id=' + id, '_blank');
+  // Get estimate_no from proposal data and open PDF in new tab
+  var proposal = allProposals.find(function(p) { return p.id === id; });
+  if (proposal && proposal.estimate_no) {
+    window.open('/api/proposals/pdf?estimate_no=' + proposal.estimate_no + '&token=hc-admin-2026', '_blank');
+  } else {
+    alert('PDF not available');
+  }
 }
 
 var searchTimer;
