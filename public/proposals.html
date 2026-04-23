@@ -67,7 +67,18 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .modal-header { background: var(--midnight); color: var(--gold); padding: 1.25rem 1.5rem; border-radius: 0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
 .modal-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; }
 .modal-close { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.5rem; cursor: pointer; }
-.modal-body { padding: 2rem; flex: 1; overflow-y: auto; }
+.modal-body { 
+  padding: 2rem; 
+  flex: 1; 
+  overflow-y: scroll; 
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold) var(--cream);
+}
+.modal-body::-webkit-scrollbar { width: 8px; }
+.modal-body::-webkit-scrollbar-track { background: var(--cream); }
+.modal-body::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 4px; }
+.modal-body::-webkit-scrollbar-thumb:hover { background: var(--midnight); }
 .detail-row { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--cream-dark); font-size: 0.8rem; }
 .detail-row .label { color: var(--text-muted); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .detail-row .value { font-weight: 500; }
