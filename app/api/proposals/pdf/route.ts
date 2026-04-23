@@ -134,111 +134,61 @@ PNM not responsible for earth settling.`}</div>
   <p style="font-style:italic;font-size:9pt;color:#666">*Acknowledgment of terms above</p>
   
   ${p.signature_data ? `
-    <div style="margin: 20px 0;">
-      <p style="font-weight:bold;color:#28a745;">✓ DIGITALLY SIGNED</p>
-      <p><strong>Signed by:</strong> ${p.signature_name || 'Customer'}</p>
-      <p><strong>Date:</strong> ${p.signed_at ? new Date(p.signed_at).toLocaleDateString() : ''}</p>
-      <div style="border: 1px solid #ddd; padding: 10px; margin: 10px 0;">
-        <img src="${p.signature_data}" style="max-width: 300px; max-height: 100px;" />
+    <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background: #f9fff9;">
+      <p style="font-weight:bold; color:#28a745; margin-bottom: 8px;">✓ DIGITALLY SIGNED</p>
+      <div style="font-family: 'Dancing Script', 'Brush Script MT', 'Segoe Script', cursive; font-size: 24px; color: #1a1a5e; border-bottom: 1px solid #333; display: inline-block; padding-bottom: 2px; margin-bottom: 8px;">
+        ${p.signature_name || 'Customer'}
       </div>
+      <p style="font-size: 10px; color: #666;"><strong>Signed by:</strong> ${p.signature_name || 'Customer'}</p>
+      <p style="font-size: 10px; color: #666;"><strong>Date:</strong> ${p.signed_at ? new Date(p.signed_at).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}</p>
     </div>
   ` : `
-    <div id="signature-section">
-      <div style="margin: 15px 0;">
-        <label for="signer-name" style="font-weight:bold; font-size: 12px;">Print Your Name:</label><br>
-        <input type="text" id="signer-name" style="padding: 6px; font-size: 12px; width: 250px; margin: 5px 0; border: 1px solid #ccc;" placeholder="Enter your full name">
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+    <div id="signature-section" style="margin-top: 15px;">
+      <div style="margin-bottom: 12px;">
+        <label for="signer-name" style="font-weight:bold; font-size: 11px;">Type Your Full Name to Sign:</label><br>
+        <input type="text" id="signer-name" style="padding: 8px; font-size: 14px; width: 280px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px;" placeholder="Enter your full name">
       </div>
       
-      <div style="margin: 15px 0;">
-        <p style="font-weight:bold;">Sign Below:</p>
-        <canvas id="signature-canvas" 
-                style="border: 1px solid #333; background: white; touch-action: none; cursor: crosshair;"
-                width="250" height="80"></canvas>
-        <div style="margin: 8px 0;">
-          <button id="clear-signature" style="padding: 6px 12px; margin-right: 8px; background: #dc3545; color: white; border: none; cursor: pointer; font-size: 12px;">Clear</button>
-          <button id="save-signature" style="padding: 6px 12px; background: #28a745; color: white; border: none; cursor: pointer; font-size: 12px;">Sign & Save</button>
-        </div>
-        <p style="font-size: 9pt; color: #666; margin-top: 10px;">Sign with your finger on mobile or mouse on desktop</p>
+      <div id="signature-preview" style="display:none; margin: 10px 0; padding: 10px; background: #fafafa; border: 1px dashed #ccc; border-radius: 4px;">
+        <p style="font-size: 9px; color: #999; margin-bottom: 4px;">SIGNATURE PREVIEW:</p>
+        <div id="sig-display" style="font-family: 'Dancing Script', 'Brush Script MT', 'Segoe Script', cursive; font-size: 28px; color: #1a1a5e; border-bottom: 1px solid #333; display: inline-block; padding-bottom: 2px;"></div>
+        <p id="sig-date" style="font-size: 10px; color: #666; margin-top: 6px;"></p>
       </div>
+      
+      <div style="margin: 10px 0;">
+        <button id="save-signature" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;">✓ Sign & Submit</button>
+      </div>
+      <p style="font-size: 8pt; color: #999; margin-top: 8px;">By signing, you agree to the terms and conditions outlined in this proposal.</p>
     </div>
     
     <script>
-      const canvas = document.getElementById('signature-canvas');
-      const ctx = canvas.getContext('2d');
       const nameInput = document.getElementById('signer-name');
-      let isDrawing = false;
-      let hasSignature = false;
+      const preview = document.getElementById('signature-preview');
+      const sigDisplay = document.getElementById('sig-display');
+      const sigDate = document.getElementById('sig-date');
       
-      // Set up canvas for high DPI
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
-      
-      function getPos(e) {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-        return {
-          x: (clientX - rect.left) * (canvas.width / rect.width) / dpr,
-          y: (clientY - rect.top) * (canvas.height / rect.height) / dpr
-        };
-      }
-      
-      function startDrawing(e) {
-        isDrawing = true;
-        hasSignature = true;
-        const pos = getPos(e);
-        ctx.beginPath();
-        ctx.moveTo(pos.x, pos.y);
-        e.preventDefault();
-      }
-      
-      function draw(e) {
-        if (!isDrawing) return;
-        const pos = getPos(e);
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#000';
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-        e.preventDefault();
-      }
-      
-      function stopDrawing() {
-        isDrawing = false;
-      }
-      
-      // Mouse events
-      canvas.addEventListener('mousedown', startDrawing);
-      canvas.addEventListener('mousemove', draw);
-      canvas.addEventListener('mouseup', stopDrawing);
-      
-      // Touch events
-      canvas.addEventListener('touchstart', startDrawing);
-      canvas.addEventListener('touchmove', draw);
-      canvas.addEventListener('touchend', stopDrawing);
-      
-      // Clear signature
-      document.getElementById('clear-signature').addEventListener('click', () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        hasSignature = false;
+      nameInput.addEventListener('input', () => {
+        const name = nameInput.value.trim();
+        if (name) {
+          preview.style.display = 'block';
+          sigDisplay.textContent = name;
+          sigDate.textContent = 'Date: ' + new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        } else {
+          preview.style.display = 'none';
+        }
       });
       
-      // Save signature
       document.getElementById('save-signature').addEventListener('click', async () => {
         const name = nameInput.value.trim();
         if (!name) {
-          alert('Please enter your name');
-          return;
-        }
-        if (!hasSignature) {
-          alert('Please provide your signature');
+          alert('Please type your full name to sign');
           return;
         }
         
-        const signatureData = canvas.toDataURL();
+        if (!confirm('By clicking OK, you are digitally signing this proposal as "' + name + '". Continue?')) {
+          return;
+        }
         
         try {
           const response = await fetch('/api/proposals/sign', {
@@ -246,19 +196,19 @@ PNM not responsible for earth settling.`}</div>
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               estimate_no: '${estNo}',
-              signature_data: signatureData,
+              signature_data: 'typed:' + name,
               signature_name: name
             })
           });
           
           if (response.ok) {
-            alert('Proposal signed successfully!');
+            alert('Proposal signed successfully! Thank you.');
             window.location.reload();
           } else {
-            alert('Error saving signature');
+            alert('Error saving signature. Please try again.');
           }
         } catch (error) {
-          alert('Error saving signature');
+          alert('Error saving signature. Please try again.');
         }
       });
     </script>
