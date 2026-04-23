@@ -146,8 +146,8 @@ PNM not responsible for earth settling.`}</div>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
     <div id="signature-section" style="margin-top: 15px;">
       <div style="margin-bottom: 12px;">
-        <label for="signer-name" style="font-weight:bold; font-size: 11px;">Type Your Full Name to Sign:</label><br>
-        <input type="text" id="signer-name" style="padding: 8px; font-size: 14px; width: 280px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px;" placeholder="Enter your full name">
+        <label style="font-weight:bold; font-size: 11px;">Type Your Full Name to Sign:</label><br>
+        <input type="text" id="signer-name" oninput="updatePreview()" style="padding: 8px; font-size: 16px; width: 280px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px;" placeholder="Enter your full name">
       </div>
       
       <div id="signature-preview" style="display:none; margin: 10px 0; padding: 10px; background: #fafafa; border: 1px dashed #ccc; border-radius: 4px;">
@@ -157,30 +157,26 @@ PNM not responsible for earth settling.`}</div>
       </div>
       
       <div style="margin: 10px 0;">
-        <button id="save-signature" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;">✓ Sign & Submit</button>
+        <button type="button" onclick="submitSignature()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;">✓ Sign & Submit</button>
       </div>
       <p style="font-size: 8pt; color: #999; margin-top: 8px;">By signing, you agree to the terms and conditions outlined in this proposal.</p>
     </div>
     
     <script>
-      const nameInput = document.getElementById('signer-name');
-      const preview = document.getElementById('signature-preview');
-      const sigDisplay = document.getElementById('sig-display');
-      const sigDate = document.getElementById('sig-date');
-      
-      nameInput.addEventListener('input', () => {
-        const name = nameInput.value.trim();
+      function updatePreview() {
+        var name = document.getElementById('signer-name').value.trim();
+        var preview = document.getElementById('signature-preview');
         if (name) {
           preview.style.display = 'block';
-          sigDisplay.textContent = name;
-          sigDate.textContent = 'Date: ' + new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+          document.getElementById('sig-display').textContent = name;
+          document.getElementById('sig-date').textContent = 'Date: ' + new Date().toLocaleDateString();
         } else {
           preview.style.display = 'none';
         }
-      });
+      }
       
-      document.getElementById('save-signature').addEventListener('click', async () => {
-        const name = nameInput.value.trim();
+      function submitSignature() {
+        var name = document.getElementById('signer-name').value.trim();
         if (!name) {
           alert('Please type your full name to sign');
           return;
@@ -190,27 +186,26 @@ PNM not responsible for earth settling.`}</div>
           return;
         }
         
-        try {
-          const response = await fetch('/api/proposals/sign', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              estimate_no: '${estNo}',
-              signature_data: 'typed:' + name,
-              signature_name: name
-            })
-          });
-          
-          if (response.ok) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/proposals/sign');
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onload = function() {
+          if (xhr.status === 200) {
             alert('Proposal signed successfully! Thank you.');
             window.location.reload();
           } else {
             alert('Error saving signature. Please try again.');
           }
-        } catch (error) {
+        };
+        xhr.onerror = function() {
           alert('Error saving signature. Please try again.');
-        }
-      });
+        };
+        xhr.send(JSON.stringify({
+          estimate_no: '${estNo}',
+          signature_data: 'typed:' + name,
+          signature_name: name
+        }));
+      }
     </script>
   `}
 </div>
