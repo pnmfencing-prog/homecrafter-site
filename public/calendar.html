@@ -325,9 +325,9 @@ function formatProposalBadge(e) {
   
   var matches = [];
   
-  // Match by customer_id (most reliable)
-  if (e.customer_id) {
-    matches = allProposalsList.filter(function(p) { return p.customer_id === e.customer_id; });
+  // Match by crm_lead_id (most reliable)
+  if (e.crm_lead_id) {
+    matches = allProposalsList.filter(function(p) { return p.crm_lead_id === e.crm_lead_id; });
   }
   
   // Fallback: match by name
@@ -602,32 +602,28 @@ function saveEvent() {
   if (isEditing) body.id = parseInt(editingId);
   if (!body.title || !body.event_date) { alert('Title and date required'); return; }
   
-  // Auto-assign customer code if customer name is provided
+  // Auto-assign CRM lead if customer name is provided
   var customerName = body.customer_name;
-  if (customerName) {
-    fetch('/api/customers', api('POST', {
+  if (customerName && !body.crm_lead_id) {
+    fetch('/api/crm', api('POST', {
       action: 'find_or_create',
-      name: customerName,
-      phone: body.customer_phone || null,
-      email: body.customer_email || null
+      customer_name: customerName,
+      customer_phone: body.customer_phone || null,
+      customer_email: body.customer_email || null
     }))
     .then(function(r) { return r.json(); })
     .then(function(cdata) {
-      if (cdata.success && cdata.customer) {
-        body.customer_id = cdata.customer.id;
-        // Update title with code if not already present
-        if (body.title && body.title.indexOf(cdata.customer.code) === -1) {
-          body.description = (body.description || '') + '\nCustomer: ' + cdata.customer.code + ' — ' + cdata.customer.name;
-        }
+      if (cdata.success && cdata.lead) {
+        body.crm_lead_id = cdata.lead.id;
       }
       return fetch('/api/calendar', api('POST', body));
     })
     .then(function(r) { return r.json(); })
-    .then(function(d) { if (d.success) { closeModal(); loadMonth(); if (currentView === 'feed') loadFeed(); } });
+    .then(function(d) { if (d.success) { closeModal(); loadMonth(); loadProposals(); if (currentView === 'feed') loadFeed(); } });
   } else {
     fetch('/api/calendar', api('POST', body))
       .then(function(r) { return r.json(); })
-      .then(function(d) { if (d.success) { closeModal(); loadMonth(); if (currentView === 'feed') loadFeed(); } });
+      .then(function(d) { if (d.success) { closeModal(); loadMonth(); loadProposals(); if (currentView === 'feed') loadFeed(); } });
   }
 }
 

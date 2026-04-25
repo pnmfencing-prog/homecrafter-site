@@ -72,6 +72,36 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { action } = body;
 
+  if (action === 'find_or_create') {
+    const name = (body.customer_name || '').trim();
+    if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 });
+    
+    // Check if lead exists by exact name match
+    const existing = await sql`SELECT * FROM crm_leads WHERE LOWER(customer_name) = LOWER(${name}) LIMIT 1`;
+    if (existing.length) {
+      // Update phone/email if provided and missing
+      if (body.customer_phone && !existing[0].customer_phone) {
+        await sql`UPDATE crm_leads SET customer_phone = ${body.customer_phone}, updated_at = NOW() WHERE id = ${existing[0].id}`;
+      }
+      if (body.customer_email && !existing[0].customer_email) {
+        await sql`UPDATE crm_leads SET customer_email = ${body.customer_email}, updated_at = NOW() WHERE id = ${existing[0].id}`;
+      }
+      return NextResponse.json({ success: true, lead: existing[0], created: false });
+    }
+    
+    // Create new lead with auto-assigned code
+    const maxCode = await sql`SELECT COALESCE(MAX(CAST(lead_code AS INTEGER)), 99) + 1 as next_code FROM crm_leads WHERE lead_code ~ '^[0-9]+$'`;
+    const leadCode = String(maxCode[0].next_code);
+    const chatToken = [...Array(16)].map(() => Math.random().toString(36)[2]).join('');
+    const result = await sql`
+      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, source, status, chat_token, lead_code)
+      VALUES (${name}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.source || 'direct'}, 'new', ${chatToken}, ${leadCode})
+      RETURNING *
+    `;
+    await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${result[0].id}, 'status_change', 'Lead created from calendar')`;
+    return NextResponse.json({ success: true, lead: result[0], created: true });
+  }
+
   if (action === 'create') {
     const chatToken = [...Array(16)].map(() => Math.random().toString(36)[2]).join('');
     // Auto-assign lead code
