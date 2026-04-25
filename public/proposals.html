@@ -311,7 +311,17 @@ document.getElementById('searchBox').addEventListener('input', function() {
 
 document.getElementById('detailModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 
+// Handle URL params: ?highlight=ID opens that proposal directly
+var urlParams = new URLSearchParams(window.location.search);
+var highlightId = urlParams.get('highlight');
+
 loadProposals();
+
+if (highlightId) {
+  setTimeout(function() {
+    openDetail(parseInt(highlightId));
+  }, 500);
+}
 </script>
 </body>
 </html>
