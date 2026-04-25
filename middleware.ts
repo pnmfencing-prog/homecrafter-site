@@ -1,20 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHash } from 'crypto';
 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'pnm-fencing-session-secret-2026';
 
 // Pages that require login
 const PROTECTED_PAGES = ['/calendar.html', '/crm.html', '/proposals.html'];
 
-// API routes that require login (checked via cookie OR Bearer token)
-const PROTECTED_API = ['/api/calendar', '/api/crm', '/api/proposals'];
-
 // Public API routes (no auth needed)
 const PUBLIC_API = ['/api/auth', '/api/proposals/sign', '/api/proposals/pdf'];
 
-function verifySessionToken(token: string): boolean {
+async function sha256(message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function verifySessionToken(token: string): Promise<boolean> {
   try {
-    const decoded = Buffer.from(token, 'base64').toString();
+    const decoded = atob(token);
     const parts = decoded.split(':');
     if (parts.length !== 3) return false;
     const [username, timestamp, hash] = parts;
@@ -25,14 +29,14 @@ function verifySessionToken(token: string): boolean {
     
     // Verify hash
     const expectedData = username + ':' + timestamp + ':' + SESSION_SECRET;
-    const expectedHash = createHash('sha256').update(expectedData).digest('hex');
+    const expectedHash = await sha256(expectedData);
     return hash === expectedHash;
   } catch {
     return false;
   }
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // Check if this is a public API route
@@ -44,7 +48,9 @@ export function middleware(request: NextRequest) {
   
   // Check if this is a protected page
   const isProtectedPage = PROTECTED_PAGES.includes(pathname);
-  const isProtectedApi = PROTECTED_API.some(route => pathname.startsWith(route));
+  const isProtectedApi = pathname.startsWith('/api/calendar') || 
+                          pathname.startsWith('/api/crm') || 
+                          pathname.startsWith('/api/proposals');
   
   if (!isProtectedPage && !isProtectedApi) {
     return NextResponse.next();
@@ -52,7 +58,7 @@ export function middleware(request: NextRequest) {
   
   // Check for session cookie
   const sessionCookie = request.cookies.get('pnm_session')?.value;
-  if (sessionCookie && verifySessionToken(sessionCookie)) {
+  if (sessionCookie && await verifySessionToken(sessionCookie)) {
     return NextResponse.next();
   }
   
