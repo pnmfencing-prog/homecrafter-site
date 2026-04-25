@@ -37,6 +37,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .stat-card .label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-top: 0.25rem; }
 .stat-card.draft .num { color: var(--orange); }
 .stat-card.sent .num { color: var(--blue); }
+.stat-card.opened .num { color: var(--purple); }
 .stat-card.signed .num { color: var(--green); }
 .stat-card.all .num { color: var(--midnight); }
 
@@ -48,6 +49,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .edit-btn:hover { background: var(--midnight-light); transform: translateY(-1px); }
 .proposal-card.draft { border-left-color: var(--orange); }
 .proposal-card.sent { border-left-color: var(--blue); }
+.proposal-card.opened { border-left-color: var(--purple); }
 .proposal-card.signed { border-left-color: var(--green); }
 .proposal-card.cancelled { border-left-color: #ccc; opacity: 0.6; }
 .prop-info .prop-name { font-weight: 600; font-size: 0.9rem; color: var(--midnight); cursor: pointer; }
@@ -58,6 +60,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .prop-right .prop-status { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.15rem; }
 .prop-right .prop-status.draft { color: var(--orange); }
 .prop-right .prop-status.sent { color: var(--blue); }
+.prop-right .prop-status.opened { color: var(--purple); }
 .prop-right .prop-status.signed { color: var(--green); }
 .prop-right .prop-status.cancelled { color: #999; }
 
@@ -164,6 +167,7 @@ function renderStats(s) {
     { key: 'all', label: 'All', count: s.total, cls: 'all' },
     { key: 'draft', label: 'Draft', count: s.draft_count, cls: 'draft' },
     { key: 'sent', label: 'Sent', count: s.sent_count, cls: 'sent' },
+    { key: 'opened', label: 'Opened', count: s.opened_count || 0, cls: 'opened' },
     { key: 'signed', label: 'Signed', count: s.signed_count, cls: 'signed' },
   ];
   var html = '';
@@ -223,7 +227,7 @@ function openDetail(id) {
       var p = data.proposal;
       document.getElementById('modalTitle').textContent = '#' + p.estimate_no + ' — ' + (p.client_name || 'Proposal');
       
-      var statusColor = p.status === 'signed' ? 'var(--green)' : p.status === 'sent' ? 'var(--blue)' : p.status === 'draft' ? 'var(--orange)' : '#999';
+      var statusColor = p.status === 'signed' ? 'var(--green)' : p.status === 'opened' ? 'var(--purple)' : p.status === 'sent' ? 'var(--blue)' : p.status === 'draft' ? 'var(--orange)' : '#999';
       var spot = p.spot_holding_fee || 150;
       
       var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +

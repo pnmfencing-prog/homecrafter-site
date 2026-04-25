@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       count(*)::int as total,
       count(*) FILTER (WHERE status = 'draft')::int as draft_count,
       count(*) FILTER (WHERE status = 'sent')::int as sent_count,
+      count(*) FILTER (WHERE status = 'opened')::int as opened_count,
       count(*) FILTER (WHERE status = 'signed')::int as signed_count,
       count(*) FILTER (WHERE status = 'cancelled')::int as cancelled_count,
       coalesce(sum(total) FILTER (WHERE status = 'signed'), 0)::numeric as signed_value,

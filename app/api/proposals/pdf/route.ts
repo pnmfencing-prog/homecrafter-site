@@ -25,6 +25,12 @@ export async function GET(request: NextRequest) {
 
   const p = proposals[0];
 
+  // Track when customer opens the proposal (only update if status is 'sent')
+  if (p.status === 'sent') {
+    await sql`UPDATE proposals SET status = 'opened', updated_at = NOW() WHERE id = ${p.id} AND status = 'sent'`;
+    p.status = 'opened';
+  }
+
   // Generate PDF HTML for viewing in browser
   const spot = p.spot_holding_fee || 150;
   const gateText = p.gate_count > 0 ? `${p.gate_count} GATE${p.gate_count > 1 ? 'S' : ''}` : 'NO GATES';
