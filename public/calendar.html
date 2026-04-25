@@ -269,6 +269,14 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
           <input type="checkbox" id="ev-allday"> All day event
         </label>
       </div>
+      <div id="proposalSection" style="display:none;margin-top:0.75rem;padding:0.75rem;background:var(--cream);border-radius:8px;border:1px dashed var(--gold)">
+        <div id="proposalLinked" style="display:none">
+          <a id="proposalLink" href="#" style="display:inline-block;padding:0.4rem 0.8rem;background:var(--midnight);color:var(--gold);border-radius:6px;font-size:0.75rem;font-weight:600;text-decoration:none">📄 View Proposal</a>
+        </div>
+        <div id="proposalGenerate" style="display:none">
+          <button type="button" class="btn btn-outline" style="width:100%;border-color:var(--gold);color:var(--midnight)" onclick="generateProposal()">📄 Generate Proposal</button>
+        </div>
+      </div>
       <button class="btn btn-primary" style="width:100%;margin-top:0.75rem" onclick="saveEvent()">Save Event</button>
     </div>
   </div>
@@ -300,6 +308,15 @@ function fmtTime12(t) {
 
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function formatProposalBadge(e) {
+  if (!e.proposal_id) return '';
+  var estNo = e.proposal_estimate_no || e.proposal_id;
+  return '<div style="margin-top:0.3rem">' +
+    '<a href="/proposals.html?highlight=' + e.proposal_id + '" onclick="event.stopPropagation()" ' +
+    'style="display:inline-block;padding:0.25rem 0.6rem;background:#1e1845;color:#c4aa6a;border-radius:6px;font-size:0.65rem;font-weight:600;text-decoration:none;letter-spacing:0.03em">' +
+    '📄 Proposal #' + estNo + '</a></div>';
+}
 
 function formatCustomerInfo(e) {
   if (!e.customer_name) return '';
@@ -458,6 +475,7 @@ function loadDayView(date) {
         (e.location ? '<div class="event-meta">📍 ' + e.location + '</div>' : '') +
         formatCustomerInfo(e) +
         (e.description ? '<div class="event-meta" style="margin-top:0.3rem">' + e.description + '</div>' : '') +
+        formatProposalBadge(e) +
         '<div class="event-meta" style="margin-top:0.25rem"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;color:' + 
           (e.status === 'completed' ? 'var(--green)' : e.status === 'missed' ? 'var(--red)' : e.status === 'cancelled' ? '#999' : 'var(--blue)') + 
           '">' + e.status + '</span></div>' +
@@ -494,6 +512,7 @@ function openNewEvent(dateStr) {
   document.getElementById('ev-allday').checked = false;
   document.getElementById('eventModalTitle').textContent = 'New Event';
   document.getElementById('eventModal').dataset.editingId = ''; // Clear editing state
+  document.getElementById('proposalSection').style.display = 'none';
   
   // Load CRM leads for dropdown
   fetch('/api/crm', api('GET')).then(function(r) { return r.json(); }).then(function(data) {
@@ -586,10 +605,72 @@ function editEvent(id) {
     sel.value = event.crm_lead_id || '';
   });
   
+  // Show proposal section
+  var proposalSection = document.getElementById('proposalSection');
+  var proposalLinked = document.getElementById('proposalLinked');
+  var proposalGenerate = document.getElementById('proposalGenerate');
+  proposalSection.style.display = 'block';
+  
+  if (event.proposal_id) {
+    proposalLinked.style.display = 'block';
+    proposalGenerate.style.display = 'none';
+    var estNo = event.proposal_estimate_no || event.proposal_id;
+    document.getElementById('proposalLink').href = '/proposals.html?highlight=' + event.proposal_id;
+    document.getElementById('proposalLink').textContent = '📄 View Proposal #' + estNo;
+  } else {
+    proposalLinked.style.display = 'none';
+    proposalGenerate.style.display = 'block';
+  }
+
   // Store event ID for saving
   document.getElementById('eventModal').dataset.editingId = id;
   document.getElementById('eventModal').classList.add('show');
 }
+function generateProposal() {
+  var editingId = document.getElementById('eventModal').dataset.editingId;
+  if (!editingId) { alert('Save the event first'); return; }
+  
+  var customerName = document.getElementById('ev-customer').value || document.getElementById('ev-title').value;
+  var customerPhone = document.getElementById('ev-phone').value || '';
+  var customerEmail = document.getElementById('ev-email').value || '';
+  var notes = document.getElementById('ev-desc').value || '';
+  
+  if (!confirm('Create a new proposal for ' + customerName + '?')) return;
+  
+  // Create proposal via API
+  fetch('/api/proposals', api('POST', {
+    action: 'create',
+    client_name: customerName,
+    client_phone: customerPhone,
+    client_email: customerEmail,
+    notes: notes,
+    calendar_event_id: parseInt(editingId)
+  }))
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.success && data.proposal) {
+      // Link proposal to calendar event
+      fetch('/api/calendar', api('POST', {
+        action: 'update',
+        id: parseInt(editingId),
+        proposal_id: data.proposal.id
+      }))
+      .then(function() {
+        alert('✅ Proposal #' + data.proposal.estimate_no + ' created!');
+        closeModal();
+        loadMonth();
+        // Open proposal on proposals page
+        window.open('/proposals.html?highlight=' + data.proposal.id, '_blank');
+      });
+    } else {
+      alert('❌ Error creating proposal: ' + (data.error || 'Unknown error'));
+    }
+  })
+  .catch(function(err) {
+    alert('❌ Error: ' + err.message);
+  });
+}
+
 function editEventTime(id, currentTime) {
   var overlay = document.createElement('div');
   overlay.id = 'time-edit-overlay';
@@ -860,6 +941,7 @@ function renderFeed() {
           (e.location ? '<div class="event-meta">📍 ' + e.location + '</div>' : '') +
           formatCustomerInfo(e) +
           (e.description ? '<div class="event-meta" style="margin-top:0.3rem;white-space:pre-line">' + e.description.substring(0, 200) + '</div>' : '') +
+          formatProposalBadge(e) +
           '<div class="event-meta" style="margin-top:0.25rem"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;color:' + 
             (e.status === 'completed' ? 'var(--green)' : e.status === 'missed' ? 'var(--red)' : e.status === 'cancelled' ? '#999' : 'var(--blue)') + 
             '">' + e.status + '</span></div>' +

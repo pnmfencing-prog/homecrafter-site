@@ -17,9 +17,10 @@ export async function GET(request: NextRequest) {
 
   if (date) {
     const events = await sql`
-      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.service_type
+      SELECT ce.*, cl.customer_name AS crm_customer_name, cl.customer_phone AS crm_customer_phone, cl.service_type, p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      LEFT JOIN proposals p ON ce.proposal_id = p.id
       WHERE ce.event_date = ${date}
       ORDER BY ce.event_time ASC NULLS LAST
     `;
@@ -29,9 +30,10 @@ export async function GET(request: NextRequest) {
   if (month) {
     const startDate = `${month}-01`;
     const events = await sql`
-      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.service_type
+      SELECT ce.*, cl.customer_name AS crm_customer_name, cl.customer_phone AS crm_customer_phone, cl.service_type, p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      LEFT JOIN proposals p ON ce.proposal_id = p.id
       WHERE ce.event_date >= ${startDate}::date 
         AND ce.event_date < (${startDate}::date + INTERVAL '1 month')
       ORDER BY ce.event_date ASC, ce.event_time ASC NULLS LAST
@@ -44,9 +46,10 @@ export async function GET(request: NextRequest) {
   const to = searchParams.get('to');
   if (from && to && searchParams.get('missed') !== 'true') {
     const events = await sql`
-      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.service_type
+      SELECT ce.*, cl.customer_name AS crm_customer_name, cl.customer_phone AS crm_customer_phone, cl.service_type, p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      LEFT JOIN proposals p ON ce.proposal_id = p.id
       WHERE ce.event_date >= ${from}::date AND ce.event_date <= ${to}::date
       ORDER BY ce.event_date ASC, ce.event_time ASC NULLS LAST
     `;
@@ -61,18 +64,20 @@ export async function GET(request: NextRequest) {
     let events;
     if (from && to) {
       events = await sql`
-        SELECT ce.*, cl.customer_name, cl.customer_phone
+        SELECT ce.*, cl.customer_name, cl.customer_phone, p.estimate_no AS proposal_estimate_no
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      LEFT JOIN proposals p ON ce.proposal_id = p.id
         WHERE ce.status IN ('missed', 'scheduled') AND (ce.event_date < CURRENT_DATE OR (ce.event_date = CURRENT_DATE AND ce.event_time < LOCALTIME))
           AND ce.event_date >= ${from}::date AND ce.event_date <= ${to}::date
         ORDER BY ce.event_date DESC
       `;
     } else {
       events = await sql`
-        SELECT ce.*, cl.customer_name, cl.customer_phone
+        SELECT ce.*, cl.customer_name, cl.customer_phone, p.estimate_no AS proposal_estimate_no
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      LEFT JOIN proposals p ON ce.proposal_id = p.id
         WHERE ce.status IN ('missed', 'scheduled') AND (ce.event_date < CURRENT_DATE OR (ce.event_date = CURRENT_DATE AND ce.event_time < LOCALTIME))
         ORDER BY ce.event_date DESC
         LIMIT 50
@@ -83,9 +88,10 @@ export async function GET(request: NextRequest) {
 
   // Default: upcoming 14 days
   const events = await sql`
-    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.service_type
+    SELECT ce.*, cl.customer_name AS crm_customer_name, cl.customer_phone AS crm_customer_phone, cl.service_type, p.estimate_no AS proposal_estimate_no
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      LEFT JOIN proposals p ON ce.proposal_id = p.id
     WHERE ce.event_date >= CURRENT_DATE
       AND ce.event_date <= CURRENT_DATE + INTERVAL '14 days'
     ORDER BY ce.event_date ASC, ce.event_time ASC NULLS LAST
@@ -93,9 +99,10 @@ export async function GET(request: NextRequest) {
   
   // Also get overdue
   const overdue = await sql`
-    SELECT ce.*, cl.customer_name, cl.customer_phone
+    SELECT ce.*, cl.customer_name, cl.customer_phone, p.estimate_no AS proposal_estimate_no
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      LEFT JOIN proposals p ON ce.proposal_id = p.id
     WHERE (ce.event_date < CURRENT_DATE OR (ce.event_date = CURRENT_DATE AND ce.event_time < LOCALTIME)) AND ce.status IN ('scheduled', 'missed')
     ORDER BY ce.event_date DESC
     LIMIT 10
@@ -129,6 +136,7 @@ export async function POST(request: NextRequest) {
     if (fields.status !== undefined) await sql`UPDATE calendar_events SET status = ${fields.status}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.location !== undefined) await sql`UPDATE calendar_events SET location = ${fields.location}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.description !== undefined) await sql`UPDATE calendar_events SET description = ${fields.description}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.proposal_id !== undefined) await sql`UPDATE calendar_events SET proposal_id = ${fields.proposal_id}, updated_at = NOW() WHERE id = ${id}`;
     return NextResponse.json({ success: true });
   }
 

@@ -70,10 +70,10 @@ export async function POST(request: NextRequest) {
     const estNo = body.estimate_no || String(maxEst[0].next_no);
 
     const result = await sql`
-      INSERT INTO proposals (estimate_no, crm_lead_id, client_name, client_email, client_address, client_city, client_state, client_zip,
+      INSERT INTO proposals (estimate_no, crm_lead_id, client_name, client_email, client_phone, client_address, client_city, client_state, client_zip,
         footage, height, color, material, gate_count, panels, extra_posts, removal_type, removal_footage,
         total, deposit, installment_2, installment_3, spot_holding_fee, status, pdf_filename, notes, description_override)
-      VALUES (${estNo}, ${body.crm_lead_id || null}, ${body.client_name || null}, ${body.client_email || null},
+      VALUES (${estNo}, ${body.crm_lead_id || null}, ${body.client_name || null}, ${body.client_email || null}, ${body.client_phone || null},
         ${body.client_address || null}, ${body.client_city || null}, ${body.client_state || null}, ${body.client_zip || null},
         ${body.footage || null}, ${body.height || '6ft'}, ${body.color || 'White'}, ${body.material || 'vinyl'},
         ${body.gate_count || 0}, ${body.panels || null}, ${body.extra_posts || 2},
