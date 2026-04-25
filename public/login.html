@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — PNM Fencing</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+  font-family: 'Montserrat', sans-serif; 
+  background: linear-gradient(135deg, #1e1845 0%, #2a2260 50%, #1e1845 100%); 
+  min-height: 100vh; 
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  padding: 1rem;
+}
+.login-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  text-align: center;
+}
+.logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;
+  font-size: 2rem;
+  letter-spacing: 0.2em;
+  color: #1e1845;
+  margin-bottom: 0.25rem;
+}
+.logo-sub {
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  color: #999;
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+}
+.form-group {
+  margin-bottom: 1rem;
+  text-align: left;
+}
+.form-group label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+  margin-bottom: 0.3rem;
+}
+.form-group input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e0ddd6;
+  border-radius: 8px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-group input:focus {
+  border-color: #c4aa6a;
+}
+.login-btn {
+  width: 100%;
+  padding: 0.85rem;
+  background: #1e1845;
+  color: #c4aa6a;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
+}
+.login-btn:hover {
+  background: #2a2260;
+}
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.error-msg {
+  color: #c0392b;
+  font-size: 0.75rem;
+  margin-top: 0.75rem;
+  display: none;
+}
+.error-msg.show {
+  display: block;
+}
+</style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="logo">PNM FENCING</div>
+  <div class="logo-sub">Management Portal</div>
+  
+  <form onsubmit="handleLogin(event)">
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="username" placeholder="Enter username" autocomplete="username" required>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="Enter password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
+  </form>
+  <div class="error-msg" id="errorMsg">Invalid username or password</div>
+</div>
+
+<script>
+function handleLogin(e) {
+  e.preventDefault();
+  var btn = document.getElementById('loginBtn');
+  var errorMsg = document.getElementById('errorMsg');
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+  errorMsg.classList.remove('show');
+  
+  var username = document.getElementById('username').value;
+  var password = document.getElementById('password').value;
+  
+  fetch('/api/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: username, password: password })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.success) {
+      // Redirect to intended page or calendar
+      var redirect = new URLSearchParams(window.location.search).get('redirect') || '/calendar.html';
+      window.location.href = redirect;
+    } else {
+      errorMsg.textContent = data.error || 'Invalid username or password';
+      errorMsg.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  })
+  .catch(function() {
+    errorMsg.textContent = 'Connection error. Please try again.';
+    errorMsg.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  });
+}
+</script>
+</body>
+</html>
