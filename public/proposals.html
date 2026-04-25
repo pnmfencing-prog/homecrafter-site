@@ -242,47 +242,47 @@ function renderProposalView(p) {
     '<span style="font-family:Cormorant Garamond;font-size:1.5rem;font-weight:700;color:var(--green)">$' + Number(p.total || 0).toLocaleString() + '</span>' +
   '</div>';
   
+  var dollarFields = ['total','spot_holding_fee','deposit','installment_2','installment_3'];
   var rows = [
-    ['Client', p.client_name, 'client_name', 'text'],
-    ['Phone', p.client_phone, 'client_phone', 'tel'],
-    ['Email', p.client_email, 'client_email', 'email'],
-    ['Address', p.client_address, 'client_address', 'text'],
-    ['City', p.client_city, 'client_city', 'text'],
-    ['State', p.client_state, 'client_state', 'text'],
-    ['Zip', p.client_zip, 'client_zip', 'text'],
-    ['Footage (LF)', p.footage, 'footage', 'number'],
-    ['Height', p.height, 'height', 'text'],
-    ['Color', p.color, 'color', 'text'],
-    ['Material', p.material, 'material', 'text'],
-    ['Gates', p.gate_count, 'gate_count', 'number'],
-    ['Panels', p.panels, 'panels', 'number'],
-    ['Posts', p.extra_posts, 'extra_posts', 'number'],
-    ['Total', p.total, 'total', 'number'],
-    ['Spot Fee', p.spot_holding_fee, 'spot_holding_fee', 'number'],
-    ['Deposit (50%)', p.deposit, 'deposit', 'number'],
-    ['Delivery (25%)', p.installment_2, 'installment_2', 'number'],
-    ['Completion (25%)', p.installment_3, 'installment_3', 'number'],
+    ['Client', 'client_name', 'text'],
+    ['Phone', 'client_phone', 'tel'],
+    ['Email', 'client_email', 'email'],
+    ['Address', 'client_address', 'text'],
+    ['City', 'client_city', 'text'],
+    ['State', 'client_state', 'text'],
+    ['Zip', 'client_zip', 'text'],
+    ['Footage (LF)', 'footage', 'number'],
+    ['Height', 'height', 'text'],
+    ['Color', 'color', 'text'],
+    ['Material', 'material', 'text'],
+    ['Gates', 'gate_count', 'number'],
+    ['Panels', 'panels', 'number'],
+    ['Posts', 'extra_posts', 'number'],
+    ['Total', 'total', 'number'],
+    ['Spot Fee', 'spot_holding_fee', 'number'],
+    ['Deposit (50%)', 'deposit', 'number'],
+    ['Delivery (25%)', 'installment_2', 'number'],
+    ['Completion (25%)', 'installment_3', 'number'],
   ];
   rows.forEach(function(r) {
-    var displayVal = r[1];
-    if (['total','spot_holding_fee','deposit','installment_2','installment_3'].indexOf(r[2]) >= 0) {
-      displayVal = displayVal ? '$' + Number(displayVal).toLocaleString() : '';
-    }
-    if (r[2] === 'footage' && displayVal) displayVal += ' LF';
-    html += '<div class="detail-row" style="cursor:pointer" onclick="inlineEdit(this,' + p.id + ',\'' + r[2] + '\',\'' + r[3] + '\')" title="Tap to edit">' +
+    var rawVal = p[r[1]];
+    var displayVal = rawVal;
+    if (dollarFields.indexOf(r[1]) >= 0) displayVal = rawVal ? '$' + Number(rawVal).toLocaleString() : '$0';
+    if (r[1] === 'footage' && displayVal) displayVal += ' LF';
+    html += '<div class="detail-row editable-row" data-field="' + r[1] + '" data-type="' + r[2] + '" data-propid="' + p.id + '">' +
       '<span class="label">' + r[0] + '</span>' +
-      '<span class="value" style="display:flex;align-items:center;gap:4px">' + (displayVal || '<em style=&quot;color:#ccc&quot;>empty</em>') + ' <span style="font-size:0.55rem;color:#ccc">✎</span></span></div>';
+      '<span class="value">' + (displayVal || '<em style="color:#ccc">—</em>') + ' <span style="font-size:0.55rem;color:#ccc">✎</span></span></div>';
   });
   
-  // Notes - tappable
-  html += '<div style="margin-top:1rem;padding:0.75rem;background:var(--cream);border-radius:8px;font-size:0.8rem;border-left:3px solid var(--gold);cursor:pointer" onclick="inlineEditText(this,' + p.id + ',\'notes\')" title="Tap to edit notes">' +
+  // Notes
+  html += '<div class="editable-text-row" data-field="notes" data-propid="' + p.id + '" style="margin-top:1rem;padding:0.75rem;background:var(--cream);border-radius:8px;font-size:0.8rem;border-left:3px solid var(--gold);cursor:pointer">' +
     '<strong style="font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b">Notes ✎</strong><br>' +
-    '<span style="white-space:pre-line">' + (p.notes || '<em style="color:#ccc">No notes</em>') + '</span></div>';
+    '<span class="text-content" style="white-space:pre-line">' + (p.notes || '<em style="color:#ccc">No notes</em>') + '</span></div>';
   
-  // Description - tappable
-  html += '<div style="margin-top:0.5rem;padding:0.75rem;background:#f5f5f0;border-radius:8px;font-size:0.75rem;border-left:3px solid var(--midnight);cursor:pointer" onclick="inlineEditText(this,' + p.id + ',\'description_override\')" title="Tap to edit description">' +
+  // Description
+  html += '<div class="editable-text-row" data-field="description_override" data-propid="' + p.id + '" style="margin-top:0.5rem;padding:0.75rem;background:#f5f5f0;border-radius:8px;font-size:0.75rem;border-left:3px solid var(--midnight);cursor:pointer">' +
     '<strong style="font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b">Description ✎</strong><br>' +
-    '<span style="white-space:pre-line">' + (p.description_override || '<em style="color:#ccc">No description</em>') + '</span></div>';
+    '<span class="text-content" style="white-space:pre-line">' + (p.description_override || '<em style="color:#ccc">No description</em>') + '</span></div>';
   
   html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1.25rem">';
   html += '<button class="btn btn-primary" onclick="openEditProposal(' + p.id + ')">✏️ Edit</button>';
@@ -365,75 +365,137 @@ function openEditProposal(id) {
   document.getElementById('modalBody').innerHTML = html;
 }
 
-function inlineEdit(el, propId, field, type) {
-  var currentVal = currentProposal[field] || '';
-  var isDollar = ['total','spot_holding_fee','deposit','installment_2','installment_3'].indexOf(field) >= 0;
-  
-  var input = document.createElement('input');
-  input.type = type || 'text';
-  input.value = currentVal;
-  input.style.cssText = 'width:100%;padding:0.4rem;border:2px solid var(--gold);border-radius:6px;font-size:16px;font-family:Montserrat;outline:none;background:#fffef5';
-  if (isDollar) input.placeholder = '0.00';
-  
-  var valueSpan = el.querySelector('.value');
-  var origHTML = valueSpan.innerHTML;
-  valueSpan.innerHTML = '';
-  valueSpan.appendChild(input);
-  input.focus();
-  input.select();
-  
-  function save() {
-    var newVal = input.value;
-    if (type === 'number') newVal = parseFloat(newVal) || null;
+// Delegated click handler for editable rows — no inline onclick, no blur re-render bugs
+var activeEditor = null;
+
+document.addEventListener('click', function(e) {
+  // Handle editable field rows
+  var row = e.target.closest('.editable-row');
+  if (row && !row.classList.contains('editing')) {
+    e.stopPropagation();
+    // Close any existing editor first without re-rendering
+    closeActiveEditor();
     
-    var body = { action: 'update', id: propId };
-    body[field] = newVal;
+    var field = row.dataset.field;
+    var type = row.dataset.type;
+    var propId = parseInt(row.dataset.propid);
+    var rawVal = currentProposal[field];
     
-    fetch('/api/proposals', api('POST', body))
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (d.success) {
-          currentProposal[field] = newVal;
-          renderProposalView(currentProposal);
-          loadProposals();
-        } else {
-          valueSpan.innerHTML = origHTML;
-        }
-      });
+    row.classList.add('editing');
+    var valueSpan = row.querySelector('.value');
+    var origHTML = valueSpan.innerHTML;
+    
+    var input = document.createElement('input');
+    input.type = type || 'text';
+    input.value = rawVal || '';
+    input.style.cssText = 'width:100%;padding:0.4rem;border:2px solid var(--gold);border-radius:6px;font-size:16px;font-family:Montserrat;outline:none;background:#fffef5';
+    input.className = 'inline-editor';
+    
+    valueSpan.innerHTML = '';
+    valueSpan.appendChild(input);
+    input.focus();
+    input.select();
+    
+    activeEditor = {
+      row: row,
+      input: input,
+      field: field,
+      type: type,
+      propId: propId,
+      origHTML: origHTML
+    };
+    
+    input.addEventListener('keydown', function(ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); saveActiveEditor(); }
+      if (ev.key === 'Escape') { closeActiveEditor(); }
+    });
+    return;
   }
   
-  input.addEventListener('blur', save);
-  input.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') { e.preventDefault(); save(); }
-    if (e.key === 'Escape') { valueSpan.innerHTML = origHTML; }
-  });
-}
-
-function inlineEditText(el, propId, field) {
-  var currentVal = currentProposal[field] || '';
+  // Handle editable text rows (notes, description)
+  var textRow = e.target.closest('.editable-text-row');
+  if (textRow && !textRow.classList.contains('editing')) {
+    e.stopPropagation();
+    closeActiveEditor();
+    
+    var field = textRow.dataset.field;
+    var propId = parseInt(textRow.dataset.propid);
+    var rawVal = currentProposal[field] || '';
+    
+    textRow.classList.add('editing');
+    var contentSpan = textRow.querySelector('.text-content');
+    var origHTML = contentSpan.innerHTML;
+    
+    contentSpan.innerHTML = '<textarea class="inline-editor" rows="5" style="width:100%;padding:0.5rem;border:2px solid var(--gold);border-radius:6px;font-size:14px;font-family:Montserrat;resize:vertical;outline:none;background:#fffef5;margin-top:0.3rem">' + rawVal + '</textarea>' +
+      '<div style="display:flex;gap:0.4rem;margin-top:0.4rem">' +
+      '<button class="btn btn-primary btn-sm save-text-btn">💾 Save</button>' +
+      '<button class="btn btn-outline btn-sm cancel-text-btn">Cancel</button></div>';
+    
+    var ta = contentSpan.querySelector('textarea');
+    ta.focus();
+    
+    activeEditor = {
+      row: textRow,
+      input: ta,
+      field: field,
+      type: 'textarea',
+      propId: propId,
+      origHTML: origHTML,
+      contentSpan: contentSpan
+    };
+    
+    contentSpan.querySelector('.save-text-btn').addEventListener('click', function(ev) {
+      ev.stopPropagation();
+      saveActiveEditor();
+    });
+    contentSpan.querySelector('.cancel-text-btn').addEventListener('click', function(ev) {
+      ev.stopPropagation();
+      closeActiveEditor();
+    });
+    return;
+  }
   
-  el.innerHTML = '<textarea id="inline-ta" rows="5" style="width:100%;padding:0.5rem;border:2px solid var(--gold);border-radius:6px;font-size:14px;font-family:Montserrat;resize:vertical;outline:none;background:#fffef5">' + currentVal + '</textarea>' +
-    '<div style="display:flex;gap:0.4rem;margin-top:0.4rem">' +
-    '<button class="btn btn-primary btn-sm" onclick="saveInlineText(' + propId + ',\'' + field + '\')">💾 Save</button>' +
-    '<button class="btn btn-outline btn-sm" onclick="renderProposalView(currentProposal)">Cancel</button></div>';
-  
-  document.getElementById('inline-ta').focus();
-}
+  // Click outside — close editor
+  if (activeEditor && !e.target.closest('.inline-editor') && !e.target.closest('.save-text-btn') && !e.target.closest('.cancel-text-btn')) {
+    saveActiveEditor();
+  }
+});
 
-function saveInlineText(propId, field) {
-  var val = document.getElementById('inline-ta').value || null;
-  var body = { action: 'update', id: propId };
-  body[field] = val;
+function saveActiveEditor() {
+  if (!activeEditor) return;
+  var ed = activeEditor;
+  var newVal = ed.input.value;
+  if (ed.type === 'number') newVal = parseFloat(newVal) || 0;
+  
+  activeEditor = null;
+  ed.row.classList.remove('editing');
+  
+  // Optimistic update
+  currentProposal[ed.field] = newVal;
+  
+  var body = { action: 'update', id: ed.propId };
+  body[ed.field] = newVal;
   
   fetch('/api/proposals', api('POST', body))
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (d.success) {
-        currentProposal[field] = val;
         renderProposalView(currentProposal);
         loadProposals();
       }
     });
+}
+
+function closeActiveEditor() {
+  if (!activeEditor) return;
+  var ed = activeEditor;
+  activeEditor = null;
+  ed.row.classList.remove('editing');
+  if (ed.contentSpan) {
+    ed.contentSpan.innerHTML = ed.origHTML;
+  } else {
+    ed.row.querySelector('.value').innerHTML = ed.origHTML;
+  }
 }
 
 function autoCalcPayments() {
