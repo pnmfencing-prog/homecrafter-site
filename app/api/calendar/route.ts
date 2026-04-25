@@ -119,10 +119,10 @@ export async function POST(request: NextRequest) {
 
   if (action === 'create') {
     const result = await sql`
-      INSERT INTO calendar_events (title, description, event_type, event_date, event_time, end_time, all_day, crm_lead_id, location)
+      INSERT INTO calendar_events (title, description, event_type, event_date, event_time, end_time, all_day, crm_lead_id, location, customer_id)
       VALUES (${body.title}, ${body.description || null}, ${body.event_type || 'appointment'}, 
               ${body.event_date}, ${body.event_time || null}, ${body.end_time || null},
-              ${body.all_day || false}, ${body.crm_lead_id || null}, ${body.location || null})
+              ${body.all_day || false}, ${body.crm_lead_id || null}, ${body.location || null}, ${body.customer_id || null})
       RETURNING *
     `;
     return NextResponse.json({ success: true, event: result[0] });
@@ -137,6 +137,7 @@ export async function POST(request: NextRequest) {
     if (fields.location !== undefined) await sql`UPDATE calendar_events SET location = ${fields.location}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.description !== undefined) await sql`UPDATE calendar_events SET description = ${fields.description}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.proposal_id !== undefined) await sql`UPDATE calendar_events SET proposal_id = ${fields.proposal_id}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.customer_id !== undefined) await sql`UPDATE calendar_events SET customer_id = ${fields.customer_id}, updated_at = NOW() WHERE id = ${id}`;
     return NextResponse.json({ success: true });
   }
 

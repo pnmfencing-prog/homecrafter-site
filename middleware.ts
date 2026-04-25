@@ -50,7 +50,8 @@ export async function middleware(request: NextRequest) {
   const isProtectedPage = PROTECTED_PAGES.includes(pathname);
   const isProtectedApi = pathname.startsWith('/api/calendar') || 
                           pathname.startsWith('/api/crm') || 
-                          pathname.startsWith('/api/proposals');
+                          pathname.startsWith('/api/proposals') ||
+                          pathname.startsWith('/api/customers');
   
   if (!isProtectedPage && !isProtectedApi) {
     return NextResponse.next();
@@ -88,5 +89,6 @@ export const config = {
     '/api/calendar/:path*',
     '/api/crm/:path*',
     '/api/proposals/:path*',
+    '/api/customers/:path*',
   ]
 };
