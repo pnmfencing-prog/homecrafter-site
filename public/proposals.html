@@ -220,53 +220,174 @@ function filterBy(status) {
   loadProposals();
 }
 
+var currentProposal = null;
+
 function openDetail(id) {
   fetch('/api/proposals?id=' + id, api('GET'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      var p = data.proposal;
-      document.getElementById('modalTitle').textContent = '#' + p.estimate_no + ' — ' + (p.client_name || 'Proposal');
-      
-      var statusColor = p.status === 'signed' ? 'var(--green)' : p.status === 'opened' ? 'var(--purple)' : p.status === 'sent' ? 'var(--blue)' : p.status === 'draft' ? 'var(--orange)' : '#999';
-      var spot = p.spot_holding_fee || 150;
-      
-      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +
-        '<span style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:' + statusColor + '">' + p.status + '</span>' +
-        '<span style="font-family:Cormorant Garamond;font-size:1.5rem;font-weight:700;color:var(--green)">$' + Number(p.total || 0).toLocaleString() + '</span>' +
-      '</div>';
-      
-      var rows = [
-        ['Client', p.client_name],
-        ['Email', p.client_email],
-        ['Address', [p.client_address, p.client_city, p.client_state, p.client_zip].filter(Boolean).join(', ')],
-        ['Footage', p.footage ? p.footage + ' LF' : ''],
-        ['Height', p.height],
-        ['Material', (p.color || '') + ' ' + (p.material || '')],
-        ['Gates', p.gate_count || 0],
-        ['Panels', p.panels],
-        ['Spot Fee', '$' + Number(spot).toFixed(0)],
-        ['Deposit (50%)', '$' + Number(p.deposit || 0).toLocaleString()],
-        ['Delivery (25%)', '$' + Number(p.installment_2 || 0).toLocaleString()],
-        ['Completion (25%)', '$' + Number(p.installment_3 || 0).toLocaleString()],
-      ];
-      rows.forEach(function(r) {
-        if (r[1]) html += '<div class="detail-row"><span class="label">' + r[0] + '</span><span class="value">' + r[1] + '</span></div>';
-      });
-      
-      if (p.notes) html += '<div style="margin-top:1rem;padding:0.75rem;background:var(--cream);border-radius:8px;font-size:0.8rem;border-left:3px solid var(--gold)">' + p.notes + '</div>';
-      
-      html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1.25rem">';
-      html += '<button class="btn btn-outline" onclick="viewPDF(' + p.id + ')">📄 View PDF</button>';
-      if (p.client_email && p.status !== 'signed') html += '<button class="btn btn-green" onclick="sendProposal(' + p.id + ',\'' + (p.client_email || '') + '\')">✉️ Send to Customer</button>';
-      if (p.status === 'draft') html += '<button class="btn btn-outline" onclick="updateStatus(' + p.id + ',\'sent\')">Mark Sent</button>';
-      if (p.status === 'sent') html += '<button class="btn btn-green" onclick="updateStatus(' + p.id + ',\'signed\')">Mark Signed ✓</button>';
-      if (p.status !== 'cancelled' && p.status !== 'signed') html += '<button class="btn btn-outline" style="color:var(--red)" onclick="updateStatus(' + p.id + ',\'cancelled\')">Cancel</button>';
-      if (p.status === 'cancelled') html += '<button class="btn btn-outline" onclick="updateStatus(' + p.id + ',\'draft\')">Reopen</button>';
-      html += '<button class="btn btn-outline" style="color:var(--red);margin-left:auto" onclick="if(confirm(\'Delete?\'))deleteProposal(' + p.id + ')">🗑 Delete</button>';
-      html += '</div>';
-      
-      document.getElementById('modalBody').innerHTML = html;
-      document.getElementById('detailModal').classList.add('show');
+      currentProposal = data.proposal;
+      renderProposalView(currentProposal);
+    });
+}
+
+function renderProposalView(p) {
+  document.getElementById('modalTitle').textContent = '#' + p.estimate_no + ' — ' + (p.client_name || 'Proposal');
+  
+  var statusColor = p.status === 'signed' ? 'var(--green)' : p.status === 'opened' ? 'var(--purple)' : p.status === 'sent' ? 'var(--blue)' : p.status === 'draft' ? 'var(--orange)' : '#999';
+  var spot = p.spot_holding_fee || 150;
+  
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +
+    '<span style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:' + statusColor + '">' + p.status + '</span>' +
+    '<span style="font-family:Cormorant Garamond;font-size:1.5rem;font-weight:700;color:var(--green)">$' + Number(p.total || 0).toLocaleString() + '</span>' +
+  '</div>';
+  
+  var rows = [
+    ['Client', p.client_name],
+    ['Phone', p.client_phone],
+    ['Email', p.client_email],
+    ['Address', [p.client_address, p.client_city, p.client_state, p.client_zip].filter(Boolean).join(', ')],
+    ['Footage', p.footage ? p.footage + ' LF' : ''],
+    ['Height', p.height],
+    ['Material', (p.color || '') + ' ' + (p.material || '')],
+    ['Gates', p.gate_count || 0],
+    ['Panels', p.panels],
+    ['Posts', p.extra_posts],
+    ['Spot Fee', '$' + Number(spot).toFixed(0)],
+    ['Deposit (50%)', '$' + Number(p.deposit || 0).toLocaleString()],
+    ['Delivery (25%)', '$' + Number(p.installment_2 || 0).toLocaleString()],
+    ['Completion (25%)', '$' + Number(p.installment_3 || 0).toLocaleString()],
+  ];
+  rows.forEach(function(r) {
+    if (r[1]) html += '<div class="detail-row"><span class="label">' + r[0] + '</span><span class="value">' + r[1] + '</span></div>';
+  });
+  
+  if (p.notes) html += '<div style="margin-top:1rem;padding:0.75rem;background:var(--cream);border-radius:8px;font-size:0.8rem;border-left:3px solid var(--gold);white-space:pre-line">' + p.notes + '</div>';
+  if (p.description_override) html += '<div style="margin-top:0.5rem;padding:0.75rem;background:#f5f5f0;border-radius:8px;font-size:0.75rem;border-left:3px solid var(--midnight);white-space:pre-line"><strong>Description:</strong><br>' + p.description_override + '</div>';
+  
+  html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1.25rem">';
+  html += '<button class="btn btn-primary" onclick="openEditProposal(' + p.id + ')">✏️ Edit</button>';
+  html += '<button class="btn btn-outline" onclick="viewPDF(' + p.id + ')">📄 View PDF</button>';
+  if (p.client_email && p.status !== 'signed') html += '<button class="btn btn-green" onclick="sendProposal(' + p.id + ',\'' + (p.client_email || '') + '\')">✉️ Send</button>';
+  if (p.status === 'draft') html += '<button class="btn btn-outline" onclick="updateStatus(' + p.id + ',\'sent\')">Mark Sent</button>';
+  if (p.status === 'sent' || p.status === 'opened') html += '<button class="btn btn-green" onclick="updateStatus(' + p.id + ',\'signed\')">Mark Signed ✓</button>';
+  if (p.status !== 'cancelled' && p.status !== 'signed') html += '<button class="btn btn-outline" style="color:var(--red)" onclick="updateStatus(' + p.id + ',\'cancelled\')">Cancel</button>';
+  if (p.status === 'cancelled') html += '<button class="btn btn-outline" onclick="updateStatus(' + p.id + ',\'draft\')">Reopen</button>';
+  html += '<button class="btn btn-outline" style="color:var(--red);margin-left:auto" onclick="if(confirm(\'Delete?\'))deleteProposal(' + p.id + ')">🗑</button>';
+  html += '</div>';
+  
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('detailModal').classList.add('show');
+}
+
+function openEditProposal(id) {
+  var p = currentProposal;
+  if (!p || p.id !== id) return;
+  
+  document.getElementById('modalTitle').textContent = '✏️ Edit #' + p.estimate_no;
+  
+  var fld = function(label, id, val, type, placeholder) {
+    type = type || 'text';
+    return '<div style="margin-bottom:0.6rem"><label style="display:block;font-size:0.6rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b;margin-bottom:0.2rem">' + label + '</label>' +
+      '<input type="' + type + '" id="pe-' + id + '" value="' + (val || '') + '" placeholder="' + (placeholder || '') + '" style="width:100%;padding:0.5rem 0.6rem;border:1px solid #e0ddd6;border-radius:6px;font-size:16px;font-family:Montserrat"></div>';
+  };
+  
+  var html = '';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 0.75rem">';
+  html += fld('Client Name', 'client_name', p.client_name);
+  html += fld('Phone', 'client_phone', p.client_phone, 'tel');
+  html += '</div>';
+  html += fld('Email', 'client_email', p.client_email, 'email');
+  html += '<div style="display:grid;grid-template-columns:2fr 1fr 0.5fr 1fr;gap:0 0.5rem">';
+  html += fld('Address', 'client_address', p.client_address);
+  html += fld('City', 'client_city', p.client_city);
+  html += fld('State', 'client_state', p.client_state);
+  html += fld('Zip', 'client_zip', p.client_zip);
+  html += '</div>';
+  
+  html += '<div style="border-top:1px solid #e0ddd6;margin:0.75rem 0;padding-top:0.75rem"></div>';
+  
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">';
+  html += fld('Total ($)', 'total', p.total, 'number');
+  html += fld('Spot Fee ($)', 'spot_holding_fee', p.spot_holding_fee || 150, 'number');
+  html += '<div style="margin-bottom:0.6rem;display:flex;align-items:flex-end;padding-bottom:0.3rem"><button type="button" class="btn btn-outline btn-sm" onclick="autoCalcPayments()" style="width:100%">Auto-Calc ↻</button></div>';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">';
+  html += fld('Deposit 50%', 'deposit', p.deposit, 'number');
+  html += fld('Delivery 25%', 'installment_2', p.installment_2, 'number');
+  html += fld('Completion 25%', 'installment_3', p.installment_3, 'number');
+  html += '</div>';
+  
+  html += '<div style="border-top:1px solid #e0ddd6;margin:0.75rem 0;padding-top:0.75rem"></div>';
+  
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0 0.75rem">';
+  html += fld('Footage (LF)', 'footage', p.footage, 'number');
+  html += fld('Panels', 'panels', p.panels, 'number');
+  html += fld('Posts', 'extra_posts', p.extra_posts, 'number');
+  html += fld('Gates', 'gate_count', p.gate_count, 'number');
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">';
+  html += fld('Height', 'height', p.height);
+  html += fld('Color', 'color', p.color);
+  html += fld('Material', 'material', p.material);
+  html += '</div>';
+  
+  html += '<div style="margin-top:0.6rem"><label style="display:block;font-size:0.6rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b;margin-bottom:0.2rem">Notes</label>' +
+    '<textarea id="pe-notes" rows="3" style="width:100%;padding:0.5rem;border:1px solid #e0ddd6;border-radius:6px;font-size:14px;font-family:Montserrat;resize:vertical">' + (p.notes || '') + '</textarea></div>';
+  
+  html += '<div style="margin-top:0.6rem"><label style="display:block;font-size:0.6rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b;margin-bottom:0.2rem">Description (shown on proposal)</label>' +
+    '<textarea id="pe-description_override" rows="4" style="width:100%;padding:0.5rem;border:1px solid #e0ddd6;border-radius:6px;font-size:14px;font-family:Montserrat;resize:vertical">' + (p.description_override || '') + '</textarea></div>';
+  
+  html += '<div style="display:flex;gap:0.5rem;margin-top:1rem">';
+  html += '<button class="btn btn-primary" style="flex:1" onclick="saveProposalEdit(' + p.id + ')">💾 Save Changes</button>';
+  html += '<button class="btn btn-outline" onclick="renderProposalView(currentProposal)">Cancel</button>';
+  html += '</div>';
+  
+  document.getElementById('modalBody').innerHTML = html;
+}
+
+function autoCalcPayments() {
+  var total = parseFloat(document.getElementById('pe-total').value) || 0;
+  var spot = parseFloat(document.getElementById('pe-spot_holding_fee').value) || 150;
+  var remaining = total - spot;
+  document.getElementById('pe-deposit').value = Math.floor(remaining * 0.50);
+  document.getElementById('pe-installment_2').value = Math.floor(remaining * 0.25);
+  document.getElementById('pe-installment_3').value = remaining - Math.floor(remaining * 0.50) - Math.floor(remaining * 0.25);
+}
+
+function saveProposalEdit(id) {
+  var fields = ['client_name','client_phone','client_email','client_address','client_city','client_state','client_zip',
+    'total','spot_holding_fee','deposit','installment_2','installment_3',
+    'footage','panels','extra_posts','gate_count','height','color','material'];
+  
+  var body = { action: 'update', id: id };
+  fields.forEach(function(f) {
+    var el = document.getElementById('pe-' + f);
+    if (el) body[f] = el.value || null;
+  });
+  body.notes = document.getElementById('pe-notes').value || null;
+  body.description_override = document.getElementById('pe-description_override').value || null;
+  
+  // Convert number fields
+  ['total','spot_holding_fee','deposit','installment_2','installment_3','footage','panels','extra_posts','gate_count'].forEach(function(f) {
+    if (body[f]) body[f] = parseFloat(body[f]);
+  });
+  
+  fetch('/api/proposals', api('POST', body))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) {
+        // Refresh proposal data
+        fetch('/api/proposals?id=' + id, api('GET'))
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            currentProposal = data.proposal;
+            renderProposalView(currentProposal);
+            loadProposals();
+          });
+      } else {
+        alert('❌ Error saving: ' + (d.error || 'Unknown'));
+      }
     });
 }
 

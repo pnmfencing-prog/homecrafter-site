@@ -87,6 +87,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, proposal: result[0] });
   }
 
+  if (action === 'update') {
+    const id = body.id;
+    const f = body;
+    if (f.client_name !== undefined) await sql`UPDATE proposals SET client_name = ${f.client_name}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.client_phone !== undefined) await sql`UPDATE proposals SET client_phone = ${f.client_phone}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.client_email !== undefined) await sql`UPDATE proposals SET client_email = ${f.client_email}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.client_address !== undefined) await sql`UPDATE proposals SET client_address = ${f.client_address}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.client_city !== undefined) await sql`UPDATE proposals SET client_city = ${f.client_city}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.client_state !== undefined) await sql`UPDATE proposals SET client_state = ${f.client_state}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.client_zip !== undefined) await sql`UPDATE proposals SET client_zip = ${f.client_zip}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.total !== undefined) await sql`UPDATE proposals SET total = ${f.total}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.spot_holding_fee !== undefined) await sql`UPDATE proposals SET spot_holding_fee = ${f.spot_holding_fee}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.deposit !== undefined) await sql`UPDATE proposals SET deposit = ${f.deposit}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.installment_2 !== undefined) await sql`UPDATE proposals SET installment_2 = ${f.installment_2}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.installment_3 !== undefined) await sql`UPDATE proposals SET installment_3 = ${f.installment_3}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.footage !== undefined) await sql`UPDATE proposals SET footage = ${f.footage}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.panels !== undefined) await sql`UPDATE proposals SET panels = ${f.panels}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.extra_posts !== undefined) await sql`UPDATE proposals SET extra_posts = ${f.extra_posts}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.gate_count !== undefined) await sql`UPDATE proposals SET gate_count = ${f.gate_count}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.height !== undefined) await sql`UPDATE proposals SET height = ${f.height}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.color !== undefined) await sql`UPDATE proposals SET color = ${f.color}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.material !== undefined) await sql`UPDATE proposals SET material = ${f.material}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.notes !== undefined) await sql`UPDATE proposals SET notes = ${f.notes}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.description_override !== undefined) await sql`UPDATE proposals SET description_override = ${f.description_override}, updated_at = NOW() WHERE id = ${id}`;
+    return NextResponse.json({ success: true });
+  }
+
   if (action === 'update_status') {
     await sql`UPDATE proposals SET status = ${body.status}, updated_at = NOW() WHERE id = ${body.id}`;
     return NextResponse.json({ success: true });
