@@ -727,11 +727,14 @@ if (paramDate) {
 
 function searchEvents(query) {
   currentSearch = query.trim();
-  renderCalendar(); // Re-render with filtered events
-  // If searching, also update day view if visible
-  var dayView = document.getElementById('dayView');
-  if (dayView.style.display !== 'none') {
-    selectDay(fmtDate(selectedDate));
+  if (currentView === 'feed') {
+    renderFeed();
+  } else {
+    renderCalendar();
+    var dayView = document.getElementById('dayView');
+    if (dayView.style.display !== 'none') {
+      selectDay(fmtDate(selectedDate));
+    }
   }
 }
 
@@ -797,9 +800,21 @@ function loadFeed() {
 function renderFeed() {
   var todayStr = fmtDate(new Date());
   
+  // Filter by search
+  var filtered = feedEvents.filter(function(e) {
+    if (!currentSearch) return true;
+    var q = currentSearch.toLowerCase();
+    return (e.title || '').toLowerCase().includes(q) ||
+      (e.description || '').toLowerCase().includes(q) ||
+      (e.location || '').toLowerCase().includes(q) ||
+      (e.customer_name || '').toLowerCase().includes(q) ||
+      (e.customer_phone || '').toLowerCase().includes(q) ||
+      (e.customer_email || '').toLowerCase().includes(q);
+  });
+
   // Group events by date
   var groups = {};
-  feedEvents.forEach(function(e) {
+  filtered.forEach(function(e) {
     var dateKey = (e.event_date || '').substring(0, 10);
     if (!groups[dateKey]) groups[dateKey] = [];
     groups[dateKey].push(e);
