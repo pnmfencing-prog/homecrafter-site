@@ -125,6 +125,9 @@ PNM not responsible for earth settling.`}</div>
   <p>Remaining balance due upon day of installation completion in the amount of: $${Number(p.installment_3 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
   <p>All materials remain property of PNM Fencing NJ LLC until final payment has been satisfied. If final payment is not satisfied upon install completion, PNM Fencing NJ LLC reserves the right to remove provided materials at customer's expense.</p>
   <p>All past due balances will be assessed with a penalty interest rate of 28% APR.</p>
+  <p style="margin-top:10px">Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete. Utility mark-out Included.</p>
+  <p>PNM not responsible for unmarked sprinkler lines and miscellaneous pipes.</p>
+  <p>Fence to follow grade of ground. Footing soil dispersed around posts/sections. PNM not responsible for earth settling.</p>
 </div>
 
 <div class="cancel">
