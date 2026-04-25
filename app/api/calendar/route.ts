@@ -39,6 +39,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ events });
   }
 
+  // Date range query (for feed view)
+  const from = searchParams.get('from');
+  const to = searchParams.get('to');
+  if (from && to && searchParams.get('missed') !== 'true') {
+    const events = await sql`
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.service_type
+      FROM calendar_events ce
+      LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      WHERE ce.event_date >= ${from}::date AND ce.event_date <= ${to}::date
+      ORDER BY ce.event_date ASC, ce.event_time ASC NULLS LAST
+    `;
+    return NextResponse.json({ events });
+  }
+
   // Missed/overdue events
   const missed = searchParams.get('missed');
   if (missed === 'true') {

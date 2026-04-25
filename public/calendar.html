@@ -69,6 +69,22 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .contact-link { color: var(--blue); text-decoration: none; font-weight: 500; }
 .contact-link:hover { text-decoration: underline; }
 
+/* Feed view */
+.feed-view { display: none; }
+.feed-view.active { display: block; }
+.feed-date-group { margin-bottom: 1.25rem; }
+.feed-date-header { position: sticky; top: 0; z-index: 10; background: var(--cream); padding: 0.5rem 0; border-bottom: 2px solid var(--gold); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; }
+.feed-date-label { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-weight: 600; color: var(--midnight); }
+.feed-date-badge { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.2rem 0.6rem; border-radius: 12px; }
+.feed-date-badge.today { background: var(--blue-bg); color: var(--blue); }
+.feed-date-badge.past { background: var(--red-bg); color: var(--red); }
+.feed-date-badge.upcoming { background: var(--green-bg); color: var(--green); }
+.feed-empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 0.85rem; }
+.feed-load-more { text-align: center; padding: 1rem; }
+.view-toggle { display: flex; gap: 0.3rem; background: var(--cream-dark); border-radius: 8px; padding: 3px; }
+.view-toggle button { padding: 0.35rem 0.75rem; border: none; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 0.7rem; font-weight: 600; cursor: pointer; background: transparent; color: var(--text-muted); transition: all 0.2s; }
+.view-toggle button.active { background: var(--midnight); color: var(--gold); }
+
 /* Overdue section */
 .overdue-section { background: var(--red-bg); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
 .overdue-title { font-size: 0.7rem; font-weight: 700; color: var(--red); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.5rem; }
@@ -146,16 +162,26 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <!-- Overdue -->
   <div id="overdueSection" style="display:none"></div>
 
+  <!-- View Toggle -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+    <div class="view-toggle">
+      <button id="calViewBtn" class="active" onclick="switchView('calendar')">📅 Calendar</button>
+      <button id="feedViewBtn" onclick="switchView('feed')">📋 Feed</button>
+    </div>
+    <div style="display:flex;gap:0.4rem">
+      <button class="btn btn-outline btn-sm" id="missedBtn" style="color:var(--red);border-color:var(--red)" onclick="toggleMissedView()">⚠️ Missed</button>
+      <button class="btn btn-primary btn-sm" onclick="openNewEvent()">+ New</button>
+    </div>
+  </div>
+
   <!-- Calendar Header -->
-  <div class="cal-header">
+  <div class="cal-header" id="calHeader">
     <div class="cal-nav">
       <button class="btn btn-outline btn-sm" onclick="prevMonth()">←</button>
       <span class="cal-title" id="calTitle"></span>
       <button class="btn btn-outline btn-sm" onclick="nextMonth()">→</button>
       <button class="btn btn-outline btn-sm" style="margin-left:0.5rem" onclick="goToday()">Today</button>
     </div>
-    <button class="btn btn-outline" id="missedBtn" style="color:var(--red);border-color:var(--red)" onclick="toggleMissedView()">⚠️ Missed</button>
-    <button class="btn btn-primary" onclick="openNewEvent()">+ New Event</button>
   </div>
 
   <!-- Legend -->
@@ -196,6 +222,14 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 
   <!-- Day View -->
   <div class="day-view" id="dayView"></div>
+
+  <!-- Feed View -->
+  <div class="feed-view" id="feedView">
+    <div id="feedList"></div>
+    <div class="feed-load-more">
+      <button class="btn btn-outline" onclick="loadMoreFeed()">Load More ↓</button>
+    </div>
+  </div>
 </div>
 
 <!-- New Event Modal -->
@@ -722,6 +756,123 @@ function clearSearch() {
   if (dayView.style.display !== 'none') {
     selectDay(fmtDate(selectedDate));
   }
+}
+
+// Feed View
+var currentView = 'calendar';
+var feedDaysBack = 7;
+var feedDaysForward = 14;
+var feedEvents = [];
+
+function switchView(view) {
+  currentView = view;
+  document.getElementById('calViewBtn').classList.toggle('active', view === 'calendar');
+  document.getElementById('feedViewBtn').classList.toggle('active', view === 'feed');
+  
+  // Calendar elements
+  document.getElementById('calHeader').style.display = view === 'calendar' ? 'flex' : 'none';
+  document.getElementById('calGrid').style.display = view === 'calendar' ? 'grid' : 'none';
+  document.getElementById('dayView').style.display = view === 'calendar' ? 'block' : 'none';
+  
+  // Feed elements
+  document.getElementById('feedView').style.display = view === 'feed' ? 'block' : 'none';
+  
+  if (view === 'feed') loadFeed();
+}
+
+function loadFeed() {
+  var from = new Date();
+  from.setDate(from.getDate() - feedDaysBack);
+  var to = new Date();
+  to.setDate(to.getDate() + feedDaysForward);
+  
+  fetch('/api/calendar?from=' + fmtDate(from) + '&to=' + fmtDate(to), api('GET'))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      feedEvents = data.events || [];
+      renderFeed();
+    });
+}
+
+function renderFeed() {
+  var todayStr = fmtDate(new Date());
+  
+  // Group events by date
+  var groups = {};
+  feedEvents.forEach(function(e) {
+    var dateKey = (e.event_date || '').substring(0, 10);
+    if (!groups[dateKey]) groups[dateKey] = [];
+    groups[dateKey].push(e);
+  });
+  
+  // Sort dates
+  var dates = Object.keys(groups).sort();
+  
+  if (!dates.length) {
+    document.getElementById('feedList').innerHTML = '<div class="feed-empty">No events in this range</div>';
+    return;
+  }
+  
+  var html = '';
+  dates.forEach(function(dateStr) {
+    var d = new Date(dateStr + 'T12:00:00');
+    var dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    var isToday = dateStr === todayStr;
+    var isPast = dateStr < todayStr;
+    var badgeClass = isToday ? 'today' : isPast ? 'past' : 'upcoming';
+    var badgeText = isToday ? 'Today' : isPast ? 'Past' : 'Upcoming';
+    
+    html += '<div class="feed-date-group">';
+    html += '<div class="feed-date-header">';
+    html += '<div class="feed-date-label">' + dayLabel + '</div>';
+    html += '<span class="feed-date-badge ' + badgeClass + '">' + badgeText + '</span>';
+    html += '</div>';
+    
+    // Sort events by time
+    var dayEvents = groups[dateStr].sort(function(a, b) {
+      return (a.event_time || '99:99').localeCompare(b.event_time || '99:99');
+    });
+    
+    dayEvents.forEach(function(e) {
+      var statusClass = e.status === 'completed' ? ' completed' : e.status === 'missed' ? ' missed' : e.status === 'cancelled' ? ' cancelled' : '';
+      var typeClass = e.event_type === 'task' ? ' task' : e.event_type === 'follow_up' ? ' follow_up' : '';
+      var typeIcon = e.event_type === 'task' ? '📋' : e.event_type === 'follow_up' ? '🔄' : e.event_type === 'reminder' ? '⏰' : '📅';
+      
+      html += '<div class="event-card' + typeClass + statusClass + '" data-event-id="' + e.id + '">' +
+        '<div class="event-info">' +
+          '<div class="event-title">' + typeIcon + ' ' + e.title + '</div>' +
+          '<div class="event-time">' + (e.event_time ? fmtTime12(e.event_time) + (e.end_time ? ' – ' + fmtTime12(e.end_time) : '') : 'All day') + '</div>' +
+          (e.location ? '<div class="event-meta">📍 ' + e.location + '</div>' : '') +
+          formatCustomerInfo(e) +
+          (e.description ? '<div class="event-meta" style="margin-top:0.3rem;white-space:pre-line">' + e.description.substring(0, 200) + '</div>' : '') +
+          '<div class="event-meta" style="margin-top:0.25rem"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;color:' + 
+            (e.status === 'completed' ? 'var(--green)' : e.status === 'missed' ? 'var(--red)' : e.status === 'cancelled' ? '#999' : 'var(--blue)') + 
+            '">' + e.status + '</span></div>' +
+        '</div>' +
+        '<div class="event-actions">' +
+          '<button class="edit-btn" onclick="editEvent(' + e.id + ')">Edit</button>' +
+          (e.status === 'scheduled' ? '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ');setTimeout(loadFeed,500)">✓</button>' : '') +
+          (e.status === 'scheduled' ? '<button class="btn btn-outline btn-sm" onclick="cancelEvent(' + e.id + ');setTimeout(loadFeed,500)">✕</button>' : '') +
+          (e.status !== 'scheduled' ? '<button class="btn btn-outline btn-sm" onclick="rescheduleEvent(' + e.id + ')">↻</button>' : '') +
+        '</div>' +
+      '</div>';
+    });
+    
+    html += '</div>';
+  });
+  
+  document.getElementById('feedList').innerHTML = html;
+  
+  // Auto-scroll to today
+  setTimeout(function() {
+    var todayGroup = document.querySelector('.feed-date-badge.today');
+    if (todayGroup) todayGroup.closest('.feed-date-group').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+function loadMoreFeed() {
+  feedDaysForward += 14;
+  loadFeed();
 }
 
 loadMonth();
