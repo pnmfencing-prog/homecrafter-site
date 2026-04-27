@@ -603,6 +603,9 @@ function saveEvent() {
   if (isEditing) body.id = parseInt(editingId);
   if (!body.title || !body.event_date) { alert('Title and date required'); return; }
   
+  // Auto-reactivate if editing a cancelled/completed/missed event
+  if (isEditing) body.status = 'scheduled';
+  
   // Auto-assign CRM lead if customer name is provided
   var customerName = body.customer_name;
   if (customerName && !body.crm_lead_id) {
@@ -772,7 +775,7 @@ function saveEventTime(id) {
   var newTime = document.getElementById('edit-time-input').value;
   if (!newTime) return;
   var el = document.getElementById('time-edit-overlay');
-  fetch('/api/calendar', api('POST', { action: 'update', id: id, event_time: newTime }))
+  fetch('/api/calendar', api('POST', { action: 'update', id: id, event_time: newTime, status: 'scheduled' }))
     .then(function() {
       if (el) el.remove();
       loadMonth();
