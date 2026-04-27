@@ -406,6 +406,7 @@ function loadMonth() {
 
 function renderOverdue(overdue) {
   var el = document.getElementById('overdueSection');
+  if (window.dismissedOverdue) overdue = overdue.filter(function(e) { return window.dismissedOverdue.indexOf(e.id) === -1; });
   if (!overdue.length) { el.style.display = 'none'; return; }
   el.style.display = 'block';
   var html = '<div class="overdue-section"><div class="overdue-title">⚠️ Overdue (' + overdue.length + ')</div>';
@@ -415,8 +416,7 @@ function renderOverdue(overdue) {
       '<div><strong style="font-size:0.8rem">' + e.title + '</strong><br><span style="font-size:0.65rem;color:var(--red)">Was ' + d + '</span></div>' +
       '<div style="display:flex;gap:0.25rem">' +
         '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ')">✓ Done</button>' +
-        '<button class="btn btn-outline btn-sm" onclick="completeEvent(' + e.id + ')">✓ Done</button>' +
-        '<button class="btn btn-outline btn-sm" onclick="snoozeEvent(' + e.id + ')" style="font-size:0.6rem">→ Later</button>' +
+        '<button class="btn btn-outline btn-sm" onclick="dismissOverdue(' + e.id + ',this)">✕</button>' +
       '</div></div>';
   });
   html += '</div>';
@@ -642,6 +642,19 @@ function cancelEvent(id) {
 function completeEvent(id) {
   fetch('/api/calendar', api('POST', { action: 'complete', id: id }))
     .then(function() { loadMonth(); });
+}
+function dismissOverdue(id, btn) {
+  // Just hide the notification — don't change the event status at all
+  var row = btn.closest('div[style*="border-bottom"]');
+  if (row) row.remove();
+  // Track dismissed so it doesn't reappear this session
+  if (!window.dismissedOverdue) window.dismissedOverdue = [];
+  window.dismissedOverdue.push(id);
+  // Hide section if empty
+  var section = document.querySelector('.overdue-section');
+  if (section && !section.querySelector('div[style*="border-bottom"]')) {
+    document.getElementById('overdueSection').style.display = 'none';
+  }
 }
 function snoozeEvent(id) {
   // Move to tomorrow same time
