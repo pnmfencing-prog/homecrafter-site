@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
-    WHERE (ce.event_date < CURRENT_DATE OR (ce.event_date = CURRENT_DATE AND ce.event_time < LOCALTIME)) AND ce.status IN ('scheduled', 'missed')
+    WHERE (ce.event_date < (NOW() AT TIME ZONE 'America/New_York')::date OR (ce.event_date = (NOW() AT TIME ZONE 'America/New_York')::date AND ce.event_time < (NOW() AT TIME ZONE 'America/New_York')::time)) AND ce.status IN ('scheduled', 'missed')
     ORDER BY ce.event_date DESC
     LIMIT 10
   `;

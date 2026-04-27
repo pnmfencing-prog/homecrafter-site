@@ -415,7 +415,8 @@ function renderOverdue(overdue) {
       '<div><strong style="font-size:0.8rem">' + e.title + '</strong><br><span style="font-size:0.65rem;color:var(--red)">Was ' + d + '</span></div>' +
       '<div style="display:flex;gap:0.25rem">' +
         '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ')">✓ Done</button>' +
-        '<button class="btn btn-outline btn-sm" onclick="cancelEvent(' + e.id + ')">✕</button>' +
+        '<button class="btn btn-outline btn-sm" onclick="completeEvent(' + e.id + ')">✓ Done</button>' +
+        '<button class="btn btn-outline btn-sm" onclick="snoozeEvent(' + e.id + ')" style="font-size:0.6rem">→ Later</button>' +
       '</div></div>';
   });
   html += '</div>';
@@ -633,6 +634,18 @@ function completeEvent(id) {
 }
 function cancelEvent(id) {
   fetch('/api/calendar', api('POST', { action: 'cancel', id: id }))
+    .then(function() { loadMonth(); });
+}
+function completeEvent(id) {
+  fetch('/api/calendar', api('POST', { action: 'complete', id: id }))
+    .then(function() { loadMonth(); });
+}
+function snoozeEvent(id) {
+  // Move to tomorrow same time
+  var tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  var ds = tomorrow.getFullYear() + '-' + String(tomorrow.getMonth()+1).padStart(2,'0') + '-' + String(tomorrow.getDate()).padStart(2,'0');
+  fetch('/api/calendar', api('POST', { action: 'update', id: id, event_date: ds, status: 'scheduled' }))
     .then(function() { loadMonth(); });
 }
 function deleteEvent(id) {
