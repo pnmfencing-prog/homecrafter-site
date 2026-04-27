@@ -411,7 +411,8 @@ function renderOverdue(overdue) {
   el.style.display = 'block';
   var html = '<div class="overdue-section"><div class="overdue-title">⚠️ Overdue (' + overdue.length + ')</div>';
   overdue.forEach(function(e) {
-    var d = new Date(e.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    var parts = (e.event_date || '').substring(0,10).split('-');
+    var d = new Date(parts[0], parts[1]-1, parts[2]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid rgba(192,57,43,0.15)">' +
       '<div><strong style="font-size:0.8rem">' + e.title + '</strong><br><span style="font-size:0.65rem;color:var(--red)">Was ' + d + '</span></div>' +
       '<div style="display:flex;gap:0.25rem">' +
