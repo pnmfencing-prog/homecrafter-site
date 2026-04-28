@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
 ${p.redacted ? `
 <div style="background:#f8f0f0;border:2px solid #c00;border-radius:8px;padding:30px;text-align:center;margin:40px 0;">
   <p style="font-size:14pt;font-weight:bold;color:#c00;margin:0 0 10px 0;">This proposal has been withdrawn.</p>
-  <p style="font-size:10pt;color:#666;margin:0;">This estimate is no longer valid. Please contact PNM Fencing for a current quote.</p>
+  <p style="font-size:10pt;color:#666;margin:0;">This estimate is no longer valid. Please message PNM Fencing for a current quote.</p>
   <p style="font-size:10pt;color:#666;margin:10px 0 0 0;">1-(908)-692-4847</p>
 </div>
 ` : `
