@@ -138,95 +138,16 @@ PNM not responsible for earth settling.`}</div>
 </div>
 `}
 
-${p.redacted ? '' : `<div class="cancel">
-  <strong>YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.</strong>`}
-  IF YOU WISH TO CANCEL THIS CONTRACT, YOU MUST EITHER:
-  <br>1. SEND A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION BY REGISTERED OR CERTIFIED MAIL, RETURN RECEIPT REQUESTED; OR
-  <br>2. PERSONALLY DELIVER A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION TO:
-  <br><br>PNM Fencing NJ LLC<br>PO Box ___ Oakhurst, NJ 07712<br>1-(908)-692-4847
-  <br><br>If you cancel this contract within the three day period, you are entitled to a full refund of your money. Refunds must be made within 30 days.
-${p.redacted ? '' : '</div>'}
+${p.redacted ? '' : '<div class="cancel"><strong>YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.</strong> IF YOU WISH TO CANCEL THIS CONTRACT, YOU MUST EITHER: <br>1. SEND A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION BY REGISTERED OR CERTIFIED MAIL, RETURN RECEIPT REQUESTED; OR <br>2. PERSONALLY DELIVER A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION TO: <br><br>PNM Fencing NJ LLC<br>PO Box ___ Oakhurst, NJ 07712<br>1-(908)-692-4847 <br><br>If you cancel this contract within the three day period, you are entitled to a full refund of your money. Refunds must be made within 30 days.</div>'}
 
-${p.redacted ? '' : `<div class="sig-block">
-  <p style="font-style:italic;font-size:9pt;color:#666">*Acknowledgment of terms above</p>`}
-  
-  ${p.signature_data ? `
-    <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background: #f9fff9;">
-      <p style="font-weight:bold; color:#28a745; margin-bottom: 8px;">✓ DIGITALLY SIGNED</p>
-      <div style="font-family: 'Dancing Script', 'Brush Script MT', 'Segoe Script', cursive; font-size: 24px; color: #1a1a5e; border-bottom: 1px solid #333; display: inline-block; padding-bottom: 2px; margin-bottom: 8px;">
-        ${p.signature_name || 'Customer'}
-      </div>
-      <p style="font-size: 10px; color: #666;"><strong>Signed by:</strong> ${p.signature_name || 'Customer'}</p>
-      <p style="font-size: 10px; color: #666;"><strong>Date:</strong> ${p.signed_at ? new Date(p.signed_at).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}</p>
-    </div>
-  ` : `
-    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
-    <div id="signature-section" style="margin-top: 15px;">
-      <div style="margin-bottom: 12px;">
-        <label style="font-weight:bold; font-size: 11px;">Type Your Full Name to Sign:</label><br>
-        <input type="text" id="signer-name" oninput="updatePreview()" style="padding: 8px; font-size: 16px; width: 280px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px;" placeholder="Enter your full name">
-      </div>
-      
-      <div id="signature-preview" style="display:none; margin: 10px 0; padding: 10px; background: #fafafa; border: 1px dashed #ccc; border-radius: 4px;">
-        <p style="font-size: 9px; color: #999; margin-bottom: 4px;">SIGNATURE PREVIEW:</p>
-        <div id="sig-display" style="font-family: 'Dancing Script', 'Brush Script MT', 'Segoe Script', cursive; font-size: 28px; color: #1a1a5e; border-bottom: 1px solid #333; display: inline-block; padding-bottom: 2px;"></div>
-        <p id="sig-date" style="font-size: 10px; color: #666; margin-top: 6px;"></p>
-      </div>
-      
-      <div style="margin: 10px 0;">
-        <button type="button" onclick="submitSignature()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;">✓ Sign & Submit</button>
-      </div>
-      <p style="font-size: 8pt; color: #999; margin-top: 8px;">By signing, you agree to the terms and conditions outlined in this proposal.</p>
-    </div>
-    
-    <script>
-      function updatePreview() {
-        var name = document.getElementById('signer-name').value.trim();
-        var preview = document.getElementById('signature-preview');
-        if (name) {
-          preview.style.display = 'block';
-          document.getElementById('sig-display').textContent = name;
-          document.getElementById('sig-date').textContent = 'Date: ' + new Date().toLocaleDateString();
-        } else {
-          preview.style.display = 'none';
-        }
-      }
-      
-      function submitSignature() {
-        var name = document.getElementById('signer-name').value.trim();
-        if (!name) {
-          alert('Please type your full name to sign');
-          return;
-        }
-        
-        if (!confirm('By clicking OK, you are digitally signing this proposal as "' + name + '". Continue?')) {
-          return;
-        }
-        
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', 'https://homecrafter.ai/api/proposals/sign');
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.onload = function() {
-          if (xhr.status === 200) {
-            alert('Proposal signed successfully! Thank you.');
-            window.location.reload();
-          } else {
-            alert('Error saving signature. Please try again.');
-          }
-        };
-        xhr.onerror = function() {
-          alert('Error saving signature. Please try again.');
-        };
-        xhr.send(JSON.stringify({
-          estimate_no: '${estNo}',
-          signature_data: 'typed:' + name,
-          signature_name: name
-        }));
-      }
-    </script>
-  `}
-</div>
-`}
+${p.redacted ? '' : (() => {
+  if (p.signature_data) {
+    return '<div class="sig-block"><p style="font-style:italic;font-size:9pt;color:#666">*Acknowledgment of terms above</p><div style="margin:20px 0;padding:15px;border:1px solid #ddd;border-radius:6px;background:#f9fff9;"><p style="font-weight:bold;color:#28a745;margin-bottom:8px;">✓ DIGITALLY SIGNED</p><div style="font-family:Dancing Script,Brush Script MT,Segoe Script,cursive;font-size:24px;color:#1a1a5e;border-bottom:1px solid #333;display:inline-block;padding-bottom:2px;margin-bottom:8px;">' + (p.signature_name || 'Customer') + '</div><p style="font-size:10px;color:#666;"><strong>Signed by:</strong> ' + (p.signature_name || 'Customer') + '</p><p style="font-size:10px;color:#666;"><strong>Date:</strong> ' + (p.signed_at ? new Date(p.signed_at).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '') + '</p></div></div>';
+  } else {
+    return '<div class="sig-block"><p style="font-style:italic;font-size:9pt;color:#666">*Acknowledgment of terms above</p><link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet"><div id="signature-section" style="margin-top:15px;"><div style="margin-bottom:12px;"><label style="font-weight:bold;font-size:11px;">Type Your Full Name to Sign:</label><br><input type="text" id="signer-name" oninput="updatePreview()" style="padding:8px;font-size:16px;width:280px;margin:5px 0;border:1px solid #ccc;border-radius:4px;" placeholder="Enter your full name"></div><div id="signature-preview" style="display:none;margin:10px 0;padding:10px;background:#fafafa;border:1px dashed #ccc;border-radius:4px;"><p style="font-size:9px;color:#999;margin-bottom:4px;">SIGNATURE PREVIEW:</p><div id="sig-display" style="font-family:Dancing Script,Brush Script MT,Segoe Script,cursive;font-size:28px;color:#1a1a5e;border-bottom:1px solid #333;display:inline-block;padding-bottom:2px;"></div><p id="sig-date" style="font-size:10px;color:#666;margin-top:6px;"></p></div><div style="margin:10px 0;"><button type="button" onclick="submitSignature()" style="padding:10px 20px;background:#28a745;color:white;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;">✓ Sign & Submit</button></div><p style="font-size:8pt;color:#999;margin-top:8px;">By signing, you agree to the terms and conditions outlined in this proposal.</p></div><script>function updatePreview(){var name=document.getElementById("signer-name").value.trim();var preview=document.getElementById("signature-preview");if(name){preview.style.display="block";document.getElementById("sig-display").textContent=name;document.getElementById("sig-date").textContent="Date: "+new Date().toLocaleDateString();}else{preview.style.display="none";}}function submitSignature(){var name=document.getElementById("signer-name").value.trim();if(!name){alert("Please type your full name to sign");return;}if(!confirm("By clicking OK, you are digitally signing this proposal as \\""+name+"\\". Continue?")){return;}var xhr=new XMLHttpRequest();xhr.open("POST","https://homecrafter.ai/api/proposals/sign");xhr.setRequestHeader("Content-Type","application/json");xhr.onload=function(){if(xhr.status===200){alert("Proposal signed successfully! Thank you.");window.location.reload();}else{alert("Error saving signature. Please try again.");}};xhr.onerror=function(){alert("Error saving signature. Please try again.");};xhr.send(JSON.stringify({estimate_no:"' + estNo + '",signature_data:"typed:"+name,signature_name:name}));}</script></div>';
+  }
+})()}
+
 </body></html>`;
 
   return new NextResponse(html, {
