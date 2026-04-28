@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Generate PDF HTML for viewing in browser
-  const spot = p.spot_holding_fee || 150;
+  const spot = Number(p.spot_holding_fee ?? 150);
   const gateText = p.gate_count > 0 ? `${p.gate_count} GATE${p.gate_count > 1 ? 'S' : ''}` : 'NO GATES';
   
   const html = `<!DOCTYPE html>
@@ -119,7 +119,7 @@ PNM not responsible for earth settling.`}</div>
 
 <div class="notes">
   <h3>Notes</h3>
-  <p>Payment terms: deposit paid in advance: $${Number(p.deposit || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} ($${Number(spot).toFixed(2)} spot holding fee supplied and applied to grand total)</p>
+  <p>Payment terms: deposit paid in advance: $${Number(p.deposit || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}${spot > 0 ? ` ($${Number(spot).toFixed(2)} spot holding fee supplied and applied to grand total)` : ''}</p>
   <p>By supplying the initial deposit above, the customer understands and agrees to abide by all of the terms and conditions set forth in this agreement.</p>
   <p>Second installment due upon material delivery to above referenced job site address in the amount of: $${Number(p.installment_2 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
   <p>Remaining balance due upon day of installation completion in the amount of: $${Number(p.installment_3 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
