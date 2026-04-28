@@ -88,6 +88,13 @@ export async function GET(request: NextRequest) {
 
 <div class="divider"></div>
 
+${p.redacted ? `
+<div style="background:#f8f0f0;border:2px solid #c00;border-radius:8px;padding:30px;text-align:center;margin:40px 0;">
+  <p style="font-size:14pt;font-weight:bold;color:#c00;margin:0 0 10px 0;">This proposal has been withdrawn.</p>
+  <p style="font-size:10pt;color:#666;margin:0;">This estimate is no longer valid. Please contact PNM Fencing for a current quote.</p>
+  <p style="font-size:10pt;color:#666;margin:10px 0 0 0;">1-(908)-692-4847</p>
+</div>
+` : `
 <div class="item-header"><span>Description</span><span>Amount</span></div>
 
 <div class="description">${p.description_override || `Supply and install up to approximately ${p.footage} linear feet of ${p.height} high ${(p.color || 'WHITE').toUpperCase()} ${p.material || 'vinyl'} solid privacy fencing ${gateText}
@@ -129,18 +136,19 @@ PNM not responsible for earth settling.`}</div>
   <p>PNM not responsible for unmarked sprinkler lines and miscellaneous pipes.</p>
   <p>Fence to follow grade of ground. Footing soil dispersed around posts/sections. PNM not responsible for earth settling.</p>
 </div>
+`}
 
-<div class="cancel">
-  <strong>YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.</strong>
+${p.redacted ? '' : `<div class="cancel">
+  <strong>YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.</strong>`}
   IF YOU WISH TO CANCEL THIS CONTRACT, YOU MUST EITHER:
   <br>1. SEND A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION BY REGISTERED OR CERTIFIED MAIL, RETURN RECEIPT REQUESTED; OR
   <br>2. PERSONALLY DELIVER A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION TO:
   <br><br>PNM Fencing NJ LLC<br>PO Box ___ Oakhurst, NJ 07712<br>1-(908)-692-4847
   <br><br>If you cancel this contract within the three day period, you are entitled to a full refund of your money. Refunds must be made within 30 days.
-</div>
+${p.redacted ? '' : '</div>'}
 
-<div class="sig-block">
-  <p style="font-style:italic;font-size:9pt;color:#666">*Acknowledgment of terms above</p>
+${p.redacted ? '' : `<div class="sig-block">
+  <p style="font-style:italic;font-size:9pt;color:#666">*Acknowledgment of terms above</p>`}
   
   ${p.signature_data ? `
     <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background: #f9fff9;">
@@ -218,7 +226,7 @@ PNM not responsible for earth settling.`}</div>
     </script>
   `}
 </div>
-
+`}
 </body></html>`;
 
   return new NextResponse(html, {

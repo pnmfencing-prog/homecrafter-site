@@ -119,6 +119,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  if (action === 'redact') {
+    await sql`UPDATE proposals SET redacted = true, status = 'cancelled', updated_at = NOW() WHERE id = ${body.id}`;
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'unredact') {
+    await sql`UPDATE proposals SET redacted = false, updated_at = NOW() WHERE id = ${body.id}`;
+    return NextResponse.json({ success: true });
+  }
+
   if (action === 'delete') {
     await sql`DELETE FROM proposals WHERE id = ${body.id}`;
     return NextResponse.json({ success: true });

@@ -292,6 +292,8 @@ function renderProposalView(p) {
   if (p.status === 'sent' || p.status === 'opened') html += '<button class="btn btn-green" onclick="updateStatus(' + p.id + ',\'signed\')">Mark Signed ✓</button>';
   if (p.status !== 'cancelled' && p.status !== 'signed') html += '<button class="btn btn-outline" style="color:var(--red)" onclick="updateStatus(' + p.id + ',\'cancelled\')">Cancel</button>';
   if (p.status === 'cancelled') html += '<button class="btn btn-outline" onclick="updateStatus(' + p.id + ',\'draft\')">Reopen</button>';
+  if (!p.redacted) html += '<button class="btn btn-outline" style="color:var(--red)" onclick="if(confirm(\'Redact this proposal? The customer will no longer be able to see pricing, footage, or payment details.\'))redactProposal(' + p.id + ')">🔒 Redact</button>';
+  if (p.redacted) html += '<button class="btn btn-outline" onclick="if(confirm(\'Restore pricing info?\'))unredactProposal(' + p.id + ')">🔓 Unredact</button>';
   html += '<button class="btn btn-outline" style="color:var(--red);margin-left:auto" onclick="if(confirm(\'Delete?\'))deleteProposal(' + p.id + ')">🗑</button>';
   html += '</div>';
   
@@ -558,6 +560,16 @@ function sendProposal(id, email) {
       if (data.success) { alert('✅ Proposal sent to ' + email); closeModal(); loadProposals(); }
       else alert('❌ ' + (data.error || 'Failed to send'));
     });
+}
+
+function redactProposal(id) {
+  fetch('/api/proposals', api('POST', { action: 'redact', id: id }))
+    .then(function() { closeModal(); loadProposals(); });
+}
+
+function unredactProposal(id) {
+  fetch('/api/proposals', api('POST', { action: 'unredact', id: id }))
+    .then(function() { closeModal(); loadProposals(); });
 }
 
 function deleteProposal(id) {
