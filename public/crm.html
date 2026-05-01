@@ -789,9 +789,17 @@ function refreshCrmQuietly() {
   loadLeads();
 }
 
+function openLinkedLeadFromUrl() {
+  var params = new URLSearchParams(window.location.search);
+  var leadId = params.get('lead') || params.get('id');
+  if (!leadId || isNaN(parseInt(leadId))) return;
+  setTimeout(function() { openLeadDetail(parseInt(leadId)); }, 500);
+}
+
 // Init
 loadLeads();
 initSwipeDots();
+openLinkedLeadFromUrl();
 setInterval(refreshCrmQuietly, CRM_REFRESH_MS);
 </script>
 </body>

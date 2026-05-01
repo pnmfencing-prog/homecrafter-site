@@ -3,6 +3,7 @@ import sql from '@/lib/db';
 
 const DAN_PHONE = '7323376181';
 const DAN_PHONE_E164 = '+17323376181';
+const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
 
 function normalizePhone(phone: string): string {
   const digits = (phone || '').replace(/\D/g, '');
@@ -88,7 +89,8 @@ export async function POST(request: NextRequest) {
 
     if (normalizePhone(from) !== DAN_PHONE) {
       const name = lead.customer_name || `Unknown texter ${formatPhone(from)}`;
-      notificationText = `New PNM text from ${name} (${formatPhone(from)}): ${body}`;
+      const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}`;
+      notificationText = `New PNM text from ${name} (${formatPhone(from)}): ${body}\n\nOpen thread: ${threadUrl}`;
     }
   }
 
