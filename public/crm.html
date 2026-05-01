@@ -269,6 +269,8 @@ var currentFilter = 'all';
 var currentSource = 'all';
 var readFilter = 'all';
 var colMsgFilters = {}; // per-column: 'all', 'customer', 'you'
+var activeLeadId = null;
+var CRM_REFRESH_MS = 30000; // light polling only while CRM tab is open
 
 var COLUMNS = [
   { key: 'new', label: 'New', color: '#2563eb' },
@@ -409,7 +411,7 @@ function setView(view) {
 
 function openNewLeadModal() { document.getElementById('newLeadModal').classList.add('show'); }
 function closeNewModal() { document.getElementById('newLeadModal').classList.remove('show'); }
-function closeModal() { document.getElementById('leadModal').classList.remove('show'); }
+function closeModal() { activeLeadId = null; document.getElementById('leadModal').classList.remove('show'); }
 
 function createLead() {
   fetch('/api/crm', api('POST', {
@@ -430,6 +432,7 @@ function createLead() {
 }
 
 function openLeadDetail(id) {
+  activeLeadId = id;
   fetch('/api/crm?id=' + id, api('GET'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -772,9 +775,24 @@ function scrollToCol(idx) {
 
 window.addEventListener('resize', initSwipeDots);
 
+function refreshCrmQuietly() {
+  if (document.hidden) return;
+  var leadModalOpen = document.getElementById('leadModal').classList.contains('show');
+  var noteText = document.getElementById('note-text');
+
+  // Don't interrupt Dan while typing inside an open thread.
+  if (leadModalOpen && noteText && document.activeElement === noteText) return;
+  if (leadModalOpen && activeLeadId) {
+    openLeadDetail(activeLeadId);
+    return;
+  }
+  loadLeads();
+}
+
 // Init
 loadLeads();
 initSwipeDots();
+setInterval(refreshCrmQuietly, CRM_REFRESH_MS);
 </script>
 </body>
 </html>
