@@ -4,6 +4,7 @@ import sql from '@/lib/db';
 const DAN_PHONE = '7323376181';
 const DAN_PHONE_E164 = '+17323376181';
 const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
+const NEW_LEAD_REPLY = 'Hi, this is Dan with PNM Fencing. I was assigned as the estimator for your project. Do you by chance have a property survey, or the total footage / section count?';
 
 function normalizePhone(phone: string): string {
   const digits = (phone || '').replace(/\D/g, '');
@@ -26,7 +27,7 @@ function escapeXml(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
-async function findOrCreateLead(from: string) {
+async function findOrCreateLead(from: string): Promise<{ lead: any; created: boolean }> {
   const normalized = normalizePhone(from);
   const matches = await sql`
     SELECT * FROM crm_leads
@@ -35,7 +36,7 @@ async function findOrCreateLead(from: string) {
     LIMIT 1
   `;
 
-  if (matches.length) return matches[0];
+  if (matches.length) return { lead: matches[0], created: false };
 
   const maxCode = await sql`SELECT COALESCE(MAX(CAST(lead_code AS INTEGER)), 99) + 1 as next_code FROM crm_leads WHERE lead_code ~ '^[0-9]+$'`;
   const leadCode = String(maxCode[0].next_code);
@@ -43,11 +44,11 @@ async function findOrCreateLead(from: string) {
   const displayPhone = formatPhone(from);
   const created = await sql`
     INSERT INTO crm_leads (customer_name, customer_phone, source, status, chat_token, lead_code, notes, customer_responded, is_read, last_message_by, last_message_at)
-    VALUES (${`Unknown texter ${displayPhone}`}, ${displayPhone}, 'sms', 'new', ${chatToken}, ${leadCode}, 'Created automatically from incoming text message', true, false, 'customer', NOW())
+    VALUES (${`Unknown texter ${displayPhone}`}, ${displayPhone}, 'angi_sms', 'new', ${chatToken}, ${leadCode}, 'Created automatically from incoming text message', true, false, 'customer', NOW())
     RETURNING *
   `;
   await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${created[0].id}, 'status_change', 'Lead created from incoming SMS')`;
-  return created[0];
+  return { lead: created[0], created: true };
 }
 
 export async function POST(request: NextRequest) {
@@ -55,9 +56,12 @@ export async function POST(request: NextRequest) {
   const from = String(form.get('From') || '');
   const body = String(form.get('Body') || '').trim();
   let notificationText = '';
+  let newLeadAutoReply = '';
+  let lead: any = null;
 
   if (from && body) {
-    const lead = await findOrCreateLead(from);
+    const result = await findOrCreateLead(from);
+    lead = result.lead;
     const description = `📥 ${body}`;
 
     // Avoid duplicate CRM entries if Twilio retries the webhook.
@@ -91,6 +95,23 @@ export async function POST(request: NextRequest) {
       const name = lead.customer_name || `Unknown texter ${formatPhone(from)}`;
       const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}`;
       notificationText = `New PNM text from ${name} (${formatPhone(from)}): ${body}\n\nOpen thread: ${threadUrl}`;
+
+      if (result.created) {
+        newLeadAutoReply = NEW_LEAD_REPLY;
+        await sql`
+          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer)
+          VALUES (${lead.id}, 'sms', ${`📤 ${NEW_LEAD_REPLY}`}, false)
+        `;
+        await sql`
+          UPDATE crm_leads
+          SET last_message_by = 'you',
+              last_message_at = NOW(),
+              last_outreach_at = NOW(),
+              outreach_count = coalesce(outreach_count, 0) + 1,
+              updated_at = NOW()
+          WHERE id = ${lead.id}
+        `;
+      }
     }
   }
 
@@ -109,7 +130,9 @@ export async function POST(request: NextRequest) {
     twiml += `<Message to="${DAN_PHONE_E164}">${escapeXml(notificationText.slice(0, 1200))}</Message>`;
   }
 
-  if (!isBusinessHours) {
+  if (newLeadAutoReply) {
+    twiml += `<Message>${escapeXml(newLeadAutoReply)}</Message>`;
+  } else if (!isBusinessHours) {
     twiml += "<Message>Thanks for reaching out to PNM Fencing! Our office hours are Mon-Fri 8AM-6PM and Sat 9AM-2PM. We'll get back to you on the next business day. For urgent matters, call (732) 337-6181.</Message>";
   }
 
