@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   if (date) {
     const events = await sql`
-      SELECT ce.*, cl.customer_name AS crm_customer_name, cl.customer_phone AS crm_customer_phone, cl.service_type, p.estimate_no AS proposal_estimate_no
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   if (month) {
     const startDate = `${month}-01`;
     const events = await sql`
-      SELECT ce.*, cl.customer_name AS crm_customer_name, cl.customer_phone AS crm_customer_phone, cl.service_type, p.estimate_no AS proposal_estimate_no
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   const to = searchParams.get('to');
   if (from && to && searchParams.get('missed') !== 'true') {
     const events = await sql`
-      SELECT ce.*, cl.customer_name AS crm_customer_name, cl.customer_phone AS crm_customer_phone, cl.service_type, p.estimate_no AS proposal_estimate_no
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     let events;
     if (from && to) {
       events = await sql`
-        SELECT ce.*, cl.customer_name, cl.customer_phone, p.estimate_no AS proposal_estimate_no
+        SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, p.estimate_no AS proposal_estimate_no
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       `;
     } else {
       events = await sql`
-        SELECT ce.*, cl.customer_name, cl.customer_phone, p.estimate_no AS proposal_estimate_no
+        SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, p.estimate_no AS proposal_estimate_no
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
   // Default: upcoming 14 days
   const events = await sql`
-    SELECT ce.*, cl.customer_name AS crm_customer_name, cl.customer_phone AS crm_customer_phone, cl.service_type, p.estimate_no AS proposal_estimate_no
+    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, p.estimate_no AS proposal_estimate_no
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
   
   // Also get overdue
   const overdue = await sql`
-    SELECT ce.*, cl.customer_name, cl.customer_phone, p.estimate_no AS proposal_estimate_no
+    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, p.estimate_no AS proposal_estimate_no
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -136,8 +136,18 @@ export async function POST(request: NextRequest) {
     if (fields.status !== undefined) await sql`UPDATE calendar_events SET status = ${fields.status}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.location !== undefined) await sql`UPDATE calendar_events SET location = ${fields.location}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.description !== undefined) await sql`UPDATE calendar_events SET description = ${fields.description}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.event_type !== undefined) await sql`UPDATE calendar_events SET event_type = ${fields.event_type}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.end_time !== undefined) await sql`UPDATE calendar_events SET end_time = ${fields.end_time}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.all_day !== undefined) await sql`UPDATE calendar_events SET all_day = ${fields.all_day}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.crm_lead_id !== undefined) await sql`UPDATE calendar_events SET crm_lead_id = ${fields.crm_lead_id}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.proposal_id !== undefined) await sql`UPDATE calendar_events SET proposal_id = ${fields.proposal_id}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.customer_id !== undefined) await sql`UPDATE calendar_events SET customer_id = ${fields.customer_id}, updated_at = NOW() WHERE id = ${id}`;
+
+    if (fields.crm_lead_id) {
+      if (fields.customer_name !== undefined) await sql`UPDATE crm_leads SET customer_name = ${fields.customer_name || null}, updated_at = NOW() WHERE id = ${fields.crm_lead_id}`;
+      if (fields.customer_phone !== undefined) await sql`UPDATE crm_leads SET customer_phone = ${fields.customer_phone || null}, updated_at = NOW() WHERE id = ${fields.crm_lead_id}`;
+      if (fields.customer_email !== undefined) await sql`UPDATE crm_leads SET customer_email = ${fields.customer_email || null}, updated_at = NOW() WHERE id = ${fields.crm_lead_id}`;
+    }
     return NextResponse.json({ success: true });
   }
 
