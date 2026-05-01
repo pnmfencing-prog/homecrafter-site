@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 
+const DAN_PHONE = '7323376181';
+const DAN_PHONE_E164 = '+17323376181';
+
 function normalizePhone(phone: string): string {
   const digits = (phone || '').replace(/\D/g, '');
   if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
@@ -11,6 +14,15 @@ function formatPhone(phone: string): string {
   const digits = normalizePhone(phone);
   if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
   return phone;
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 async function findOrCreateLead(from: string) {
@@ -41,6 +53,7 @@ export async function POST(request: NextRequest) {
   const form = await request.formData();
   const from = String(form.get('From') || '');
   const body = String(form.get('Body') || '').trim();
+  let notificationText = '';
 
   if (from && body) {
     const lead = await findOrCreateLead(from);
@@ -72,6 +85,11 @@ export async function POST(request: NextRequest) {
           updated_at = NOW()
       WHERE id = ${lead.id}
     `;
+
+    if (normalizePhone(from) !== DAN_PHONE) {
+      const name = lead.customer_name || `Unknown texter ${formatPhone(from)}`;
+      notificationText = `New PNM text from ${name} (${formatPhone(from)}): ${body}`;
+    }
   }
 
   const now = new Date();
@@ -84,6 +102,10 @@ export async function POST(request: NextRequest) {
     (day === 6 && hour >= 9 && hour < 14);
 
   let twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
+
+  if (notificationText) {
+    twiml += `<Message to="${DAN_PHONE_E164}">${escapeXml(notificationText.slice(0, 1200))}</Message>`;
+  }
 
   if (!isBusinessHours) {
     twiml += "<Message>Thanks for reaching out to PNM Fencing! Our office hours are Mon-Fri 8AM-6PM and Sat 9AM-2PM. We'll get back to you on the next business day. For urgent matters, call (732) 337-6181.</Message>";
