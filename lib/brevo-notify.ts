@@ -189,6 +189,26 @@ async function sendBrevoEmail(to: string, toName: string, subject: string, htmlC
   }
 }
 
+async function logNotificationEvent(data: {
+  leadId: number;
+  contractorId?: number | null;
+  channel: 'email' | 'sms';
+  recipient?: string | null;
+  status: string;
+  provider: string;
+  subject?: string | null;
+  error?: string | null;
+}): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO lead_notification_events (lead_id, contractor_id, channel, recipient, status, provider, subject, error)
+      VALUES (${data.leadId}, ${data.contractorId || null}, ${data.channel}, ${data.recipient || null}, ${data.status}, ${data.provider}, ${data.subject || null}, ${data.error || null})
+    `;
+  } catch (e: any) {
+    console.warn(`[brevo-notify] Failed to write notification audit log for lead #${data.leadId}:`, e.message);
+  }
+}
+
 /**
  * Find matching contractors and send Brevo email notifications for a new lead.
  * Can be called directly from submit endpoint or via the notify-contractors API.
@@ -265,18 +285,22 @@ export async function notifyContractorsViaBrevo(
       const subject = `New ${serviceLabels} Lead in Your Area — HomeCrafter`;
       const html = buildEmailHtml(contractor.name, services, zip, leadId);
       await sendBrevoEmail(contractor.email, contractor.name, subject, html);
+      await logNotificationEvent({ leadId, contractorId: contractor.id, channel: 'email', recipient: contractor.email, status: 'sent', provider: 'brevo', subject });
       sent++;
     } catch (e: any) {
       console.error(`[brevo-notify] Failed for ${contractor.email}:`, e.message);
+      await logNotificationEvent({ leadId, contractorId: contractor.id, channel: 'email', recipient: contractor.email, status: 'failed', provider: 'brevo', subject: `New ${serviceLabels} Lead in Your Area — HomeCrafter`, error: e.message });
       errors.push(`${contractor.name} (${contractor.email}): ${e.message}`);
     }
 
     if (contractor.phone) {
       try {
         await sendTwilioSms(contractor.phone, smsBody);
+        await logNotificationEvent({ leadId, contractorId: contractor.id, channel: 'sms', recipient: contractor.phone, status: 'sent', provider: 'twilio', subject: 'New lead SMS' });
         smsSent++;
       } catch (e: any) {
         console.warn(`[brevo-notify] SMS failed for ${contractor.name} (${contractor.phone}):`, e.message);
+        await logNotificationEvent({ leadId, contractorId: contractor.id, channel: 'sms', recipient: contractor.phone, status: 'failed', provider: 'twilio', subject: 'New lead SMS', error: e.message });
       }
     }
   }
