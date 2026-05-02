@@ -567,6 +567,9 @@ function openLeadDetail(id) {
             '<select id="note-type" style="width:90px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem">' +
               '<option value="sms">💬 Text</option><option value="note">📝 Note</option><option value="call">📞 Call</option><option value="email">✉️ Email</option>' +
             '</select>' +
+            '<select id="message-template" style="width:95px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem" onchange="applyMessageTemplate(this.value)">' +
+              '<option value="">Templates</option><option value="hope">Hope follow-up</option>' +
+            '</select>' +
             '<input type="text" id="note-text" placeholder="Type a message..." style="flex:1;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.8rem" onkeydown="if(event.key===\'Enter\')addNote(' + l.id + ')">' +
             '<button class="btn btn-primary" onclick="addNote(' + l.id + ')">Send</button>' +
           '</div>' +
@@ -616,6 +619,17 @@ function updateField(id, field, value) {
   var body = { action: 'update', id: id };
   body[field] = value || null;
   fetch('/api/crm', api('POST', body));
+}
+
+function applyMessageTemplate(templateKey) {
+  var templates = {
+    hope: 'Hope all is well, just wanted to make sure you had received the pricing information. If you have any questions at all feel free to reach out anytime.'
+  };
+  if (!templateKey || !templates[templateKey]) return;
+  document.getElementById('note-type').value = 'sms';
+  document.getElementById('note-text').value = templates[templateKey];
+  document.getElementById('message-template').value = '';
+  document.getElementById('note-text').focus();
 }
 
 function addNote(id) {
