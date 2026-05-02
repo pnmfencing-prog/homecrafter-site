@@ -5,6 +5,8 @@ const DAN_PHONE = '7323376181';
 const DAN_PHONE_E164 = '+17323376181';
 const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
 const NEW_LEAD_REPLY = 'Hi, this is Dan with PNM Fencing. I was assigned as the estimator for your project. Do you by chance have a property survey, or the total footage / section count?';
+const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
+const ANGRY_OPTOUT_RE = /\b(fuck off|f off|leave me alone|do not text|dont text|don't text|remove me|wrong number|not interested)\b/i;
 
 function normalizePhone(phone: string): string {
   const digits = (phone || '').replace(/\D/g, '');
@@ -25,6 +27,11 @@ function escapeXml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+function isOptOutOrAngryReply(body: string): boolean {
+  const normalized = body.trim();
+  return HARD_OPTOUT_RE.test(normalized) || ANGRY_OPTOUT_RE.test(normalized);
 }
 
 async function findOrCreateLead(from: string): Promise<{ lead: any; created: boolean }> {
@@ -57,12 +64,14 @@ export async function POST(request: NextRequest) {
   const body = String(form.get('Body') || '').trim();
   let notificationText = '';
   let newLeadAutoReply = '';
+  let suppressAnyReply = false;
   let lead: any = null;
 
   if (from && body) {
     const result = await findOrCreateLead(from);
     lead = result.lead;
     const description = `📥 ${body}`;
+    suppressAnyReply = isOptOutOrAngryReply(body);
 
     // Avoid duplicate CRM entries if Twilio retries the webhook.
     const duplicate = await sql`
@@ -81,22 +90,38 @@ export async function POST(request: NextRequest) {
       `;
     }
 
-    await sql`
-      UPDATE crm_leads
-      SET customer_responded = true,
-          is_read = false,
-          last_message_by = 'customer',
-          last_message_at = NOW(),
-          updated_at = NOW()
-      WHERE id = ${lead.id}
-    `;
+    if (suppressAnyReply) {
+      await sql`
+        UPDATE crm_leads
+        SET customer_responded = true,
+            outreach_paused = true,
+            status = 'lost',
+            lost_reason = 'Opted out / negative SMS reply',
+            is_read = false,
+            last_message_by = 'customer',
+            last_message_at = NOW(),
+            updated_at = NOW(),
+            closed_at = NOW()
+        WHERE id = ${lead.id}
+      `;
+    } else {
+      await sql`
+        UPDATE crm_leads
+        SET customer_responded = true,
+            is_read = false,
+            last_message_by = 'customer',
+            last_message_at = NOW(),
+            updated_at = NOW()
+        WHERE id = ${lead.id}
+      `;
+    }
 
     if (normalizePhone(from) !== DAN_PHONE) {
       const name = lead.customer_name || `Unknown texter ${formatPhone(from)}`;
       const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}`;
       notificationText = `New PNM text from ${name} (${formatPhone(from)}): ${body}\n\nOpen thread: ${threadUrl}`;
 
-      if (result.created) {
+      if (result.created && !suppressAnyReply) {
         newLeadAutoReply = NEW_LEAD_REPLY;
         await sql`
           INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer)
@@ -132,7 +157,7 @@ export async function POST(request: NextRequest) {
 
   if (newLeadAutoReply) {
     twiml += `<Message>${escapeXml(newLeadAutoReply)}</Message>`;
-  } else if (!isBusinessHours) {
+  } else if (!isBusinessHours && !suppressAnyReply) {
     twiml += "<Message>Thanks for reaching out to PNM Fencing! Our office hours are Mon-Fri 8AM-6PM and Sat 9AM-2PM. We'll get back to you on the next business day. For urgent matters, call (732) 337-6181.</Message>";
   }
 
