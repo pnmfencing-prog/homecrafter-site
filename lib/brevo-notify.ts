@@ -3,9 +3,9 @@ import { getZipCoords } from '@/lib/geo';
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
-const TWILIO_SID = process.env.TWILIO_SID || '';
-const TWILIO_TOKEN = process.env.TWILIO_TOKEN || '';
-const TWILIO_FROM = process.env.TWILIO_FROM || '';
+const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
+const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
+const TWILIO_FROM = process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '';
 const RADIUS_MILES = 40;
 // No contractor cap — email all matches
 const LEAD_VIEW_URL = 'https://homecrafter.ai/lead-view.html';
