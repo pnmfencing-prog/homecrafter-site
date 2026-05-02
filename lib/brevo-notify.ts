@@ -3,9 +3,15 @@ import { getZipCoords } from '@/lib/geo';
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
+const TWILIO_SID = process.env.TWILIO_SID || '';
+const TWILIO_TOKEN = process.env.TWILIO_TOKEN || '';
+const TWILIO_FROM = process.env.TWILIO_FROM || '';
 const RADIUS_MILES = 40;
 // No contractor cap — email all matches
 const LEAD_VIEW_URL = 'https://homecrafter.ai/lead-view.html';
+
+const FULL_PRICES: Record<string, number> = { Paint: 49, Painting: 49, painting: 49, paint: 49 };
+const INTRO_PRICES: Record<string, number> = { Paint: 19, Painting: 19, painting: 19, paint: 19 };
 
 const SERVICE_NAMES: Record<string, string> = {
   Fencing: 'Fencing', Roofing: 'Roofing', Windows: 'Windows',
@@ -20,7 +26,7 @@ const SERVICE_NAMES: Record<string, string> = {
 
 const SERVICE_TO_CATEGORY: Record<string, string[]> = {
   Fencing: ['Fencing'], Roofing: ['Roofing'], Windows: ['Windows'],
-  Siding: ['Siding'], Paint: ['Paint'],
+  Siding: ['Siding'], Paint: ['Paint', 'painting', 'paint', 'Painting'], Painting: ['Paint', 'painting', 'paint', 'Painting'], painting: ['Paint', 'painting', 'paint', 'Painting'], paint: ['Paint', 'painting', 'paint', 'Painting'],
   Locksmith: ['Locksmith'], Housekeeper: ['Housekeeper'],
   WoodFlooring: ['WoodFlooring'], Carpet: ['Carpet'], HVAC: ['HVAC'],
   Landscaping: ['Landscaping', 'Irrigation'], Irrigation: ['Landscaping', 'Irrigation'],
@@ -29,9 +35,31 @@ const SERVICE_TO_CATEGORY: Record<string, string[]> = {
   Solar: ['Solar'], PowerWashing: ['PowerWashing'],
 };
 
+function normalizePhone(phone: string): string {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return phone || '';
+}
+
+function firstService(services: string[]): string {
+  return services[0] || '';
+}
+
+function promoLine(services: string[]): string {
+  const svc = firstService(services);
+  const intro = INTRO_PRICES[svc];
+  const full = FULL_PRICES[svc];
+  if (intro && full && intro < full) {
+    return `First purchase promo: $${intro} (regular $${full}). `;
+  }
+  return '';
+}
+
 function buildEmailHtml(contractorName: string, services: string[], zip: string, leadId: number): string {
   const serviceLabels = services.map(s => SERVICE_NAMES[s] || SERVICE_NAMES[s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()] || s).join(' & ');
   const viewUrl = `${LEAD_VIEW_URL}?lead=${leadId}`;
+  const promo = promoLine(services);
 
   return `<!DOCTYPE html>
 <html>
@@ -83,6 +111,7 @@ function buildEmailHtml(contractorName: string, services: string[], zip: string,
         <span class="detail-label">Contact Info</span>
         <div class="detail-value" style="color:#b8b0a4;font-style:italic;">🔒 Purchase lead to unlock details</div>
       </div>
+      ${promo ? `<div class="lead-detail"><span class="detail-label">Promo</span><div class="detail-value" style="color:#2d8a4e;font-weight:700;">${promo}Only the first purchase gets this discount.</div></div>` : ''}
     </div>
     <div class="cta-wrap">
       <a href="${viewUrl}" class="cta-btn">View &amp; Purchase Lead</a>
@@ -96,6 +125,44 @@ function buildEmailHtml(contractorName: string, services: string[], zip: string,
 </div>
 </body>
 </html>`;
+}
+
+async function sendTwilioSms(to: string, body: string): Promise<void> {
+  if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
+    throw new Error('Twilio environment variables are not configured');
+  }
+
+  const cleanTo = normalizePhone(to);
+  if (!cleanTo || !/^\+\d{10,15}$/.test(cleanTo)) {
+    throw new Error(`Invalid phone: ${to}`);
+  }
+
+  const params = new URLSearchParams();
+  params.append('From', TWILIO_FROM);
+  params.append('To', cleanTo);
+  params.append('Body', body);
+
+  const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: params.toString(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Twilio API error ${res.status}: ${text}`);
+  }
+}
+
+function buildLeadSms(services: string[], zip: string, leadId: number): string {
+  const serviceLabels = services.map(s => SERVICE_NAMES[s] || SERVICE_NAMES[s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()] || s).join(' & ');
+  const viewUrl = `${LEAD_VIEW_URL}?lead=${leadId}`;
+  const promo = promoLine(services);
+  return `New ${serviceLabels} lead in ${zip || 'your area'}! ${promo}Only 3 spots total. View & purchase: ${viewUrl} Reply STOP to opt out.`;
 }
 
 async function sendBrevoEmail(to: string, toName: string, subject: string, htmlContent: string): Promise<void> {
@@ -130,10 +197,10 @@ export async function notifyContractorsViaBrevo(
   leadId: number,
   services: string[],
   zip: string
-): Promise<{ matched: number; sent: number; errors: string[] }> {
+): Promise<{ matched: number; sent: number; smsSent: number; errors: string[] }> {
   if (!BREVO_API_KEY) {
     console.warn('[brevo-notify] BREVO_API_KEY not configured, skipping');
-    return { matched: 0, sent: 0, errors: ['BREVO_API_KEY not configured'] };
+    return { matched: 0, sent: 0, smsSent: 0, errors: ['BREVO_API_KEY not configured'] };
   }
 
   // Build category list
@@ -146,7 +213,7 @@ export async function notifyContractorsViaBrevo(
   }
 
   if (allCategories.length === 0) {
-    return { matched: 0, sent: 0, errors: [] };
+    return { matched: 0, sent: 0, smsSent: 0, errors: [] };
   }
 
   // Find matching contractors
@@ -156,7 +223,7 @@ export async function notifyContractorsViaBrevo(
   if (coords) {
     matchedContractors = await sql`
       SELECT * FROM (
-        SELECT id, name, email, category,
+          SELECT id, name, email, phone, category,
           (3958.8 * 2 * ASIN(SQRT(
             POWER(SIN(RADIANS(lat - ${coords.lat}) / 2), 2) +
             COS(RADIANS(${coords.lat})) * COS(RADIANS(lat)) *
@@ -174,7 +241,7 @@ export async function notifyContractorsViaBrevo(
     `;
   } else {
     matchedContractors = await sql`
-      SELECT DISTINCT ON (email) id, name, email, category
+      SELECT DISTINCT ON (email) id, name, email, phone, category
       FROM contractors
       WHERE category = ANY(${allCategories})
         AND email IS NOT NULL AND email != ''
@@ -186,10 +253,12 @@ export async function notifyContractorsViaBrevo(
 
   console.log(`[brevo-notify] Lead #${leadId}: ${matchedContractors.length} contractors matched (zip: ${zip}, categories: ${allCategories.join(',')})`);
 
-  // Send emails
+  // Send emails + SMS. Some phone numbers are landlines; SMS failures are logged but do not block email.
   let sent = 0;
+  let smsSent = 0;
   const errors: string[] = [];
   const serviceLabels = services.map(s => SERVICE_NAMES[s] || SERVICE_NAMES[s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()] || s).join(' & ');
+  const smsBody = buildLeadSms(services, zip, leadId);
 
   for (const contractor of matchedContractors) {
     try {
@@ -201,9 +270,18 @@ export async function notifyContractorsViaBrevo(
       console.error(`[brevo-notify] Failed for ${contractor.email}:`, e.message);
       errors.push(`${contractor.name} (${contractor.email}): ${e.message}`);
     }
+
+    if (contractor.phone) {
+      try {
+        await sendTwilioSms(contractor.phone, smsBody);
+        smsSent++;
+      } catch (e: any) {
+        console.warn(`[brevo-notify] SMS failed for ${contractor.name} (${contractor.phone}):`, e.message);
+      }
+    }
   }
 
-  console.log(`[brevo-notify] Lead #${leadId}: ${sent}/${matchedContractors.length} emails sent via Brevo`);
+  console.log(`[brevo-notify] Lead #${leadId}: ${sent}/${matchedContractors.length} emails sent via Brevo; ${smsSent}/${matchedContractors.length} SMS sent via Twilio`);
 
   // Schedule follow-up notifications (12h and 48h)
   try {
@@ -212,7 +290,7 @@ export async function notifyContractorsViaBrevo(
     console.error(`[brevo-notify] Failed to schedule follow-ups for lead #${leadId}:`, e.message);
   }
 
-  return { matched: matchedContractors.length, sent, errors };
+  return { matched: matchedContractors.length, sent, smsSent, errors };
 }
 
 /**
