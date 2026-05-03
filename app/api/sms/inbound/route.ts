@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 
-const DAN_PHONE = '7323376181';
-const DAN_PHONE_E164 = '+17323376181';
+const DAN_PHONE = '9086924847';
+const DAN_PHONE_E164 = '+19086924847';
 const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
 const NEW_LEAD_REPLY = 'Hi, this is Dan with PNM Fencing. I was assigned as the estimator for your project. Do you by chance have a property survey, or the total footage / section count?';
 const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
