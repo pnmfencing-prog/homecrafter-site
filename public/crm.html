@@ -102,7 +102,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .status-badge.won { background: var(--green-bg); color: var(--green); }
 .status-badge.lost { background: var(--red-bg); color: var(--red); }
 
-/* Modal */
+/* Modal / detail page */
 .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-start; padding-top: 5vh; }
 .modal-overlay.show { display: flex; }
 .modal { background: #fff; border-radius: 16px; width: 95%; max-width: 600px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
@@ -110,6 +110,14 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .modal-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 600; }
 .modal-close { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.5rem; cursor: pointer; }
 .modal-body { padding: 1.5rem; }
+#leadModal.modal-overlay { background: #fff; padding-top: 0; align-items: stretch; overflow-y: auto; }
+#leadModal .modal { width: 100%; max-width: none; min-height: 100vh; max-height: none; border-radius: 0; box-shadow: none; overflow: visible; }
+#leadModal .modal-header { position: sticky; top: 0; z-index: 5; border-radius: 0; }
+#leadModal .modal-body { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+#leadModal .modal-close { font-size: 0.8rem; color: var(--gold); border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; padding: 0.45rem 0.9rem; }
+#leadModal .modal-close::before { content: '← Back'; }
+#leadModal .modal-close { color: transparent; line-height: 1; }
+#leadModal .modal-close::before { color: var(--gold); }
 .form-group { margin-bottom: 1rem; }
 .form-group label { display: block; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem; }
 .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #e0ddd6; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.82rem; outline: none; }
@@ -215,12 +223,12 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 <!-- List View -->
 <div class="list-view" id="listView"></div>
 
-<!-- Lead Detail Modal -->
+<!-- Lead Detail Page -->
 <div class="modal-overlay" id="leadModal">
   <div class="modal">
     <div class="modal-header">
       <h2 id="modalTitle">Lead Details</h2>
-      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <button class="modal-close" onclick="closeModal()" aria-label="Back to sales board">&times;</button>
     </div>
     <div class="modal-body" id="modalBody"></div>
   </div>
@@ -411,7 +419,13 @@ function setView(view) {
 
 function openNewLeadModal() { document.getElementById('newLeadModal').classList.add('show'); }
 function closeNewModal() { document.getElementById('newLeadModal').classList.remove('show'); }
-function closeModal() { activeLeadId = null; document.getElementById('leadModal').classList.remove('show'); }
+function closeModal() {
+  activeLeadId = null;
+  document.getElementById('leadModal').classList.remove('show');
+  if (window.location.search.match(/[?&](lead|id)=/)) {
+    history.pushState(null, '', '/crm.html');
+  }
+}
 
 function createLead() {
   fetch('/api/crm', api('POST', {
@@ -431,8 +445,12 @@ function createLead() {
   });
 }
 
-function openLeadDetail(id) {
+function openLeadDetail(id, skipHistory) {
   activeLeadId = id;
+  if (!skipHistory) {
+    var currentLeadParam = new URLSearchParams(window.location.search).get('lead');
+    if (String(currentLeadParam) !== String(id)) history.pushState(null, '', '/crm.html?lead=' + id);
+  }
   fetch('/api/crm?id=' + id, api('GET'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -542,7 +560,7 @@ function openLeadDetail(id) {
 
         '<div style="margin-top:1.25rem;border-top:1px solid var(--cream-dark);padding-top:1rem">' +
           '<div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.75rem">💬 Conversation</div>' +
-          '<div class="chat-thread" id="chatThread" style="max-height:300px;overflow-y:auto;padding:0.5rem;background:var(--cream);border-radius:10px;margin-bottom:0.75rem">' +
+          '<div class="chat-thread" id="chatThread" style="height:50vh;min-height:320px;overflow-y:auto;padding:0.75rem;background:var(--cream);border-radius:10px;margin-bottom:0.75rem">' +
             act.map(function(a) {
               var isOutbound = a.description.startsWith('📤');
               var isInbound = a.description.startsWith('📥');
@@ -788,6 +806,12 @@ function scrollToCol(idx) {
 }
 
 window.addEventListener('resize', initSwipeDots);
+window.addEventListener('popstate', function() {
+  var params = new URLSearchParams(window.location.search);
+  var leadId = params.get('lead') || params.get('id');
+  if (leadId && !isNaN(parseInt(leadId))) openLeadDetail(parseInt(leadId), true);
+  else document.getElementById('leadModal').classList.remove('show');
+});
 
 function refreshCrmQuietly() {
   if (document.hidden) return;
@@ -807,7 +831,7 @@ function openLinkedLeadFromUrl() {
   var params = new URLSearchParams(window.location.search);
   var leadId = params.get('lead') || params.get('id');
   if (!leadId || isNaN(parseInt(leadId))) return;
-  setTimeout(function() { openLeadDetail(parseInt(leadId)); }, 500);
+  setTimeout(function() { openLeadDetail(parseInt(leadId), true); }, 500);
 }
 
 // Init
