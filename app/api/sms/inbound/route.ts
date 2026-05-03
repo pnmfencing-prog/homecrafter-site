@@ -34,6 +34,36 @@ function isOptOutOrAngryReply(body: string): boolean {
   return HARD_OPTOUT_RE.test(normalized) || ANGRY_OPTOUT_RE.test(normalized);
 }
 
+async function findContractorByPhone(from: string): Promise<any | null> {
+  const normalized = normalizePhone(from);
+  const matches = await sql`
+    SELECT id, name, phone, category
+    FROM contractors
+    WHERE regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g') IN (${normalized}, ${`1${normalized}`})
+    ORDER BY active DESC, id ASC
+    LIMIT 1
+  `;
+  return matches[0] || null;
+}
+
+async function logContractorSmsReply(contractor: any, from: string, body: string): Promise<void> {
+  await sql`
+    CREATE TABLE IF NOT EXISTS contractor_sms_replies (
+      id SERIAL PRIMARY KEY,
+      contractor_id INTEGER,
+      contractor_name TEXT,
+      contractor_phone TEXT,
+      category TEXT,
+      message TEXT NOT NULL,
+      created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+    )
+  `;
+  await sql`
+    INSERT INTO contractor_sms_replies (contractor_id, contractor_name, contractor_phone, category, message)
+    VALUES (${contractor.id}, ${contractor.name || null}, ${formatPhone(from)}, ${contractor.category || null}, ${body})
+  `;
+}
+
 async function findOrCreateLead(from: string): Promise<{ lead: any; created: boolean }> {
   const normalized = normalizePhone(from);
   const matches = await sql`
@@ -68,10 +98,19 @@ export async function POST(request: NextRequest) {
   let lead: any = null;
 
   if (from && body) {
-    const result = await findOrCreateLead(from);
-    lead = result.lead;
-    const description = `📥 ${body}`;
-    suppressAnyReply = isOptOutOrAngryReply(body);
+    const contractor = await findContractorByPhone(from);
+
+    if (contractor) {
+      await logContractorSmsReply(contractor, from, body);
+      if (normalizePhone(from) !== DAN_PHONE) {
+        notificationText = `HomeCrafter contractor reply from ${contractor.name || 'Unknown contractor'} (${formatPhone(from)}): ${body}\n\nNot added to PNM CRM.`;
+      }
+      suppressAnyReply = true;
+    } else {
+      const result = await findOrCreateLead(from);
+      lead = result.lead;
+      const description = `📥 ${body}`;
+      suppressAnyReply = isOptOutOrAngryReply(body);
 
     // Avoid duplicate CRM entries if Twilio retries the webhook.
     const duplicate = await sql`
@@ -137,6 +176,7 @@ export async function POST(request: NextRequest) {
           WHERE id = ${lead.id}
         `;
       }
+    }
     }
   }
 
