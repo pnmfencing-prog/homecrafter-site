@@ -6,7 +6,7 @@ const DAN_PHONE_E164 = '+19086924847';
 const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
 const NEW_LEAD_REPLY = 'Hi, this is Dan with PNM Fencing. I was assigned as the estimator for your project. Do you by chance have a property survey, or the total footage / section count?';
 const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
-const ANGRY_OPTOUT_RE = /\b(fuck off|f off|leave me alone|do not text|dont text|don't text|remove me|wrong number|not interested)\b/i;
+const ANGRY_OPTOUT_RE = /\b(fuck off|f off|leave me alone|do not text|dont text|don't text|remove me|wrong number|not interested|no thanks?|no thank you|i'?m good|im good|i am good|all set|we'?re good|were good)\b/i;
 
 function normalizePhone(phone: string): string {
   const digits = (phone || '').replace(/\D/g, '');
