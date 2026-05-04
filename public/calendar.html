@@ -539,7 +539,7 @@ function loadDayView(date) {
       '</div>' +
       '<div class="event-actions">' +
         '<button class="edit-btn" onclick="editEvent(' + e.id + ')">Edit</button>' +
-        (e.status === 'scheduled' ? '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ')">✓</button>' : '') +
+        ((e.status === 'scheduled' || e.status === 'missed') ? '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ')">✓</button>' : '') +
         (e.status === 'scheduled' ? '<button class="btn btn-outline btn-sm" onclick="cancelEvent(' + e.id + ')">✕</button>' : '') +
         (e.status !== 'scheduled' ? '<button class="btn btn-outline btn-sm" onclick="rescheduleEvent(' + e.id + ')">↻</button>' : '') +
         '<button class="btn btn-outline btn-sm" style="color:var(--red)" onclick="deleteEvent(' + e.id + ')">🗑</button>' +
@@ -1053,7 +1053,7 @@ function renderFeed() {
         '</div>' +
         '<div class="event-actions">' +
           '<button class="edit-btn" onclick="editEvent(' + e.id + ')">Edit</button>' +
-          (e.status === 'scheduled' ? '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ');setTimeout(loadFeed,500)">✓</button>' : '') +
+          ((e.status === 'scheduled' || e.status === 'missed') ? '<button class="btn btn-green btn-sm" onclick="completeEvent(' + e.id + ');setTimeout(loadFeed,500)">✓</button>' : '') +
           (e.status === 'scheduled' ? '<button class="btn btn-outline btn-sm" onclick="cancelEvent(' + e.id + ');setTimeout(loadFeed,500)">✕</button>' : '') +
           (e.status !== 'scheduled' ? '<button class="btn btn-outline btn-sm" onclick="rescheduleEvent(' + e.id + ')">↻</button>' : '') +
         '</div>' +
