@@ -535,10 +535,11 @@ function openLeadDetail(id, skipHistory) {
 
         (l.service_type ? '<div style="margin-bottom:0.75rem"><span style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold)">Service</span><br><span style="font-size:0.85rem">' + l.service_type + '</span></div>' : '') +
 
-        '<div class="form-row" style="margin-bottom:1rem">' +
-          '<div class="form-group"><label>Quoted Amount</label><input type="number" id="edit-quoted" value="' + (l.quoted_amount || '') + '" onchange="updateField(' + l.id + ',\'quoted_amount\',this.value)"></div>' +
-          '<div class="form-group"><label>Job Value (Won)</label><input type="number" id="edit-value" value="' + (l.job_value || '') + '" onchange="updateField(' + l.id + ',\'job_value\',this.value)"></div>' +
+        '<div class="form-row" style="margin-bottom:0.5rem">' +
+          '<div class="form-group"><label>Quoted Amount</label><input type="number" id="edit-quoted" value="' + (l.quoted_amount || '') + '"></div>' +
+          '<div class="form-group"><label>Job Value (Won)</label><input type="number" id="edit-value" value="' + (l.job_value || '') + '"></div>' +
         '</div>' +
+        '<button class="btn btn-green" style="width:100%;margin-bottom:1rem" onclick="saveAmounts(' + l.id + ')">Save Amounts</button>' +
 
         (l.notes ? '<div style="background:var(--cream);padding:0.75rem 1rem;border-radius:8px;font-size:0.8rem;margin-bottom:1rem;border-left:3px solid var(--gold)">' + l.notes + '</div>' : '') +
 
@@ -657,7 +658,25 @@ function addToCalendar(leadId, name, address) {
 function updateField(id, field, value) {
   var body = { action: 'update', id: id };
   body[field] = value || null;
-  fetch('/api/crm', api('POST', body));
+  return fetch('/api/crm', api('POST', body));
+}
+
+function saveAmounts(id) {
+  var quoted = document.getElementById('edit-quoted') ? document.getElementById('edit-quoted').value : '';
+  var jobValue = document.getElementById('edit-value') ? document.getElementById('edit-value').value : '';
+  fetch('/api/crm', api('POST', {
+    action: 'update',
+    id: id,
+    quoted_amount: quoted || null,
+    job_value: jobValue || null
+  })).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) {
+      alert('✅ Amounts saved');
+      loadLeads();
+    } else {
+      alert('❌ Could not save amounts');
+    }
+  }).catch(function() { alert('❌ Could not save amounts'); });
 }
 
 function applyMessageTemplate(templateKey) {
