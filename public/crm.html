@@ -299,6 +299,7 @@ var currentSource = 'all';
 var readFilter = 'all';
 var colMsgFilters = {}; // per-column: 'all', 'customer', 'you'
 var activeLeadId = null;
+var activeLeadEmail = '';
 var CRM_REFRESH_MS = 30000; // light polling only while CRM tab is open
 
 var COLUMNS = [
@@ -500,6 +501,8 @@ function openLeadDetail(id, skipHistory) {
       (nextStatuses[l.status] || []).forEach(function(ns) {
         statusBtns += '<button class="btn ' + ns.cls + '" onclick="updateStatus(' + l.id + ',\'' + ns.s + '\')">' + ns.label + '</button> ';
       });
+      activeLeadEmail = (l.customer_email || '').trim();
+      var hasValidEmail = isValidEmail(activeLeadEmail);
 
       var activityHtml = '';
       act.forEach(function(a) {
@@ -603,9 +606,16 @@ function openLeadDetail(id, skipHistory) {
               }
             }).join('') +
           '</div>' +
+          (!hasValidEmail ? '<div id="email-required-box" style="margin-bottom:0.6rem;padding:0.65rem;background:#fffbeb;border:1px solid #f4d58d;border-radius:8px;font-size:0.72rem;color:#7a4b00">' +
+            '<div style="font-weight:700;margin-bottom:0.35rem">Email needed before selecting Email</div>' +
+            '<div style="display:flex;gap:0.4rem;flex-wrap:wrap">' +
+              '<input type="email" id="customer-email-input" placeholder="Paste customer email..." style="flex:1;min-width:190px;padding:0.5rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.8rem">' +
+              '<button class="btn btn-primary" style="font-size:0.65rem" onclick="saveCustomerEmail(' + l.id + ')">Save Email</button>' +
+            '</div>' +
+          '</div>' : '') +
           '<div class="quick-note">' +
-            '<select id="note-type" style="width:90px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem">' +
-              '<option value="sms">💬 Text</option><option value="note">📝 Note</option><option value="call">📞 Call</option><option value="email">✉️ Email</option>' +
+            '<select id="note-type" onchange="handleNoteTypeChange(' + l.id + ')" style="width:90px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem">' +
+              '<option value="sms">💬 Text</option><option value="note">📝 Note</option><option value="call">📞 Call</option><option value="email" ' + (!hasValidEmail ? 'disabled' : '') + '>✉️ Email</option>' +
             '</select>' +
             '<select id="message-template" style="width:95px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem" onchange="applyMessageTemplate(this.value)">' +
               '<option value="">Templates</option><option value="hope">Hope follow-up</option>' +
@@ -655,10 +665,44 @@ function addToCalendar(leadId, name, address) {
     });
 }
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim());
+}
+
 function updateField(id, field, value) {
   var body = { action: 'update', id: id };
   body[field] = value || null;
   return fetch('/api/crm', api('POST', body));
+}
+
+function saveCustomerEmail(id) {
+  var input = document.getElementById('customer-email-input');
+  var email = input ? input.value.trim() : '';
+  if (!isValidEmail(email)) {
+    alert('Please enter a valid email address first.');
+    if (input) input.focus();
+    return;
+  }
+  updateField(id, 'customer_email', email).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) {
+      activeLeadEmail = email;
+      alert('✅ Email saved');
+      openLeadDetail(id, true);
+    } else {
+      alert('❌ Could not save email');
+    }
+  }).catch(function() { alert('❌ Could not save email'); });
+}
+
+function handleNoteTypeChange(id) {
+  var sel = document.getElementById('note-type');
+  if (!sel) return;
+  if (sel.value === 'email' && !isValidEmail(activeLeadEmail)) {
+    sel.value = 'sms';
+    alert('Add a valid customer email before sending an email.');
+    var input = document.getElementById('customer-email-input');
+    if (input) input.focus();
+  }
 }
 
 function saveAmounts(id) {
@@ -694,6 +738,12 @@ function addNote(id) {
   var type = document.getElementById('note-type').value;
   var text = document.getElementById('note-text').value;
   if (!text) return;
+  if (type === 'email' && !isValidEmail(activeLeadEmail)) {
+    alert('Add a valid customer email before sending an email.');
+    var input = document.getElementById('customer-email-input');
+    if (input) input.focus();
+    return;
+  }
   // Auto-prefix SMS messages so chat knows direction
   var desc = text;
   if (type === 'sms' && !text.startsWith('📤') && !text.startsWith('📥')) {

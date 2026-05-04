@@ -135,13 +135,20 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === 'update') {
-    const { id, quoted_amount, job_value, assigned_to, next_follow_up, notes, service_type } = body;
+    const { id, quoted_amount, job_value, assigned_to, next_follow_up, notes, service_type, customer_email, customer_phone, customer_name, customer_address, customer_city, customer_state, customer_zip } = body;
     if (quoted_amount !== undefined) await sql`UPDATE crm_leads SET quoted_amount = ${quoted_amount}, updated_at = NOW() WHERE id = ${id}`;
     if (job_value !== undefined) await sql`UPDATE crm_leads SET job_value = ${job_value}, updated_at = NOW() WHERE id = ${id}`;
     if (assigned_to !== undefined) await sql`UPDATE crm_leads SET assigned_to = ${assigned_to}, updated_at = NOW() WHERE id = ${id}`;
     if (next_follow_up !== undefined) await sql`UPDATE crm_leads SET next_follow_up = ${next_follow_up}, updated_at = NOW() WHERE id = ${id}`;
     if (notes !== undefined) await sql`UPDATE crm_leads SET notes = ${notes}, updated_at = NOW() WHERE id = ${id}`;
     if (service_type !== undefined) await sql`UPDATE crm_leads SET service_type = ${service_type}, updated_at = NOW() WHERE id = ${id}`;
+    if (customer_email !== undefined) await sql`UPDATE crm_leads SET customer_email = ${customer_email}, updated_at = NOW() WHERE id = ${id}`;
+    if (customer_phone !== undefined) await sql`UPDATE crm_leads SET customer_phone = ${customer_phone}, updated_at = NOW() WHERE id = ${id}`;
+    if (customer_name !== undefined) await sql`UPDATE crm_leads SET customer_name = ${customer_name}, updated_at = NOW() WHERE id = ${id}`;
+    if (customer_address !== undefined) await sql`UPDATE crm_leads SET customer_address = ${customer_address}, updated_at = NOW() WHERE id = ${id}`;
+    if (customer_city !== undefined) await sql`UPDATE crm_leads SET customer_city = ${customer_city}, updated_at = NOW() WHERE id = ${id}`;
+    if (customer_state !== undefined) await sql`UPDATE crm_leads SET customer_state = ${customer_state}, updated_at = NOW() WHERE id = ${id}`;
+    if (customer_zip !== undefined) await sql`UPDATE crm_leads SET customer_zip = ${customer_zip}, updated_at = NOW() WHERE id = ${id}`;
     return NextResponse.json({ success: true });
   }
 
