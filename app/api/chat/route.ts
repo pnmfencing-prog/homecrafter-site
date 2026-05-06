@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       const hasInboundPrefix = description.startsWith('📥');
       return {
         id: m.id,
-        text: description.replace(/^(📤|📥)\s*/, ''),
+        text: description.replace(/^(📤|📥)\s*/, '').replace(/^Scheduled SMS sent:\s*/i, ''),
         // Prefix is the source of truth when present. This keeps staff replies
         // dark/right even if an older row was accidentally flagged inbound.
         fromCustomer: hasInboundPrefix ? true : hasOutboundPrefix ? false : m.is_from_customer,
