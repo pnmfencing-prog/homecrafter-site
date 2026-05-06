@@ -41,14 +41,24 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// POST — customer sends a message
+function isAdmin(request: NextRequest): boolean {
+  const auth = request.headers.get('authorization') || '';
+  const token = auth.replace('Bearer ', '');
+  return token === (process.env.ADMIN_TOKEN || 'hc-admin-2026');
+}
+
+// POST — customer or staff sends a message
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const token = body.token;
   const text = (body.message || '').trim();
+  const fromStaff = body.fromStaff === true;
 
   if (!token || !text || text.length > 2000) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  }
+  if (fromStaff && !isAdmin(request)) {
+    return NextResponse.json({ error: 'Unauthorized staff message' }, { status: 401 });
   }
 
   const leads = await sql`
@@ -59,10 +69,17 @@ export async function POST(request: NextRequest) {
   }
 
   const leadId = leads[0].id;
+  const desc = (fromStaff ? '📤 ' : '📥 ') + text;
 
   await sql`
     INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer)
-    VALUES (${leadId}, 'sms', ${'📥 ' + text}, true)
+    VALUES (${leadId}, 'sms', ${desc}, ${!fromStaff})
+  `;
+
+  await sql`
+    UPDATE crm_leads
+    SET updated_at = NOW(), last_message_by = ${fromStaff ? 'you' : 'customer'}, last_message_at = NOW(), is_read = ${fromStaff}
+    WHERE id = ${leadId}
   `;
 
   return NextResponse.json({ success: true });

@@ -61,7 +61,10 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 </div>
 
 <script>
-var TOKEN = new URLSearchParams(window.location.search).get('t') || '';
+var params = new URLSearchParams(window.location.search);
+var TOKEN = params.get('t') || '';
+var STAFF_MODE = params.get('staff') === '1';
+var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
 var pollTimer = null;
 
 function timeStr(t) {
@@ -93,7 +96,7 @@ function loadMessages() {
         document.getElementById('messages').innerHTML = '<div class="error">Chat not found.</div>';
         return;
       }
-      document.getElementById('headerInfo').textContent = (data.lead.service || 'Project') + ' Inquiry';
+      document.getElementById('headerInfo').textContent = (data.lead.service || 'Project') + ' Inquiry' + (STAFF_MODE ? ' · Staff Reply Mode' : '');
       renderMessages(data);
     });
 }
@@ -107,10 +110,11 @@ function sendMsg() {
 
   fetch('/api/chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: TOKEN, message: text })
-  }).then(function() {
+    headers: STAFF_MODE ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN } : { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: TOKEN, message: text, fromStaff: STAFF_MODE })
+  }).then(function(r) {
     document.getElementById('sendBtn').disabled = false;
+    if (!r.ok) alert('Could not send message. Please open the thread from the CRM.');
     loadMessages();
   });
 }
