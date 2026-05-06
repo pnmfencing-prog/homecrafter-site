@@ -153,11 +153,33 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === 'add_note') {
-    const { id, activity_type, description } = body;
+    const { id, activity_type, description, subject } = body;
     const isFromCustomer = description?.startsWith('📥') || false;
     await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${id}, ${activity_type || 'note'}, ${description}, ${isFromCustomer})`;
     const sender = isFromCustomer ? 'customer' : 'you';
     await sql`UPDATE crm_leads SET updated_at = NOW(), last_message_by = ${sender}, last_message_at = NOW(), is_read = ${!isFromCustomer} WHERE id = ${id}`;
+
+    if (activity_type === 'email' && !isFromCustomer) {
+      const leads = await sql`SELECT customer_name, customer_email FROM crm_leads WHERE id = ${id} LIMIT 1`;
+      const to = leads[0]?.customer_email;
+      const cleanSubject = (subject || 'Following up from PNM Fencing').trim();
+      const bodyText = String(description || '').replace(/^(📤|📥)\s*/, '').replace(/^Subject:\s*[^\n]+\n\n/, '');
+      if (to && process.env.BREVO_API_KEY) {
+        const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sender: { name: 'PNM Fencing', email: 'trent@homecrafter.ai' },
+            to: [{ email: to, name: leads[0]?.customer_name || undefined }],
+            subject: cleanSubject,
+            textContent: bodyText,
+            htmlContent: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;white-space:pre-wrap">${bodyText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
+          }),
+        });
+        if (!res.ok) return NextResponse.json({ error: `Email send failed: ${await res.text()}` }, { status: 502 });
+      }
+    }
+
     return NextResponse.json({ success: true });
   }
 

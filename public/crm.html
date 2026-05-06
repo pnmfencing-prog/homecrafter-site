@@ -186,6 +186,11 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   #leadModal .chat-thread { width: 100% !important; max-width: 100% !important; height: auto !important; min-height: 45vh !important; max-height: none; overflow-y: visible !important; overflow-x: clip !important; padding: 0.6rem !important; touch-action: pan-y pinch-zoom; }
   #leadModal .chat-thread > div { margin-left: 0 !important; margin-right: 0 !important; }
   #leadModal .chat-thread div[style*="display:inline-block"] { max-width: min(88vw, 100%) !important; word-break: break-word; word-wrap: break-word; overflow-wrap: anywhere; }
+  #leadModal .channel-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; width: 100%; }
+  #leadModal .channel-toggle .btn { min-height: 42px; font-size: 16px !important; }
+  #leadModal .channel-toggle .active { background: var(--midnight); color: var(--gold); border-color: var(--midnight); }
+  #leadModal .email-subject-row { display: none; width: 100%; }
+  #leadModal .email-subject-row.show { display: block; }
   #leadModal .quick-note { position: sticky; bottom: 0; z-index: 4; background: #fff; margin: 0.75rem -0.85rem 0; padding: 0.65rem 0.85rem calc(0.65rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--cream-dark); flex-wrap: wrap; align-items: center; }
   #leadModal .quick-note select { flex: 1 1 calc(50% - 0.25rem); width: auto !important; font-size: 16px !important; line-height: 1.2; }
   #leadModal .quick-note input { flex: 1 1 100% !important; min-width: 0; font-size: 16px !important; line-height: 1.2; }
@@ -615,14 +620,22 @@ function openLeadDetail(id, skipHistory) {
               var isOutbound = a.description.startsWith('📤');
               var isInbound = a.description.startsWith('📥');
               var isChat = isOutbound || isInbound;
-              var msg = a.description.replace(/^(📤|📥|📞|✉️)\s*/, '');
+              var msg = a.description.replace(/^(📤|📥|📞|✉️)\s*/, '').replace(/^Scheduled SMS sent:\s*/i, '');
+              var channel = a.activity_type === 'email' ? 'email' : a.activity_type === 'sms' ? 'sms' : '';
+              var channelLabel = channel ? channel.toUpperCase() : '';
+              var subjectMatch = msg.match(/^Subject:\s*([^\n]+)\n\n/);
+              var subjectHtml = '';
+              if (subjectMatch) {
+                subjectHtml = '<div style="font-size:0.68rem;font-weight:700;opacity:0.85;margin-bottom:0.35rem">Subject: ' + subjectMatch[1] + '</div>';
+                msg = msg.replace(/^Subject:\s*[^\n]+\n\n/, '');
+              }
               var date = new Date(a.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
               if (isChat) {
                 return '<div style="margin-bottom:0.5rem;' + (isOutbound ? 'margin-left:25%;text-align:right' : 'margin-right:25%;text-align:left') + '">' +
-                  '<div style="display:inline-block;text-align:left;max-width:100%;padding:0.6rem 0.85rem;border-radius:' + (isOutbound ? '12px 12px 4px 12px' : '12px 12px 12px 4px') + ';background:' + (isOutbound ? 'var(--midnight)' : '#fff') + ';color:' + (isOutbound ? '#fff' : 'var(--text)') + ';font-size:0.8rem;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,0.06)">' +
-                    '<div>' + msg + '</div>' +
-                    '<div style="font-size:0.6rem;color:' + (isOutbound ? 'rgba(255,255,255,0.5)' : '#999') + ';margin-top:0.3rem;text-align:right">' + (isOutbound ? 'Sent' : 'Received') + ' · ' + date + '</div>' +
+                  '<div style="display:inline-block;text-align:left;max-width:100%;padding:0.6rem 0.85rem 0.45rem;border-radius:' + (isOutbound ? '12px 12px 4px 12px' : '12px 12px 12px 4px') + ';background:' + (isOutbound ? 'var(--midnight)' : '#fff') + ';color:' + (isOutbound ? '#fff' : 'var(--text)') + ';font-size:0.8rem;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,0.06)">' +
+                    subjectHtml + '<div>' + msg + '</div>' +
+                    '<div style="display:flex;justify-content:flex-end;align-items:center;gap:0.35rem;font-size:0.6rem;color:' + (isOutbound ? 'rgba(255,255,255,0.5)' : '#999') + ';margin-top:0.3rem;text-align:right"><span>' + (isOutbound ? 'Sent' : 'Received') + ' · ' + date + '</span>' + (channelLabel ? '<span style="font-size:0.5rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;border:1px solid ' + (isOutbound ? 'rgba(255,255,255,0.25)' : '#ddd') + ';border-radius:999px;padding:0.05rem 0.35rem">' + channelLabel + '</span>' : '') + '</div>' +
                   '</div></div>';
               } else {
                 var icon = a.activity_type === 'call' ? '📞' : a.activity_type === 'email' ? '✉️' : '📝';
@@ -639,9 +652,12 @@ function openLeadDetail(id, skipHistory) {
             '</div>' +
           '</div>' : '') +
           '<div class="quick-note">' +
-            '<select id="note-type" onchange="handleNoteTypeChange(' + l.id + ')" style="width:90px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem">' +
-              '<option value="sms">💬 Text</option><option value="note">📝 Note</option><option value="call">📞 Call</option><option value="email" ' + (!hasValidEmail ? 'disabled' : '') + '>✉️ Email</option>' +
-            '</select>' +
+            '<input type="hidden" id="note-type" value="sms">' +
+            '<div class="channel-toggle">' +
+              '<button type="button" id="channel-sms" class="btn btn-outline active" onclick="setMessageChannel(\'sms\',' + l.id + ')">💬 Text</button>' +
+              '<button type="button" id="channel-email" class="btn btn-outline" ' + (!hasValidEmail ? 'disabled' : '') + ' onclick="setMessageChannel(\'email\',' + l.id + ')">✉️ Email</button>' +
+            '</div>' +
+            '<div id="email-subject-row" class="email-subject-row"><input type="text" id="email-subject" placeholder="Email subject..." style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.8rem"></div>' +
             '<select id="message-template" style="width:95px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem" onchange="applyMessageTemplate(this.value)">' +
               '<option value="">Templates</option><option value="hope">Hope follow-up</option>' +
             '</select>' +
@@ -748,16 +764,27 @@ function saveContactInfo(id) {
   }).catch(function() { alert('❌ Could not save contact info'); });
 }
 
-function handleNoteTypeChange(id) {
-  var sel = document.getElementById('note-type');
-  if (!sel) return;
-  if (sel.value === 'email' && !isValidEmail(activeLeadEmail)) {
-    sel.value = 'sms';
+function setMessageChannel(channel, id) {
+  var type = document.getElementById('note-type');
+  if (!type) return;
+  if (channel === 'email' && !isValidEmail(activeLeadEmail)) {
     alert('Add a valid customer email before sending an email.');
     var input = document.getElementById('customer-email-input');
     if (input) input.focus();
+    return;
+  }
+  type.value = channel;
+  document.getElementById('channel-sms')?.classList.toggle('active', channel === 'sms');
+  document.getElementById('channel-email')?.classList.toggle('active', channel === 'email');
+  document.getElementById('email-subject-row')?.classList.toggle('show', channel === 'email');
+  document.getElementById('note-text').placeholder = channel === 'email' ? 'Type email body...' : 'Type a message...';
+  if (channel === 'email') {
+    var subject = document.getElementById('email-subject');
+    if (subject && !subject.value) subject.value = 'Following up from PNM Fencing';
   }
 }
+
+function handleNoteTypeChange(id) { setMessageChannel(document.getElementById('note-type')?.value || 'sms', id); }
 
 function saveAmounts(id) {
   var quoted = document.getElementById('edit-quoted') ? document.getElementById('edit-quoted').value : '';
@@ -790,21 +817,36 @@ function applyMessageTemplate(templateKey) {
 
 function addNote(id) {
   var type = document.getElementById('note-type').value;
-  var text = document.getElementById('note-text').value;
+  var text = document.getElementById('note-text').value.trim();
   if (!text) return;
-  if (type === 'email' && !isValidEmail(activeLeadEmail)) {
-    alert('Add a valid customer email before sending an email.');
-    var input = document.getElementById('customer-email-input');
-    if (input) input.focus();
-    return;
+  var subject = (document.getElementById('email-subject')?.value || '').trim();
+  if (type === 'email') {
+    if (!isValidEmail(activeLeadEmail)) {
+      alert('Add a valid customer email before sending an email.');
+      var input = document.getElementById('customer-email-input');
+      if (input) input.focus();
+      return;
+    }
+    if (!subject) {
+      alert('Please add an email subject.');
+      document.getElementById('email-subject')?.focus();
+      return;
+    }
   }
-  // Auto-prefix SMS messages so chat knows direction
   var desc = text;
   if (type === 'sms' && !text.startsWith('📤') && !text.startsWith('📥')) {
     desc = '📤 ' + text;
   }
-  fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: desc }))
-    .then(function() { document.getElementById('note-text').value = ''; openLeadDetail(id); });
+  if (type === 'email' && !text.startsWith('📤') && !text.startsWith('📥')) {
+    desc = '📤 Subject: ' + subject + '\n\n' + text;
+  }
+  fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: desc, subject: subject }))
+    .then(function() {
+      document.getElementById('note-text').value = '';
+      var subj = document.getElementById('email-subject');
+      if (subj && type === 'email') subj.value = subject;
+      openLeadDetail(id);
+    });
 }
 
 function toggleRead(id) {
