@@ -25,12 +25,19 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     lead: { name: lead.customer_name, service: lead.service_type },
-    messages: messages.map((m: any) => ({
-      id: m.id,
-      text: m.description.replace(/^(📤|📥)\s*/, ''),
-      fromCustomer: m.is_from_customer,
-      time: m.created_at,
-    })),
+    messages: messages.map((m: any) => {
+      const description = m.description || '';
+      const hasOutboundPrefix = description.startsWith('📤');
+      const hasInboundPrefix = description.startsWith('📥');
+      return {
+        id: m.id,
+        text: description.replace(/^(📤|📥)\s*/, ''),
+        // Prefix is the source of truth when present. This keeps staff replies
+        // dark/right even if an older row was accidentally flagged inbound.
+        fromCustomer: hasInboundPrefix ? true : hasOutboundPrefix ? false : m.is_from_customer,
+        time: m.created_at,
+      };
+    }),
   });
 }
 
