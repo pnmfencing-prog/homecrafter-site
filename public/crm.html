@@ -186,10 +186,11 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   #leadModal .chat-thread { width: 100% !important; max-width: 100% !important; height: auto !important; min-height: 45vh !important; max-height: none; overflow-y: visible !important; overflow-x: clip !important; padding: 0.6rem !important; touch-action: pan-y pinch-zoom; }
   #leadModal .chat-thread > div { margin-left: 0 !important; margin-right: 0 !important; }
   #leadModal .chat-thread div[style*="display:inline-block"] { max-width: min(88vw, 100%) !important; word-break: break-word; word-wrap: break-word; overflow-wrap: anywhere; }
-  #leadModal .quick-note { position: sticky; bottom: 0; z-index: 4; background: #fff; margin: 0.75rem -0.85rem 0; padding: 0.65rem 0.85rem calc(0.65rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--cream-dark); flex-wrap: wrap; }
-  #leadModal .quick-note select { flex: 1 1 calc(50% - 0.25rem); width: auto !important; }
-  #leadModal .quick-note input { flex: 1 1 100% !important; min-width: 0; }
-  #leadModal .quick-note button { flex: 1 1 100%; }
+  #leadModal .quick-note { position: sticky; bottom: 0; z-index: 4; background: #fff; margin: 0.75rem -0.85rem 0; padding: 0.65rem 0.85rem calc(0.65rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--cream-dark); flex-wrap: wrap; align-items: center; }
+  #leadModal .quick-note select { flex: 1 1 calc(50% - 0.25rem); width: auto !important; font-size: 16px !important; line-height: 1.2; }
+  #leadModal .quick-note input { flex: 1 1 100% !important; min-width: 0; font-size: 16px !important; line-height: 1.2; }
+  #leadModal .quick-note button { flex: 1 1 100%; min-height: 44px; font-size: 16px !important; }
+  #leadModal input, #leadModal select, #leadModal textarea { font-size: 16px !important; }
   
   /* Swipe indicator dots */
   .swipe-dots { display: flex; justify-content: center; gap: 6px; padding: 0.5rem 0 0.75rem; }

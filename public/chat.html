@@ -27,10 +27,10 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .msg.in .bubble { background: #fff; color: var(--text); border-radius: 14px 14px 14px 4px; }
 .msg .time { font-size: 0.55rem; color: #aaa; margin-top: 0.2rem; }
 
-.compose { display: flex; gap: 0.5rem; padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #eee; flex-shrink: 0; }
-.compose input { flex: 1; min-width: 0; padding: 0.7rem 1rem; border: 1px solid #e0ddd6; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 0.85rem; outline: none; }
+.compose { display: flex; gap: 0.5rem; padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #eee; flex-shrink: 0; align-items: center; }
+.compose input { flex: 1; min-width: 0; padding: 0.7rem 1rem; border: 1px solid #e0ddd6; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 16px; line-height: 1.2; outline: none; }
 .compose input:focus { border-color: var(--gold); }
-.compose button { background: var(--midnight); color: var(--gold); border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.compose button { background: var(--midnight); color: var(--gold); border: none; border-radius: 50%; min-width: 44px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
 .loading { text-align: center; padding: 3rem; color: #999; font-size: 0.85rem; }
 .error { text-align: center; padding: 3rem; color: #c0392b; font-size: 0.85rem; }
