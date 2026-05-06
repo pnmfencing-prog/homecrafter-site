@@ -318,6 +318,14 @@ function api(method, body) {
   return opts;
 }
 
+function escAttr(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function loadLeads() {
   var params = '?status=' + currentFilter + '&source=' + currentSource;
   var search = document.getElementById('searchBox').value;
@@ -531,6 +539,21 @@ function openLeadDetail(id, skipHistory) {
           '<button onclick="navigator.clipboard.writeText(\'https://homecrafter.ai/chat.html?t=' + l.chat_token + '\')" style="border:none;background:none;cursor:pointer;font-size:0.8rem" title="Copy link">📋</button>' +
         '</div>' : '') +
 
+        '<details style="margin-bottom:1rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:10px;padding:0.75rem">' +
+          '<summary style="cursor:pointer;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--midnight)">✏️ Edit contact info</summary>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;margin-top:0.85rem">' +
+            '<div class="form-group"><label>Name</label><input id="edit-name" value="' + escAttr(l.customer_name) + '"></div>' +
+            '<div class="form-group"><label>Phone</label><input id="edit-phone" value="' + escAttr(l.customer_phone) + '"></div>' +
+            '<div class="form-group"><label>Email</label><input id="edit-email" type="email" value="' + escAttr(l.customer_email) + '"></div>' +
+            '<div class="form-group"><label>Service</label><input id="edit-service" value="' + escAttr(l.service_type) + '"></div>' +
+            '<div class="form-group" style="grid-column:span 2"><label>Address</label><input id="edit-address" value="' + escAttr(l.customer_address) + '"></div>' +
+            '<div class="form-group"><label>City</label><input id="edit-city" value="' + escAttr(l.customer_city) + '"></div>' +
+            '<div class="form-group"><label>State</label><input id="edit-state" value="' + escAttr(l.customer_state) + '"></div>' +
+            '<div class="form-group"><label>ZIP</label><input id="edit-zip" value="' + escAttr(l.customer_zip) + '"></div>' +
+            '<button class="btn btn-primary" style="grid-column:span 2" onclick="saveContactInfo(' + l.id + ')">Save Contact Info</button>' +
+          '</div>' +
+        '</details>' +
+
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem 1.5rem;margin-bottom:1.25rem">' +
           (l.customer_phone ? '<div style="font-size:0.82rem">📞 <a href="tel:' + l.customer_phone + '" style="color:var(--midnight);text-decoration:none;font-weight:500">' + l.customer_phone + '</a></div>' : '') +
           (l.customer_email ? '<div style="font-size:0.82rem">✉️ <a href="mailto:' + l.customer_email + '" style="color:var(--midnight);text-decoration:none;font-weight:500">' + l.customer_email + '</a></div>' : '') +
@@ -693,6 +716,35 @@ function saveCustomerEmail(id) {
       alert('❌ Could not save email');
     }
   }).catch(function() { alert('❌ Could not save email'); });
+}
+
+function saveContactInfo(id) {
+  var email = (document.getElementById('edit-email')?.value || '').trim();
+  if (email && !isValidEmail(email)) {
+    alert('Please enter a valid email address, or leave it blank.');
+    document.getElementById('edit-email').focus();
+    return;
+  }
+  fetch('/api/crm', api('POST', {
+    action: 'update',
+    id: id,
+    customer_name: document.getElementById('edit-name')?.value.trim() || null,
+    customer_phone: document.getElementById('edit-phone')?.value.trim() || null,
+    customer_email: email || null,
+    service_type: document.getElementById('edit-service')?.value.trim() || null,
+    customer_address: document.getElementById('edit-address')?.value.trim() || null,
+    customer_city: document.getElementById('edit-city')?.value.trim() || null,
+    customer_state: document.getElementById('edit-state')?.value.trim() || null,
+    customer_zip: document.getElementById('edit-zip')?.value.trim() || null
+  })).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) {
+      alert('✅ Contact info saved');
+      loadLeads();
+      openLeadDetail(id, true);
+    } else {
+      alert('❌ Could not save contact info');
+    }
+  }).catch(function() { alert('❌ Could not save contact info'); });
 }
 
 function handleNoteTypeChange(id) {
