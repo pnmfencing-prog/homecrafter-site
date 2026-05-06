@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const messages = await sql`
     SELECT id, activity_type, description, is_from_customer, created_at
     FROM crm_activity
-    WHERE crm_lead_id = ${lead.id} AND activity_type = 'sms'
+    WHERE crm_lead_id = ${lead.id} AND activity_type IN ('sms', 'email')
     ORDER BY created_at ASC
   `;
 
@@ -53,6 +53,8 @@ export async function POST(request: NextRequest) {
   const token = body.token;
   const text = (body.message || '').trim();
   const fromStaff = body.fromStaff === true;
+  const channel = fromStaff && body.channel === 'email' ? 'email' : 'sms';
+  const subject = String(body.subject || 'Following up from PNM Fencing').trim();
 
   if (!token || !text || text.length > 2000) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
@@ -62,19 +64,40 @@ export async function POST(request: NextRequest) {
   }
 
   const leads = await sql`
-    SELECT id FROM crm_leads WHERE chat_token = ${token}
+    SELECT id, customer_name, customer_email FROM crm_leads WHERE chat_token = ${token}
   `;
   if (leads.length === 0) {
     return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
   }
 
   const leadId = leads[0].id;
-  const desc = (fromStaff ? '📤 ' : '📥 ') + text;
+  if (channel === 'email' && !leads[0].customer_email) {
+    return NextResponse.json({ error: 'Customer email missing' }, { status: 400 });
+  }
+
+  const desc = fromStaff && channel === 'email'
+    ? `📤 Subject: ${subject}\n\n${text}`
+    : (fromStaff ? '📤 ' : '📥 ') + text;
 
   await sql`
     INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
-    VALUES (${leadId}, 'sms', ${desc}, ${!fromStaff}, ${fromStaff ? 'staff_chat' : 'customer_chat'})
+    VALUES (${leadId}, ${channel}, ${desc}, ${!fromStaff}, ${fromStaff ? 'staff_chat' : 'customer_chat'})
   `;
+
+  if (fromStaff && channel === 'email' && process.env.BREVO_API_KEY) {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: { name: 'PNM Fencing', email: 'trent@homecrafter.ai' },
+        to: [{ email: leads[0].customer_email, name: leads[0].customer_name || undefined }],
+        subject,
+        textContent: text,
+        htmlContent: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;white-space:pre-wrap">${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
+      }),
+    });
+    if (!res.ok) return NextResponse.json({ error: `Email send failed: ${await res.text()}` }, { status: 502 });
+  }
 
   await sql`
     UPDATE crm_leads

@@ -155,6 +155,11 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .quick-note { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
 .quick-note input { flex: 1; }
 .quick-note select { width: 120px; }
+.channel-toggle { display: flex; gap: 0.35rem; align-items: center; }
+.channel-toggle .btn { padding: 0.38rem 0.7rem; font-size: 0.72rem; border-radius: 999px; white-space: nowrap; }
+.channel-toggle .active { background: var(--midnight); color: var(--gold); border-color: var(--midnight); }
+.email-subject-row { display: none; width: 100%; }
+.email-subject-row.show { display: block; }
 
 /* Responsive */
 @media (max-width: 1200px) {
@@ -186,11 +191,9 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   #leadModal .chat-thread { width: 100% !important; max-width: 100% !important; height: auto !important; min-height: 45vh !important; max-height: none; overflow-y: visible !important; overflow-x: clip !important; padding: 0.6rem !important; touch-action: pan-y pinch-zoom; }
   #leadModal .chat-thread > div { margin-left: 0 !important; margin-right: 0 !important; }
   #leadModal .chat-thread div[style*="display:inline-block"] { max-width: min(88vw, 100%) !important; word-break: break-word; word-wrap: break-word; overflow-wrap: anywhere; }
-  #leadModal .channel-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; width: 100%; }
-  #leadModal .channel-toggle .btn { min-height: 42px; font-size: 16px !important; }
+  #leadModal .channel-toggle { display: flex; gap: 0.35rem; width: 100%; }
+  #leadModal .channel-toggle .btn { flex: 0 0 auto; min-height: 32px; padding: 0.32rem 0.7rem; font-size: 14px !important; }
   #leadModal .channel-toggle .active { background: var(--midnight); color: var(--gold); border-color: var(--midnight); }
-  #leadModal .email-subject-row { display: none; width: 100%; }
-  #leadModal .email-subject-row.show { display: block; }
   #leadModal .quick-note { position: sticky; bottom: 0; z-index: 4; background: #fff; margin: 0.75rem -0.85rem 0; padding: 0.65rem 0.85rem calc(0.65rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--cream-dark); flex-wrap: wrap; align-items: center; }
   #leadModal .quick-note select { flex: 1 1 calc(50% - 0.25rem); width: auto !important; font-size: 16px !important; line-height: 1.2; }
   #leadModal .quick-note input { flex: 1 1 100% !important; min-width: 0; font-size: 16px !important; line-height: 1.2; }

@@ -33,6 +33,13 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .compose button { background: var(--midnight); color: var(--gold); border: none; border-radius: 50%; min-width: 44px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .staff-banner { display:none; background:#fff7df; color:#6f560c; padding:0.45rem 1rem; font-size:0.68rem; border-bottom:1px solid #ead89b; text-align:center; }
 .staff-banner.on { display:block; }
+.staff-tools { display:none; gap:0.4rem; padding:0.55rem 1rem 0; background:#fff; border-top:1px solid #eee; }
+.staff-tools.on { display:flex; }
+.staff-tools button { flex:0 0 auto; padding:0.35rem 0.75rem; border-radius:999px; border:1px solid #e0ddd6; background:#fff; color:var(--midnight); font:600 0.72rem 'Montserrat',sans-serif; }
+.staff-tools button.active { background:var(--midnight); color:var(--gold); border-color:var(--midnight); }
+.subject-row { display:none; padding:0.45rem 1rem 0; background:#fff; }
+.subject-row.on { display:block; }
+.subject-row input { width:100%; padding:0.55rem 0.8rem; border:1px solid #e0ddd6; border-radius:12px; font-family:'Montserrat',sans-serif; font-size:16px; outline:none; }
 
 .loading { text-align: center; padding: 3rem; color: #999; font-size: 0.85rem; }
 .error { text-align: center; padding: 3rem; color: #c0392b; font-size: 0.85rem; }
@@ -55,6 +62,14 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 
 <div class="staff-banner" id="staffBanner">Staff Reply Mode — messages you send here will show as PNM Fencing.</div>
 
+<div class="staff-tools" id="staffTools">
+  <button type="button" id="modeText" class="active" onclick="setChannel('sms')">💬 Text</button>
+  <button type="button" id="modeEmail" onclick="setChannel('email')">✉️ Email</button>
+</div>
+<div class="subject-row" id="subjectRow">
+  <input type="text" id="emailSubject" value="Following up from PNM Fencing" placeholder="Email subject...">
+</div>
+
 <div class="messages" id="messages">
   <div class="loading">Loading conversation...</div>
 </div>
@@ -70,6 +85,7 @@ var TOKEN = params.get('t') || '';
 var STAFF_MODE = params.get('staff') === '1';
 var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
 var pollTimer = null;
+var CHANNEL = 'sms';
 
 function timeStr(t) {
   return new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -92,6 +108,14 @@ function renderMessages(data) {
   el.scrollTop = el.scrollHeight;
 }
 
+function setChannel(channel) {
+  CHANNEL = channel === 'email' ? 'email' : 'sms';
+  document.getElementById('modeText').className = CHANNEL === 'sms' ? 'active' : '';
+  document.getElementById('modeEmail').className = CHANNEL === 'email' ? 'active' : '';
+  document.getElementById('subjectRow').className = CHANNEL === 'email' ? 'subject-row on' : 'subject-row';
+  document.getElementById('msgInput').placeholder = CHANNEL === 'email' ? 'Type email body...' : (STAFF_MODE ? 'Reply as PNM Fencing...' : 'Type a message...');
+}
+
 function loadMessages() {
   fetch('/api/chat?token=' + TOKEN)
     .then(function(r) { return r.json(); })
@@ -102,7 +126,8 @@ function loadMessages() {
       }
       document.getElementById('headerInfo').textContent = (data.lead.service || 'Project') + ' Inquiry' + (STAFF_MODE ? ' · Staff Reply Mode' : '');
       document.getElementById('staffBanner').className = STAFF_MODE ? 'staff-banner on' : 'staff-banner';
-      document.getElementById('msgInput').placeholder = STAFF_MODE ? 'Reply as PNM Fencing...' : 'Type a message...';
+      document.getElementById('staffTools').className = STAFF_MODE ? 'staff-tools on' : 'staff-tools';
+      setChannel(CHANNEL);
       renderMessages(data);
     });
 }
@@ -117,7 +142,7 @@ function sendMsg() {
   fetch('/api/chat', {
     method: 'POST',
     headers: STAFF_MODE ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN } : { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: TOKEN, message: text, fromStaff: STAFF_MODE })
+    body: JSON.stringify({ token: TOKEN, message: text, fromStaff: STAFF_MODE, channel: CHANNEL, subject: document.getElementById('emailSubject')?.value || 'Following up from PNM Fencing' })
   }).then(function(r) {
     document.getElementById('sendBtn').disabled = false;
     if (!r.ok) alert('Could not send message. Please open the thread from the CRM.');
