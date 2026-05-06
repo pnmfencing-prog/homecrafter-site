@@ -72,8 +72,8 @@ export async function POST(request: NextRequest) {
   const desc = (fromStaff ? '📤 ' : '📥 ') + text;
 
   await sql`
-    INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer)
-    VALUES (${leadId}, 'sms', ${desc}, ${!fromStaff})
+    INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+    VALUES (${leadId}, 'sms', ${desc}, ${!fromStaff}, ${fromStaff ? 'staff_chat' : 'customer_chat'})
   `;
 
   await sql`

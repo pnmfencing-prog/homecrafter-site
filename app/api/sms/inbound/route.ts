@@ -124,8 +124,8 @@ export async function POST(request: NextRequest) {
 
     if (!duplicate.length) {
       await sql`
-        INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer)
-        VALUES (${lead.id}, 'sms', ${description}, true)
+        INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+        VALUES (${lead.id}, 'sms', ${description}, true, 'customer_sms')
       `;
     }
 
@@ -163,8 +163,8 @@ export async function POST(request: NextRequest) {
       if (result.created && !suppressAnyReply) {
         newLeadAutoReply = NEW_LEAD_REPLY;
         await sql`
-          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer)
-          VALUES (${lead.id}, 'sms', ${`📤 ${NEW_LEAD_REPLY}`}, false)
+          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+          VALUES (${lead.id}, 'sms', ${`📤 ${NEW_LEAD_REPLY}`}, false, 'system')
         `;
         await sql`
           UPDATE crm_leads

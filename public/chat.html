@@ -31,6 +31,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .compose input { flex: 1; min-width: 0; padding: 0.7rem 1rem; border: 1px solid #e0ddd6; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 16px; line-height: 1.2; outline: none; }
 .compose input:focus { border-color: var(--gold); }
 .compose button { background: var(--midnight); color: var(--gold); border: none; border-radius: 50%; min-width: 44px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.staff-banner { display:none; background:#fff7df; color:#6f560c; padding:0.45rem 1rem; font-size:0.68rem; border-bottom:1px solid #ead89b; text-align:center; }
+.staff-banner.on { display:block; }
 
 .loading { text-align: center; padding: 3rem; color: #999; font-size: 0.85rem; }
 .error { text-align: center; padding: 3rem; color: #c0392b; font-size: 0.85rem; }
@@ -50,6 +52,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <div class="header-dot"></div>
   <div class="header-status">Online</div>
 </div>
+
+<div class="staff-banner" id="staffBanner">Staff Reply Mode — messages you send here will show as PNM Fencing.</div>
 
 <div class="messages" id="messages">
   <div class="loading">Loading conversation...</div>
@@ -97,6 +101,8 @@ function loadMessages() {
         return;
       }
       document.getElementById('headerInfo').textContent = (data.lead.service || 'Project') + ' Inquiry' + (STAFF_MODE ? ' · Staff Reply Mode' : '');
+      document.getElementById('staffBanner').className = STAFF_MODE ? 'staff-banner on' : 'staff-banner';
+      document.getElementById('msgInput').placeholder = STAFF_MODE ? 'Reply as PNM Fencing...' : 'Type a message...';
       renderMessages(data);
     });
 }
