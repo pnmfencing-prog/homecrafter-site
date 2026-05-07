@@ -154,6 +154,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 /* Quick add note */
 .quick-note { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
 .quick-note input { flex: 1; }
+.quick-note textarea { flex: 1; min-height: 38px; max-height: 180px; resize: none; overflow-y: auto; }
 .quick-note select { width: 120px; }
 .channel-toggle { display: flex; gap: 0.35rem; align-items: center; }
 .channel-toggle .btn { padding: 0.38rem 0.7rem; font-size: 0.72rem; border-radius: 999px; white-space: nowrap; }
@@ -197,6 +198,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   #leadModal .quick-note { position: sticky; bottom: 0; z-index: 4; background: #fff; margin: 0.75rem -0.85rem 0; padding: 0.65rem 0.85rem calc(0.65rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--cream-dark); flex-wrap: wrap; align-items: center; }
   #leadModal .quick-note select { flex: 1 1 calc(50% - 0.25rem); width: auto !important; font-size: 16px !important; line-height: 1.2; }
   #leadModal .quick-note input { flex: 1 1 100% !important; min-width: 0; font-size: 16px !important; line-height: 1.2; }
+  #leadModal .quick-note textarea { flex: 1 1 100% !important; min-width: 0; font-size: 16px !important; line-height: 1.35; min-height: 44px; max-height: 35vh; }
   #leadModal .quick-note button { flex: 1 1 100%; min-height: 44px; font-size: 16px !important; }
   #leadModal input, #leadModal select, #leadModal textarea { font-size: 16px !important; }
   
@@ -307,7 +309,7 @@ var currentView = 'board';
 var currentFilter = 'all';
 var currentSource = 'all';
 var readFilter = 'all';
-var colMsgFilters = {}; // per-column: 'all', 'customer', 'you'
+var colMsgFilters = {}; // per-column: 'all', 'you' (msg sent), 'customer' (msg rcvd)
 var activeLeadId = null;
 var activeLeadEmail = '';
 var CRM_REFRESH_MS = 30000; // light polling only while CRM tab is open
@@ -386,8 +388,8 @@ function renderBoard() {
       '<div class="column-header">' + col.label + ' <span class="column-count">' + leads.length + '</span></div>' +
       '<div class="col-filters">' +
         '<button class="col-filter-btn' + (cmf === 'all' ? ' active' : '') + '" onclick="setColFilter(\'' + col.key + '\',\'all\')">All</button>' +
-        '<button class="col-filter-btn' + (cmf === 'customer' ? ' active' : '') + '" onclick="setColFilter(\'' + col.key + '\',\'customer\')">Needs Reply</button>' +
-        '<button class="col-filter-btn' + (cmf === 'you' ? ' active' : '') + '" onclick="setColFilter(\'' + col.key + '\',\'you\')">Waiting</button>' +
+        '<button class="col-filter-btn' + (cmf === 'you' ? ' active' : '') + '" onclick="setColFilter(\'' + col.key + '\',\'you\')">Msgs Sent</button>' +
+        '<button class="col-filter-btn' + (cmf === 'customer' ? ' active' : '') + '" onclick="setColFilter(\'' + col.key + '\',\'customer\')">Msgs Rcvd</button>' +
       '</div>';
     leads.forEach(function(l) {
       var sourceClass = 'source-' + (l.source || 'manual');
@@ -395,9 +397,9 @@ function renderBoard() {
       var amount = l.status === 'won' && l.job_value ? '<div class="amount">$' + Number(l.job_value).toLocaleString() + '</div>' : 
                    l.quoted_amount ? '<div class="amount" style="color:#7c3aed">$' + Number(l.quoted_amount).toLocaleString() + '</div>' : '';
       var date = new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      var lastMsgTag = l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '">' + (l.last_message_by === 'customer' ? '← Customer' : '→ You') + '</span>' : '';
+      var lastMsgTag = l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '">' + (l.last_message_by === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '';
       
-      html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" onclick="openLeadDetail(' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">' +
+      html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="openLeadDetail(' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">' +
         '<div class="name"><span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + (l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + (l.customer_name || 'Unknown') + '</a>' + lastMsgTag + '</div>' +
         '<div class="service">' + (l.service_type || '') + '</div>' +
         '<div class="meta">' + (l.customer_phone ? '📞 ' + l.customer_phone : '') + '</div>' +
@@ -536,7 +538,7 @@ function openLeadDetail(id, skipHistory) {
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +
           '<span class="status-badge ' + l.status + '" style="font-size:0.7rem">' + l.status.toUpperCase() + '</span>' +
           '<div style="display:flex;gap:0.5rem;align-items:center">' +
-            (l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '" style="font-size:0.6rem">Last: ' + (l.last_message_by === 'customer' ? 'Customer' : 'You') + '</span>' : '') +
+            (l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '" style="font-size:0.6rem">' + (l.last_message_by === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '') +
             '<button class="btn btn-outline" style="font-size:0.6rem;padding:0.25rem 0.5rem" onclick="toggleRead(' + l.id + ')">Mark Unread</button>' +
             '<span style="font-size:0.7rem;color:#bbb">' + (l.source || 'manual') + '</span>' +
           '</div>' +
@@ -665,7 +667,7 @@ function openLeadDetail(id, skipHistory) {
             '<select id="message-template" style="width:95px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem" onchange="applyMessageTemplate(this.value)">' +
               '<option value="">Templates</option><option value="hope">Hope follow-up</option>' +
             '</select>' +
-            '<input type="text" id="note-text" placeholder="Type a message..." style="flex:1;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.8rem" onkeydown="if(event.key===\'Enter\')addNote(' + l.id + ')">' +
+            '<textarea id="note-text" rows="1" placeholder="Type a message..." style="flex:1;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-family:Montserrat,sans-serif;font-size:0.8rem;line-height:1.35" oninput="autoGrowTextarea(this)" onkeydown="handleMessageKeydown(event,' + l.id + ')"></textarea>' +
             '<button class="btn btn-primary" onclick="addNote(' + l.id + ')">Send</button>' +
           '</div>' +
         '</div>' +
@@ -678,6 +680,7 @@ function openLeadDetail(id, skipHistory) {
       document.getElementById('leadModal').classList.add('show');
       var chatEl = document.getElementById('chatThread');
       if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
+      autoGrowTextarea(document.getElementById('note-text'));
     });
 }
 
@@ -816,7 +819,22 @@ function applyMessageTemplate(templateKey) {
   document.getElementById('note-type').value = 'sms';
   document.getElementById('note-text').value = templates[templateKey];
   document.getElementById('message-template').value = '';
-  document.getElementById('note-text').focus();
+  var noteText = document.getElementById('note-text');
+  autoGrowTextarea(noteText);
+  noteText.focus();
+}
+
+function autoGrowTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, Math.round(window.innerHeight * 0.35)) + 'px';
+}
+
+function handleMessageKeydown(event, id) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    addNote(id);
+  }
 }
 
 function addNote(id) {
@@ -847,6 +865,7 @@ function addNote(id) {
   fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: desc, subject: subject }))
     .then(function() {
       document.getElementById('note-text').value = '';
+      autoGrowTextarea(document.getElementById('note-text'));
       var subj = document.getElementById('email-subject');
       if (subj && type === 'email') subj.value = subject;
       openLeadDetail(id);

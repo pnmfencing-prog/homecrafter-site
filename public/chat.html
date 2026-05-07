@@ -27,9 +27,9 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .msg.in .bubble { background: #fff; color: var(--text); border-radius: 14px 14px 14px 4px; }
 .msg .time { font-size: 0.55rem; color: #aaa; margin-top: 0.2rem; }
 
-.compose { display: flex; gap: 0.5rem; padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #eee; flex-shrink: 0; align-items: center; }
-.compose input { flex: 1; min-width: 0; padding: 0.7rem 1rem; border: 1px solid #e0ddd6; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 16px; line-height: 1.2; outline: none; }
-.compose input:focus { border-color: var(--gold); }
+.compose { display: flex; gap: 0.5rem; padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #eee; flex-shrink: 0; align-items: flex-end; }
+.compose textarea { flex: 1; min-width: 0; min-height: 44px; max-height: 35vh; padding: 0.7rem 1rem; border: 1px solid #e0ddd6; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 16px; line-height: 1.35; outline: none; resize: none; overflow-y: auto; }
+.compose textarea:focus { border-color: var(--gold); }
 .compose button { background: var(--midnight); color: var(--gold); border: none; border-radius: 50%; min-width: 44px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .staff-banner { display:none; background:#fff7df; color:#6f560c; padding:0.45rem 1rem; font-size:0.68rem; border-bottom:1px solid #ead89b; text-align:center; }
 .staff-banner.on { display:block; }
@@ -75,7 +75,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 </div>
 
 <div class="compose">
-  <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off">
+  <textarea id="msgInput" rows="1" placeholder="Type a message..." autocomplete="off"></textarea>
   <button onclick="sendMsg()" id="sendBtn">➤</button>
 </div>
 
@@ -137,6 +137,7 @@ function sendMsg() {
   var text = input.value.trim();
   if (!text) return;
   input.value = '';
+  autoGrowTextarea(input);
   document.getElementById('sendBtn').disabled = true;
 
   fetch('/api/chat', {
@@ -150,9 +151,20 @@ function sendMsg() {
   });
 }
 
+function autoGrowTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, Math.round(window.innerHeight * 0.35)) + 'px';
+}
+
+document.getElementById('msgInput').addEventListener('input', function(e) { autoGrowTextarea(e.target); });
 document.getElementById('msgInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') sendMsg();
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMsg();
+  }
 });
+autoGrowTextarea(document.getElementById('msgInput'));
 
 // Poll for new messages every 5 seconds
 if (TOKEN) {
