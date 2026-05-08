@@ -136,12 +136,14 @@ export async function POST(request: NextRequest) {
   const leadCode = String(maxCode[0].next_code);
 
   const result = await sql`
-    INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, status, chat_token, lead_code, last_message_by, last_message_at, is_read)
-    VALUES (${name}, ${phone}, ${email}, ${address}, ${city}, ${state}, ${zip}, ${service}, ${notes || null}, 'angi', 'new', ${chatToken}, ${leadCode}, 'customer', NOW(), false)
+    INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, status, chat_token, lead_code, is_read)
+    VALUES (${name}, ${phone}, ${email}, ${address}, ${city}, ${state}, ${zip}, ${service}, ${notes || null}, 'angi', 'new', ${chatToken}, ${leadCode}, false)
     RETURNING *
   `;
 
-  await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${result[0].id}, 'status_change', 'Angi lead received via API integration', true)`;
+  // This is lead intake, not a customer message/reply. Do not set last_message_by here;
+  // the Msg Sent / Msg Rcvd filters should only reflect actual SMS/email messages.
+  await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${result[0].id}, 'status_change', 'Angi lead received via API integration', false)`;
 
   return NextResponse.json({ success: true, created: true, lead: result[0] });
 }
