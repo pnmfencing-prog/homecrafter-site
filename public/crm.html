@@ -41,7 +41,15 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .revenue-item strong { color: var(--midnight); font-size: 0.9rem; }
 
 /* Toolbar */
-.toolbar { display: flex; gap: 0.75rem; padding: 0 1.25rem 1rem; max-width: 1400px; margin: 0 auto; align-items: center; flex-wrap: wrap; }
+.toolbar { display: flex; gap: 0.75rem; padding: 0 1.25rem 0.45rem; max-width: 1400px; margin: 0 auto; align-items: center; flex-wrap: wrap; }
+.message-toolbar { display: flex; gap: 0.75rem; padding: 0 1.25rem 1rem; max-width: 1400px; margin: 0 auto; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.message-filter { display: flex; gap: 0.25rem; background: #fff; border-radius: 8px; padding: 0.2rem; border: 1px solid #e0ddd6; }
+.message-filter .btn { padding: 0.35rem 0.55rem; font-size: 0.62rem; border-radius: 6px; }
+.message-filter .btn.active { background: var(--midnight); color: var(--gold); }
+.rcvd-counts { display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; }
+.rcvd-label { font-size: 0.58rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+.rcvd-count { border: 1px solid #e0ddd6; background: #fff; color: var(--midnight); border-radius: 999px; padding: 0.24rem 0.5rem; font-size: 0.58rem; font-weight: 700; cursor: pointer; }
+.rcvd-count.has { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
 .search-box { flex: 1; min-width: 200px; padding: 0.6rem 1rem; border: 1px solid #e0ddd6; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; background: #fff; outline: none; }
 .search-box:focus { border-color: var(--gold); }
 .btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em; }
@@ -178,6 +186,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   .stats-row { grid-template-columns: repeat(3, 1fr); }
   .form-row { grid-template-columns: 1fr; }
   .toolbar { flex-direction: column; align-items: stretch; }
+  .message-toolbar { justify-content: flex-start; align-items: stretch; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .message-filter, .rcvd-counts { flex-shrink: 0; }
   .read-filter { justify-content: center; }
 
   /* Mobile CRM thread: fixed full-screen, no side-scroll or pinch/drag needed */
@@ -248,6 +258,14 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <label class="btn btn-outline" style="cursor:pointer">📁 Import CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(this)"></label>
   <button class="btn btn-primary" onclick="openNewLeadModal()">+ New Lead</button>
 </div>
+<div class="message-toolbar">
+  <div class="message-filter">
+    <button class="btn active" data-mf="all" onclick="setMessageFilter('all')">All Msgs</button>
+    <button class="btn" data-mf="you" onclick="setMessageFilter('you')">Msg Sent</button>
+    <button class="btn" data-mf="customer" onclick="setMessageFilter('customer')">Msg Rcvd</button>
+  </div>
+  <div class="rcvd-counts" id="rcvdCounts"></div>
+</div>
 
 <!-- Kanban Board -->
 <div class="board" id="board"></div>
@@ -311,6 +329,7 @@ var currentView = 'board';
 var currentFilter = 'all';
 var currentSource = 'all';
 var readFilter = 'all';
+var messageFilter = 'all'; // global: 'all', 'you' (msg sent), 'customer' (msg rcvd)
 var colMsgFilters = {}; // per-column: 'all', 'you' (msg sent), 'customer' (msg rcvd)
 var activeLeadId = null;
 var activeLeadEmail = '';
@@ -396,7 +415,19 @@ function renderStats(s) {
     '<div class="revenue-item">Total Leads: <strong>' + s.total + '</strong></div>';
 }
 
+function renderRcvdCounts() {
+  var el = document.getElementById('rcvdCounts');
+  if (!el) return;
+  var html = '<span class="rcvd-label">Rcvd by column</span>';
+  COLUMNS.forEach(function(col) {
+    var count = allLeads.filter(function(l) { return l.status === col.key && l.last_message_by === 'customer'; }).length;
+    html += '<button class="rcvd-count' + (count ? ' has' : '') + '" onclick="scrollToStatus(\'' + col.key + '\')" title="Jump to ' + esc(col.label) + '">' + esc(col.label) + ': ' + count + '</button>';
+  });
+  el.innerHTML = html;
+}
+
 function renderBoard() {
+  renderRcvdCounts();
   var html = '';
   COLUMNS.forEach(function(col) {
     var leads = allLeads.filter(function(l) { return l.status === col.key; });
@@ -405,6 +436,10 @@ function renderBoard() {
     if (readFilter === 'unread') leads = leads.filter(function(l) { return !l.is_read; });
     if (readFilter === 'read') leads = leads.filter(function(l) { return l.is_read; });
     
+    // Apply global message filter
+    if (messageFilter === 'customer') leads = leads.filter(function(l) { return l.last_message_by === 'customer'; });
+    if (messageFilter === 'you') leads = leads.filter(function(l) { return l.last_message_by === 'you'; });
+
     // Apply per-column message filter
     var cmf = colMsgFilters[col.key] || 'all';
     if (cmf === 'customer') leads = leads.filter(function(l) { return l.last_message_by === 'customer'; });
@@ -448,6 +483,14 @@ function setReadFilter(filter) {
   readFilter = filter;
   document.querySelectorAll('.read-filter .btn').forEach(function(b) {
     b.classList.toggle('active', b.dataset.rf === filter);
+  });
+  renderBoard();
+}
+
+function setMessageFilter(filter) {
+  messageFilter = filter;
+  document.querySelectorAll('.message-filter .btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.mf === filter);
   });
   renderBoard();
 }
@@ -1044,6 +1087,11 @@ function scrollToCol(idx) {
   var board = document.getElementById('board');
   var colWidth = board.scrollWidth / COLUMNS.length;
   board.scrollTo({ left: colWidth * idx, behavior: 'smooth' });
+}
+
+function scrollToStatus(status) {
+  var idx = COLUMNS.findIndex(function(col) { return col.key === status; });
+  if (idx >= 0) scrollToCol(idx);
 }
 
 window.addEventListener('resize', initSwipeDots);
