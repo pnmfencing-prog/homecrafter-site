@@ -28,23 +28,101 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ lead: leads[0], activity, quotes });
   }
 
-  // Build filtered query using tagged templates
+  // Build filtered query using tagged templates.
+  // Include latest SMS/email preview so customer cards show the message at a glance.
   let leads;
   if (status && status !== 'all' && search) {
     const searchPat = `%${search}%`;
-    leads = await sql`SELECT * FROM crm_leads WHERE status = ${status} AND (customer_name ILIKE ${searchPat} OR customer_phone ILIKE ${searchPat} OR customer_email ILIKE ${searchPat} OR customer_address ILIKE ${searchPat}) ORDER BY created_at DESC`;
+    leads = await sql`
+      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+             latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
+             latest.activity_type AS latest_message_type
+      FROM crm_leads l
+      LEFT JOIN LATERAL (
+        SELECT description, created_at, is_from_customer, created_by, activity_type
+        FROM crm_activity
+        WHERE crm_lead_id = l.id AND activity_type IN ('sms', 'email')
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) latest ON true
+      WHERE l.status = ${status} AND (l.customer_name ILIKE ${searchPat} OR l.customer_phone ILIKE ${searchPat} OR l.customer_email ILIKE ${searchPat} OR l.customer_address ILIKE ${searchPat})
+      ORDER BY l.created_at DESC`;
   } else if (status && status !== 'all') {
-    leads = await sql`SELECT * FROM crm_leads WHERE status = ${status} ORDER BY created_at DESC`;
+    leads = await sql`
+      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+             latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
+             latest.activity_type AS latest_message_type
+      FROM crm_leads l
+      LEFT JOIN LATERAL (
+        SELECT description, created_at, is_from_customer, created_by, activity_type
+        FROM crm_activity
+        WHERE crm_lead_id = l.id AND activity_type IN ('sms', 'email')
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) latest ON true
+      WHERE l.status = ${status}
+      ORDER BY l.created_at DESC`;
   } else if (source && source !== 'all' && search) {
     const searchPat = `%${search}%`;
-    leads = await sql`SELECT * FROM crm_leads WHERE source = ${source} AND (customer_name ILIKE ${searchPat} OR customer_phone ILIKE ${searchPat} OR customer_email ILIKE ${searchPat} OR customer_address ILIKE ${searchPat}) ORDER BY created_at DESC`;
+    leads = await sql`
+      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+             latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
+             latest.activity_type AS latest_message_type
+      FROM crm_leads l
+      LEFT JOIN LATERAL (
+        SELECT description, created_at, is_from_customer, created_by, activity_type
+        FROM crm_activity
+        WHERE crm_lead_id = l.id AND activity_type IN ('sms', 'email')
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) latest ON true
+      WHERE l.source = ${source} AND (l.customer_name ILIKE ${searchPat} OR l.customer_phone ILIKE ${searchPat} OR l.customer_email ILIKE ${searchPat} OR l.customer_address ILIKE ${searchPat})
+      ORDER BY l.created_at DESC`;
   } else if (source && source !== 'all') {
-    leads = await sql`SELECT * FROM crm_leads WHERE source = ${source} ORDER BY created_at DESC`;
+    leads = await sql`
+      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+             latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
+             latest.activity_type AS latest_message_type
+      FROM crm_leads l
+      LEFT JOIN LATERAL (
+        SELECT description, created_at, is_from_customer, created_by, activity_type
+        FROM crm_activity
+        WHERE crm_lead_id = l.id AND activity_type IN ('sms', 'email')
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) latest ON true
+      WHERE l.source = ${source}
+      ORDER BY l.created_at DESC`;
   } else if (search) {
     const searchPat = `%${search}%`;
-    leads = await sql`SELECT * FROM crm_leads WHERE customer_name ILIKE ${searchPat} OR customer_phone ILIKE ${searchPat} OR customer_email ILIKE ${searchPat} OR customer_address ILIKE ${searchPat} ORDER BY created_at DESC`;
+    leads = await sql`
+      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+             latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
+             latest.activity_type AS latest_message_type
+      FROM crm_leads l
+      LEFT JOIN LATERAL (
+        SELECT description, created_at, is_from_customer, created_by, activity_type
+        FROM crm_activity
+        WHERE crm_lead_id = l.id AND activity_type IN ('sms', 'email')
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) latest ON true
+      WHERE l.customer_name ILIKE ${searchPat} OR l.customer_phone ILIKE ${searchPat} OR l.customer_email ILIKE ${searchPat} OR l.customer_address ILIKE ${searchPat}
+      ORDER BY l.created_at DESC`;
   } else {
-    leads = await sql`SELECT * FROM crm_leads ORDER BY created_at DESC`;
+    leads = await sql`
+      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+             latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
+             latest.activity_type AS latest_message_type
+      FROM crm_leads l
+      LEFT JOIN LATERAL (
+        SELECT description, created_at, is_from_customer, created_by, activity_type
+        FROM crm_activity
+        WHERE crm_lead_id = l.id AND activity_type IN ('sms', 'email')
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) latest ON true
+      ORDER BY l.created_at DESC`;
   }
 
   const stats = await sql`
