@@ -107,6 +107,9 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .tile-note-btn { border: 1px solid #e0ddd6; background: #fff; color: var(--midnight); border-radius: 999px; padding: 0.16rem 0.45rem; font-size: 0.55rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .tile-note-btn.has-notes { border-color: var(--gold); color: var(--midnight); background: rgba(196,170,106,0.12); }
 .tile-note-btn:hover { border-color: var(--gold); transform: translateY(-1px); }
+.tile-event-badge { display: inline-flex; align-items: center; gap: 0.25rem; margin-top: 0.35rem; padding: 0.22rem 0.5rem; max-width: 100%; border-radius: 999px; background: var(--blue-bg); color: var(--blue); font-size: 0.6rem; font-weight: 800; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile-event-badge:hover { background: var(--midnight); color: var(--gold); }
+.tile-event-badge .event-text { overflow: hidden; text-overflow: ellipsis; }
 
 /* List view */
 .list-view { padding: 0 1.25rem 2rem; max-width: 1400px; margin: 0 auto; display: none; }
@@ -392,6 +395,32 @@ function formatMessageDate(value) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' +
     d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
 }
+function formatEventDate(value) {
+  if (!value) return '';
+  var datePart = String(value).substring(0, 10);
+  var parts = datePart.split('-');
+  if (parts.length !== 3) return '';
+  var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function formatEventTime(value) {
+  if (!value) return 'All day';
+  var parts = String(value).split(':');
+  var h = parseInt(parts[0], 10);
+  var m = parts[1] || '00';
+  if (isNaN(h)) return '';
+  var ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return h + ':' + m + ' ' + ampm;
+}
+function tileCalendarBadge(l) {
+  if (!l.active_calendar_event_id || !l.active_calendar_event_date) return '';
+  var date = String(l.active_calendar_event_date).substring(0, 10);
+  var label = formatEventDate(date) + ' · ' + formatEventTime(l.active_calendar_event_time);
+  var title = l.active_calendar_event_title || 'Calendar event';
+  return '<a class="tile-event-badge" href="/calendar.html?date=' + encodeURIComponent(date) + '&event=' + encodeURIComponent(l.active_calendar_event_id) + '" onclick="event.stopPropagation()" title="Open calendar event: ' + escAttr(title) + '">📅 <span class="event-text">' + esc(label) + '</span></a>';
+}
 function tileActivityAt(l) {
   return l.latest_message_at || l.last_message_at || l.updated_at || l.created_at;
 }
@@ -492,12 +521,14 @@ function renderBoard() {
       var msgSummary = msgPreview ?
         '<div class="message-time">' + esc(msgTime) + ' by ' + esc(messageAuthor(l)) + '</div>' +
         '<div class="message-preview">' + esc(msgPreview) + '</div>' : '';
+      var calendarBadge = tileCalendarBadge(l);
       
       html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="openLeadDetail(' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">' +
         '<div class="name">' + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
         msgSummary +
         '<div class="service">' + esc(l.service_type || '') + '</div>' +
         '<div class="meta">' + (l.customer_phone ? '📞 ' + esc(l.customer_phone) : '') + '</div>' +
+        calendarBadge +
         amount +
         '<div class="tile-footer"><div class="date">' + esc(activityDate) + ' · ' + esc(l.source || 'manual') + '</div>' +
           '<button class="tile-note-btn' + (l.notes ? ' has-notes' : '') + '" onclick="editTileNotes(event,' + l.id + ')" title="Edit customer notes">📝 Notes</button></div>' +

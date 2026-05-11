@@ -125,6 +125,31 @@ export async function GET(request: NextRequest) {
       ORDER BY l.created_at DESC`;
   }
 
+  const leadIds = leads.map((lead) => lead.id);
+  if (leadIds.length) {
+    const activeEvents = await sql`
+      SELECT DISTINCT ON (crm_lead_id)
+        crm_lead_id,
+        id AS active_calendar_event_id,
+        title AS active_calendar_event_title,
+        event_date AS active_calendar_event_date,
+        event_time AS active_calendar_event_time,
+        event_type AS active_calendar_event_type,
+        status AS active_calendar_event_status
+      FROM calendar_events
+      WHERE crm_lead_id = ANY(${leadIds})
+        AND status IN ('scheduled', 'missed')
+      ORDER BY crm_lead_id,
+        (event_date < (NOW() AT TIME ZONE 'America/New_York')::date),
+        CASE WHEN event_date >= (NOW() AT TIME ZONE 'America/New_York')::date THEN event_date END ASC,
+        CASE WHEN event_date < (NOW() AT TIME ZONE 'America/New_York')::date THEN event_date END DESC,
+        event_time ASC NULLS LAST,
+        id ASC
+    `;
+    const eventByLeadId = new Map(activeEvents.map((event) => [event.crm_lead_id, event]));
+    leads = leads.map((lead) => ({ ...lead, ...(eventByLeadId.get(lead.id) || {}) }));
+  }
+
   const stats = await sql`
     SELECT 
       count(*) FILTER (WHERE status = 'new')::int as new_count,
