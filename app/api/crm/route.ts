@@ -20,12 +20,46 @@ export async function GET(request: NextRequest) {
 
   // Single lead with activity
   if (id) {
-    const leads = await sql`SELECT * FROM crm_leads WHERE id = ${parseInt(id)}`;
-    if (leads.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const leadId = parseInt(id);
+    const leads = await sql`SELECT * FROM crm_leads WHERE id = ${leadId}`;
+    if (leads.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const activeEvents = await sql`
+      WITH active AS (
+        SELECT *
+        FROM calendar_events
+        WHERE crm_lead_id = ${leadId}
+          AND status IN ('scheduled', 'missed')
+      ), ranked AS (
+        SELECT
+          active.*,
+          COUNT(*) OVER (PARTITION BY crm_lead_id)::int AS active_calendar_event_count,
+          ROW_NUMBER() OVER (
+            PARTITION BY crm_lead_id
+            ORDER BY
+              (event_date < (NOW() AT TIME ZONE 'America/New_York')::date),
+              CASE WHEN event_date >= (NOW() AT TIME ZONE 'America/New_York')::date THEN event_date END ASC,
+              CASE WHEN event_date < (NOW() AT TIME ZONE 'America/New_York')::date THEN event_date END DESC,
+              event_time ASC NULLS LAST,
+              id ASC
+          ) AS rn
+        FROM active
+      )
+      SELECT
+        crm_lead_id,
+        id AS active_calendar_event_id,
+        title AS active_calendar_event_title,
+        event_date AS active_calendar_event_date,
+        event_time AS active_calendar_event_time,
+        event_type AS active_calendar_event_type,
+        status AS active_calendar_event_status,
+        active_calendar_event_count
+      FROM ranked
+      WHERE rn = 1
+    `;
+    const lead = { ...leads[0], ...(activeEvents[0] || {}) };
     const activity = await sql`SELECT * FROM crm_activity WHERE crm_lead_id = ${leadId} ORDER BY created_at DESC LIMIT 50`;
     const quotes = await sql`SELECT * FROM crm_quotes WHERE crm_lead_id = ${leadId} ORDER BY created_at DESC`;
-    return NextResponse.json({ lead: leads[0], activity, quotes });
+    return NextResponse.json({ lead, activity, quotes });
   }
 
   // Build filtered query using tagged templates.

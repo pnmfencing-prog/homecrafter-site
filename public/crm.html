@@ -730,7 +730,8 @@ function openLeadDetail(id, skipHistory) {
 
         '<div class="status-actions">' + statusBtns + '</div>' +
 
-        '<div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap">' +
+        '<div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;align-items:center">' +
+          (tileCalendarBadge(l) ? '<div style="width:100%;margin-bottom:0.15rem">' + tileCalendarBadge(l) + '</div>' : '') +
           '<button class="btn btn-outline" style="font-size:0.65rem" onclick="addToCalendar(' + l.id + ',\'' + (l.customer_name || '').replace(/'/g, "\\'") + '\',\'' + (l.customer_address || '').replace(/'/g, "\\'") + (l.customer_city ? ", " + l.customer_city.replace(/'/g, "\\'") : '') + '\')">📅 Add to Calendar</button>' +
           '<a class="btn btn-outline" href="/proposals.html" style="font-size:0.65rem;text-decoration:none">📄 Proposals</a>' +
         '</div>' +
