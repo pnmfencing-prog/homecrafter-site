@@ -67,13 +67,16 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .column-count { background: var(--midnight); color: var(--gold); font-size: 0.55rem; padding: 0.15rem 0.5rem; border-radius: 10px; }
 
 /* Lead cards */
-.lead-card { background: #fff; border-radius: 10px; padding: 0.85rem; margin-bottom: 0.6rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; }
+.lead-card { position: relative; background: #fff; border-radius: 10px; padding: 0.85rem; margin-bottom: 0.6rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; }
 .lead-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,24,69,0.1); }
 .lead-card.dragging { opacity: 0.4; transform: scale(0.95); }
 .column.drag-over { background: rgba(196,170,106,0.15); outline: 2px dashed var(--gold); outline-offset: -4px; }
-.lead-card.unread { border-left-color: var(--red) !important; }
-.lead-card.unread::before { content: ''; position: absolute; top: 8px; left: -8px; width: 8px; height: 8px; background: var(--red); border-radius: 50%; }
-.lead-card { position: relative; }
+.lead-card.unread { border-left-color: var(--red) !important; border-left-width: 4px; background: linear-gradient(90deg, rgba(176,58,46,0.08) 0%, #fff 24%); box-shadow: 0 2px 8px rgba(176,58,46,0.12), 0 1px 3px rgba(0,0,0,0.04); }
+.lead-card.unread:hover { box-shadow: 0 5px 16px rgba(176,58,46,0.18); }
+.lead-card.unread .name, .lead-card.unread .name a { font-weight: 800 !important; }
+.lead-card.unread .message-preview { color: var(--midnight); font-weight: 800; }
+.unread-dot { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--red); vertical-align: 1px; box-shadow: 0 0 0 3px rgba(176,58,46,0.12); }
+.unread-badge { float: right; margin-left: 0.35rem; font-size: 0.52rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.12rem 0.42rem; border-radius: 999px; background: var(--red); color: #fff; }
 .lead-card.source-angi:not(.unread) { border-left-color: #ff6b35; }
 .lead-card.source-website:not(.unread) { border-left-color: var(--gold); }
 .lead-card.source-referral:not(.unread) { border-left-color: var(--green); }
@@ -462,6 +465,8 @@ function renderBoard() {
                    l.quoted_amount ? '<div class="amount" style="color:#7c3aed">$' + Number(l.quoted_amount).toLocaleString() + '</div>' : '';
       var date = new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       var lastMsgTag = l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '">' + (l.last_message_by === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '';
+      var unreadBadge = !l.is_read ? '<span class="unread-badge">Unread</span>' : '';
+      var unreadDot = !l.is_read ? '<span class="unread-dot" aria-hidden="true"></span>' : '';
       var msgTime = formatMessageDate(l.latest_message_at);
       var msgPreview = shortMessage(l.latest_message_preview, 110);
       var msgSummary = msgPreview ?
@@ -469,7 +474,7 @@ function renderBoard() {
         '<div class="message-preview">' + esc(msgPreview) + '</div>' : '';
       
       html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="openLeadDetail(' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">' +
-        '<div class="name"><span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a>' + lastMsgTag + '</div>' +
+        '<div class="name">' + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
         msgSummary +
         '<div class="service">' + esc(l.service_type || '') + '</div>' +
         '<div class="meta">' + (l.customer_phone ? '📞 ' + esc(l.customer_phone) : '') + '</div>' +
