@@ -103,6 +103,10 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .lead-card .meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.3rem; }
 .lead-card .amount { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 700; color: var(--green); margin-top: 0.3rem; }
 .lead-card .date { font-size: 0.6rem; color: #bbb; margin-top: 0.3rem; }
+.tile-footer { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-top: 0.3rem; }
+.tile-note-btn { border: 1px solid #e0ddd6; background: #fff; color: var(--midnight); border-radius: 999px; padding: 0.16rem 0.45rem; font-size: 0.55rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.tile-note-btn.has-notes { border-color: var(--gold); color: var(--midnight); background: rgba(196,170,106,0.12); }
+.tile-note-btn:hover { border-color: var(--gold); transform: translateY(-1px); }
 
 /* List view */
 .list-view { padding: 0 1.25rem 2rem; max-width: 1400px; margin: 0 auto; display: none; }
@@ -495,7 +499,8 @@ function renderBoard() {
         '<div class="service">' + esc(l.service_type || '') + '</div>' +
         '<div class="meta">' + (l.customer_phone ? '📞 ' + esc(l.customer_phone) : '') + '</div>' +
         amount +
-        '<div class="date">' + esc(activityDate) + ' · ' + esc(l.source || 'manual') + '</div>' +
+        '<div class="tile-footer"><div class="date">' + esc(activityDate) + ' · ' + esc(l.source || 'manual') + '</div>' +
+          '<button class="tile-note-btn' + (l.notes ? ' has-notes' : '') + '" onclick="editTileNotes(event,' + l.id + ')" title="Edit customer notes">📝 Notes</button></div>' +
         '</div>';
     });
     html += '</div>';
@@ -900,17 +905,38 @@ function setMessageChannel(channel, id) {
 
 function handleNoteTypeChange(id) { setMessageChannel(document.getElementById('note-type')?.value || 'sms', id); }
 
-function saveCustomerNotes(id) {
-  var notes = document.getElementById('customer-notes') ? document.getElementById('customer-notes').value : '';
-  fetch('/api/crm', api('POST', { action: 'update', id: id, notes: notes || null }))
+function saveLeadNotes(id, notes) {
+  return fetch('/api/crm', api('POST', { action: 'update', id: id, notes: notes || null }))
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.success) {
-        alert('✅ Notes saved and synced to linked calendar events');
-        loadLeads();
-      } else {
-        alert('❌ Could not save notes');
-      }
+      if (!d.success) throw new Error(d.error || 'Could not save notes');
+      var lead = allLeads.find(function(l) { return l.id === id; });
+      if (lead) lead.notes = notes || null;
+      return d;
+    });
+}
+
+function saveCustomerNotes(id) {
+  var notes = document.getElementById('customer-notes') ? document.getElementById('customer-notes').value : '';
+  saveLeadNotes(id, notes)
+    .then(function() {
+      alert('✅ Notes saved and synced to linked calendar events');
+      loadLeads();
+    }).catch(function() { alert('❌ Could not save notes'); });
+}
+
+function editTileNotes(event, id) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  var lead = allLeads.find(function(l) { return l.id === id; });
+  if (!lead) return;
+  var notes = prompt('Edit notes for ' + (lead.customer_name || 'this customer') + ':', lead.notes || '');
+  if (notes === null) return;
+  saveLeadNotes(id, notes)
+    .then(function() {
+      renderBoard();
     }).catch(function() { alert('❌ Could not save notes'); });
 }
 
