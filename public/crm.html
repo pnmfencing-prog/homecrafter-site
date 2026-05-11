@@ -388,6 +388,13 @@ function formatMessageDate(value) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' +
     d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
 }
+function tileActivityAt(l) {
+  return l.latest_message_at || l.last_message_at || l.updated_at || l.created_at;
+}
+function tileActivityTime(l) {
+  var d = new Date(tileActivityAt(l));
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+}
 function messageAuthor(l) {
   if (l.latest_message_from_customer) return l.customer_name || 'Customer';
   if (l.latest_message_created_by && l.latest_message_created_by !== 'admin') return l.latest_message_created_by;
@@ -456,6 +463,9 @@ function renderBoard() {
     var cmf = colMsgFilters[col.key] || 'all';
     if (cmf === 'customer') leads = leads.filter(function(l) { return l.last_message_by === 'customer'; });
     if (cmf === 'you') leads = leads.filter(function(l) { return l.last_message_by === 'you'; });
+
+    // Keep the most recently active conversation at the top of each column.
+    leads = leads.slice().sort(function(a, b) { return tileActivityTime(b) - tileActivityTime(a); });
     
     html += '<div class="column" data-status="' + col.key + '" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">' +
       '<div class="column-header">' + col.label + ' <span class="column-count">' + leads.length + '</span></div>' +
@@ -469,7 +479,7 @@ function renderBoard() {
       var unreadClass = !l.is_read ? ' unread' : '';
       var amount = l.status === 'won' && l.job_value ? '<div class="amount">$' + Number(l.job_value).toLocaleString() + '</div>' : 
                    l.quoted_amount ? '<div class="amount" style="color:#7c3aed">$' + Number(l.quoted_amount).toLocaleString() + '</div>' : '';
-      var date = new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      var activityDate = formatMessageDate(tileActivityAt(l)) || new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       var lastMsgTag = l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '">' + (l.last_message_by === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '';
       var unreadBadge = !l.is_read ? '<span class="unread-badge">Unread</span>' : '';
       var unreadDot = !l.is_read ? '<span class="unread-dot" aria-hidden="true"></span>' : '';
@@ -485,7 +495,7 @@ function renderBoard() {
         '<div class="service">' + esc(l.service_type || '') + '</div>' +
         '<div class="meta">' + (l.customer_phone ? '📞 ' + esc(l.customer_phone) : '') + '</div>' +
         amount +
-        '<div class="date">' + esc(date) + ' · ' + esc(l.source || 'manual') + '</div>' +
+        '<div class="date">' + esc(activityDate) + ' · ' + esc(l.source || 'manual') + '</div>' +
         '</div>';
     });
     html += '</div>';
