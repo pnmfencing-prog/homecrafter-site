@@ -680,7 +680,14 @@ function openLeadDetail(id, skipHistory) {
         '</div>' +
         '<button class="btn btn-green" style="width:100%;margin-bottom:1rem" onclick="saveAmounts(' + l.id + ')">Save Amounts</button>' +
 
-        (l.notes ? '<div style="background:var(--cream);padding:0.75rem 1rem;border-radius:8px;font-size:0.8rem;margin-bottom:1rem;border-left:3px solid var(--gold)">' + l.notes + '</div>' : '') +
+        '<details open style="margin-bottom:1rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:10px;padding:0.75rem;border-left:3px solid var(--gold)">' +
+          '<summary style="cursor:pointer;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--midnight)">📝 Customer notes</summary>' +
+          '<textarea id="customer-notes" rows="5" style="width:100%;margin-top:0.75rem;padding:0.65rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-family:Montserrat,sans-serif;font-size:0.8rem;line-height:1.45;resize:vertical" placeholder="Add notes for this customer...">' + esc(l.notes || '') + '</textarea>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap">' +
+            '<span style="font-size:0.65rem;color:var(--text-muted)">Syncs with linked calendar event notes.</span>' +
+            '<button class="btn btn-primary" style="font-size:0.65rem;padding:0.45rem 0.8rem" onclick="saveCustomerNotes(' + l.id + ')">Save Notes</button>' +
+          '</div>' +
+        '</details>' +
 
         '<div class="status-actions">' + statusBtns + '</div>' +
 
@@ -892,6 +899,20 @@ function setMessageChannel(channel, id) {
 }
 
 function handleNoteTypeChange(id) { setMessageChannel(document.getElementById('note-type')?.value || 'sms', id); }
+
+function saveCustomerNotes(id) {
+  var notes = document.getElementById('customer-notes') ? document.getElementById('customer-notes').value : '';
+  fetch('/api/crm', api('POST', { action: 'update', id: id, notes: notes || null }))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) {
+        alert('✅ Notes saved and synced to linked calendar events');
+        loadLeads();
+      } else {
+        alert('❌ Could not save notes');
+      }
+    }).catch(function() { alert('❌ Could not save notes'); });
+}
 
 function saveAmounts(id) {
   var quoted = document.getElementById('edit-quoted') ? document.getElementById('edit-quoted').value : '';

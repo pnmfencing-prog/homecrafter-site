@@ -118,13 +118,22 @@ export async function POST(request: NextRequest) {
   const { action } = body;
 
   if (action === 'create') {
+    let description = body.description || null;
+    const crmLeadId = body.crm_lead_id || null;
+    if (crmLeadId && !description) {
+      const leads = await sql`SELECT notes FROM crm_leads WHERE id = ${crmLeadId} LIMIT 1`;
+      description = leads[0]?.notes || null;
+    }
     const result = await sql`
       INSERT INTO calendar_events (title, description, event_type, event_date, event_time, end_time, all_day, crm_lead_id, location, customer_id)
-      VALUES (${body.title}, ${body.description || null}, ${body.event_type || 'appointment'}, 
+      VALUES (${body.title}, ${description}, ${body.event_type || 'appointment'}, 
               ${body.event_date}, ${body.event_time || null}, ${body.end_time || null},
-              ${body.all_day || false}, ${body.crm_lead_id || null}, ${body.location || null}, ${body.customer_id || null})
+              ${body.all_day || false}, ${crmLeadId}, ${body.location || null}, ${body.customer_id || null})
       RETURNING *
     `;
+    if (crmLeadId && body.description !== undefined) {
+      await sql`UPDATE crm_leads SET notes = ${description}, updated_at = NOW() WHERE id = ${crmLeadId}`;
+    }
     return NextResponse.json({ success: true, event: result[0] });
   }
 
@@ -135,11 +144,27 @@ export async function POST(request: NextRequest) {
     if (fields.event_time !== undefined) await sql`UPDATE calendar_events SET event_time = ${fields.event_time}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.status !== undefined) await sql`UPDATE calendar_events SET status = ${fields.status}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.location !== undefined) await sql`UPDATE calendar_events SET location = ${fields.location}, updated_at = NOW() WHERE id = ${id}`;
-    if (fields.description !== undefined) await sql`UPDATE calendar_events SET description = ${fields.description}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.description !== undefined) {
+      await sql`UPDATE calendar_events SET description = ${fields.description}, updated_at = NOW() WHERE id = ${id}`;
+      const linked = fields.crm_lead_id
+        ? [{ crm_lead_id: fields.crm_lead_id }]
+        : await sql`SELECT crm_lead_id FROM calendar_events WHERE id = ${id} LIMIT 1`;
+      const crmLeadId = linked[0]?.crm_lead_id;
+      if (crmLeadId) {
+        await sql`UPDATE crm_leads SET notes = ${fields.description || null}, updated_at = NOW() WHERE id = ${crmLeadId}`;
+        await sql`UPDATE calendar_events SET description = ${fields.description || null}, updated_at = NOW() WHERE crm_lead_id = ${crmLeadId} AND id <> ${id}`;
+      }
+    }
     if (fields.event_type !== undefined) await sql`UPDATE calendar_events SET event_type = ${fields.event_type}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.end_time !== undefined) await sql`UPDATE calendar_events SET end_time = ${fields.end_time}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.all_day !== undefined) await sql`UPDATE calendar_events SET all_day = ${fields.all_day}, updated_at = NOW() WHERE id = ${id}`;
-    if (fields.crm_lead_id !== undefined) await sql`UPDATE calendar_events SET crm_lead_id = ${fields.crm_lead_id}, updated_at = NOW() WHERE id = ${id}`;
+    if (fields.crm_lead_id !== undefined) {
+      await sql`UPDATE calendar_events SET crm_lead_id = ${fields.crm_lead_id}, updated_at = NOW() WHERE id = ${id}`;
+      if (fields.crm_lead_id && fields.description === undefined) {
+        const leads = await sql`SELECT notes FROM crm_leads WHERE id = ${fields.crm_lead_id} LIMIT 1`;
+        if (leads[0]?.notes) await sql`UPDATE calendar_events SET description = ${leads[0].notes}, updated_at = NOW() WHERE id = ${id}`;
+      }
+    }
     if (fields.proposal_id !== undefined) await sql`UPDATE calendar_events SET proposal_id = ${fields.proposal_id}, updated_at = NOW() WHERE id = ${id}`;
     if (fields.customer_id !== undefined) await sql`UPDATE calendar_events SET customer_id = ${fields.customer_id}, updated_at = NOW() WHERE id = ${id}`;
 
