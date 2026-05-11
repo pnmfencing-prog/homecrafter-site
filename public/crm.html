@@ -110,6 +110,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .tile-event-badge { display: inline-flex; align-items: center; gap: 0.25rem; margin-top: 0.35rem; padding: 0.22rem 0.5rem; max-width: 100%; border-radius: 999px; background: var(--blue-bg); color: var(--blue); font-size: 0.6rem; font-weight: 800; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-event-badge:hover { background: var(--midnight); color: var(--gold); }
 .tile-event-badge .event-text { overflow: hidden; text-overflow: ellipsis; }
+.tile-event-badge .event-more { flex-shrink: 0; margin-left: 0.1rem; padding: 0.02rem 0.28rem; border-radius: 999px; background: rgba(37,99,235,0.14); color: inherit; font-size: 0.55rem; font-weight: 900; }
 
 /* List view */
 .list-view { padding: 0 1.25rem 2rem; max-width: 1400px; margin: 0 auto; display: none; }
@@ -419,7 +420,9 @@ function tileCalendarBadge(l) {
   var date = String(l.active_calendar_event_date).substring(0, 10);
   var label = formatEventDate(date) + ' · ' + formatEventTime(l.active_calendar_event_time);
   var title = l.active_calendar_event_title || 'Calendar event';
-  return '<a class="tile-event-badge" href="/calendar.html?date=' + encodeURIComponent(date) + '&event=' + encodeURIComponent(l.active_calendar_event_id) + '" onclick="event.stopPropagation()" title="Open calendar event: ' + escAttr(title) + '">📅 <span class="event-text">' + esc(label) + '</span></a>';
+  var extraCount = Math.max(0, Number(l.active_calendar_event_count || 1) - 1);
+  var more = extraCount ? '<span class="event-more">+' + extraCount + '</span>' : '';
+  return '<a class="tile-event-badge" href="/calendar.html?date=' + encodeURIComponent(date) + '&event=' + encodeURIComponent(l.active_calendar_event_id) + '" onclick="event.stopPropagation()" title="Open calendar event: ' + escAttr(title) + '">📅 <span class="event-text">' + esc(label) + '</span>' + more + '</a>';
 }
 function tileActivityAt(l) {
   return l.latest_message_at || l.last_message_at || l.updated_at || l.created_at;

@@ -128,23 +128,37 @@ export async function GET(request: NextRequest) {
   const leadIds = leads.map((lead) => lead.id);
   if (leadIds.length) {
     const activeEvents = await sql`
-      SELECT DISTINCT ON (crm_lead_id)
+      WITH active AS (
+        SELECT *
+        FROM calendar_events
+        WHERE crm_lead_id = ANY(${leadIds})
+          AND status IN ('scheduled', 'missed')
+      ), ranked AS (
+        SELECT
+          active.*,
+          COUNT(*) OVER (PARTITION BY crm_lead_id)::int AS active_calendar_event_count,
+          ROW_NUMBER() OVER (
+            PARTITION BY crm_lead_id
+            ORDER BY
+              (event_date < (NOW() AT TIME ZONE 'America/New_York')::date),
+              CASE WHEN event_date >= (NOW() AT TIME ZONE 'America/New_York')::date THEN event_date END ASC,
+              CASE WHEN event_date < (NOW() AT TIME ZONE 'America/New_York')::date THEN event_date END DESC,
+              event_time ASC NULLS LAST,
+              id ASC
+          ) AS rn
+        FROM active
+      )
+      SELECT
         crm_lead_id,
         id AS active_calendar_event_id,
         title AS active_calendar_event_title,
         event_date AS active_calendar_event_date,
         event_time AS active_calendar_event_time,
         event_type AS active_calendar_event_type,
-        status AS active_calendar_event_status
-      FROM calendar_events
-      WHERE crm_lead_id = ANY(${leadIds})
-        AND status IN ('scheduled', 'missed')
-      ORDER BY crm_lead_id,
-        (event_date < (NOW() AT TIME ZONE 'America/New_York')::date),
-        CASE WHEN event_date >= (NOW() AT TIME ZONE 'America/New_York')::date THEN event_date END ASC,
-        CASE WHEN event_date < (NOW() AT TIME ZONE 'America/New_York')::date THEN event_date END DESC,
-        event_time ASC NULLS LAST,
-        id ASC
+        status AS active_calendar_event_status,
+        active_calendar_event_count
+      FROM ranked
+      WHERE rn = 1
     `;
     const eventByLeadId = new Map(activeEvents.map((event) => [event.crm_lead_id, event]));
     leads = leads.map((lead) => ({ ...lead, ...(eventByLeadId.get(lead.id) || {}) }));
