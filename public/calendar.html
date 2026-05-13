@@ -709,7 +709,7 @@ function editEvent(id) {
   // Populate modal with event data
   document.getElementById('eventModalTitle').textContent = 'Edit Event';
   document.getElementById('ev-title').value = event.title || '';
-  document.getElementById('ev-date').value = event.event_date || '';
+  document.getElementById('ev-date').value = (event.event_date || '').substring(0, 10);
   document.getElementById('ev-time').value = event.event_time || '';
   document.getElementById('ev-end').value = event.end_time || '';
   document.getElementById('ev-location').value = event.location || '';
