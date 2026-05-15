@@ -416,6 +416,18 @@ function formatEventTime(value) {
   h = h % 12 || 12;
   return h + ':' + m + ' ' + ampm;
 }
+function renderAttachments(attachments) {
+  if (!attachments || !attachments.length) return '';
+  return '<div style="display:flex;gap:0.45rem;flex-wrap:wrap;margin-top:0.45rem">' + attachments.map(function(att) {
+    var url = '/api/crm-attachments/' + att.id;
+    var name = esc(att.file_name || 'attachment');
+    if ((att.mime_type || '').startsWith('image/')) {
+      return '<a href="' + url + '" target="_blank" style="display:block"><img src="' + url + '" alt="' + name + '" style="max-width:180px;max-height:180px;border-radius:10px;border:1px solid rgba(0,0,0,0.08);object-fit:cover"></a>';
+    }
+    return '<a href="' + url + '" target="_blank" style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.35rem 0.55rem;border-radius:8px;background:#fff;border:1px solid #e0ddd6;color:var(--midnight);font-size:0.7rem;text-decoration:none">📎 ' + name + '</a>';
+  }).join('') + '</div>';
+}
+
 function tileCalendarBadge(l) {
   if (!l.active_calendar_event_id || !l.active_calendar_event_date) return '';
   var date = String(l.active_calendar_event_date).substring(0, 10);
@@ -777,7 +789,7 @@ function openLeadDetail(id, skipHistory) {
               if (isChat) {
                 return '<div style="margin-bottom:0.5rem;' + (isOutbound ? 'margin-left:25%;text-align:right' : 'margin-right:25%;text-align:left') + '">' +
                   '<div style="display:inline-block;text-align:left;max-width:100%;padding:0.6rem 0.85rem 0.45rem;border-radius:' + (isOutbound ? '12px 12px 4px 12px' : '12px 12px 12px 4px') + ';background:' + (isOutbound ? 'var(--midnight)' : '#fff') + ';color:' + (isOutbound ? '#fff' : 'var(--text)') + ';font-size:0.8rem;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,0.06)">' +
-                    subjectHtml + '<div>' + msg + '</div>' +
+                    subjectHtml + '<div>' + msg + '</div>' + renderAttachments(a.attachments) +
                     '<div style="display:flex;justify-content:flex-end;align-items:center;gap:0.35rem;font-size:0.6rem;color:' + (isOutbound ? 'rgba(255,255,255,0.5)' : '#999') + ';margin-top:0.3rem;text-align:right"><span>' + (isOutbound ? 'Sent' : 'Received') + ' · ' + date + '</span>' + (channelLabel ? '<span style="font-size:0.5rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;border:1px solid ' + (isOutbound ? 'rgba(255,255,255,0.25)' : '#ddd') + ';border-radius:999px;padding:0.05rem 0.35rem">' + channelLabel + '</span>' : '') + '</div>' +
                   '</div></div>';
               } else {
@@ -804,6 +816,7 @@ function openLeadDetail(id, skipHistory) {
             '<select id="message-template" style="width:95px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem" onchange="applyMessageTemplate(this.value)">' +
               '<option value="">Templates</option><option value="hope">Hope follow-up</option>' +
             '</select>' +
+            '<input id="message-attachments" type="file" multiple accept="image/*,.pdf" style="font-size:0.7rem;max-width:145px">' +
             '<textarea id="note-text" rows="1" placeholder="Type a message..." style="flex:1;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-family:Montserrat,sans-serif;font-size:0.8rem;line-height:1.35" oninput="autoGrowTextarea(this)" onkeydown="handleMessageKeydown(event,' + l.id + ')"></textarea>' +
             '<button class="btn btn-primary" onclick="addNote(' + l.id + ')">Send</button>' +
           '</div>' +
@@ -1009,10 +1022,30 @@ function handleMessageKeydown(event, id) {
   }
 }
 
+function fileToAttachment(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function() {
+      var result = String(reader.result || '');
+      resolve({ name: file.name, mimeType: file.type || 'application/octet-stream', dataBase64: result.split(',')[1] || '' });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function selectedAttachments() {
+  var input = document.getElementById('message-attachments');
+  var files = input && input.files ? Array.from(input.files).slice(0, 5) : [];
+  return Promise.all(files.map(fileToAttachment));
+}
+
 function addNote(id) {
   var type = document.getElementById('note-type').value;
   var text = document.getElementById('note-text').value.trim();
-  if (!text) return;
+  var fileInput = document.getElementById('message-attachments');
+  var hasFiles = fileInput && fileInput.files && fileInput.files.length > 0;
+  if (!text && !hasFiles) return;
   var subject = (document.getElementById('email-subject')?.value || '').trim();
   if (type === 'email') {
     if (!isValidEmail(activeLeadEmail)) {
@@ -1029,19 +1062,22 @@ function addNote(id) {
   }
   var desc = text;
   if (type === 'sms' && !text.startsWith('📤') && !text.startsWith('📥')) {
-    desc = '📤 ' + text;
+    desc = '📤 ' + (text || 'Attachment');
   }
   if (type === 'email' && !text.startsWith('📤') && !text.startsWith('📥')) {
-    desc = '📤 Subject: ' + subject + '\n\n' + text;
+    desc = '📤 Subject: ' + subject + '\n\n' + (text || 'See attached.');
   }
-  fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: desc, subject: subject }))
-    .then(function() {
-      document.getElementById('note-text').value = '';
-      autoGrowTextarea(document.getElementById('note-text'));
-      var subj = document.getElementById('email-subject');
-      if (subj && type === 'email') subj.value = subject;
-      openLeadDetail(id);
-    });
+  selectedAttachments().then(function(attachments) {
+    return fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: desc, subject: subject, attachments: attachments }));
+  }).then(function() {
+    document.getElementById('note-text').value = '';
+    var att = document.getElementById('message-attachments');
+    if (att) att.value = '';
+    autoGrowTextarea(document.getElementById('note-text'));
+    var subj = document.getElementById('email-subject');
+    if (subj && type === 'email') subj.value = subject;
+    openLeadDetail(id);
+  });
 }
 
 function toggleRead(id) {

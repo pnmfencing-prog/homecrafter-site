@@ -58,8 +58,24 @@ export async function GET(request: NextRequest) {
     `;
     const lead = { ...leads[0], ...(activeEvents[0] || {}) };
     const activity = await sql`SELECT * FROM crm_activity WHERE crm_lead_id = ${leadId} ORDER BY created_at DESC LIMIT 50`;
+    const activityIds = activity.map((a) => a.id);
+    const attachments = activityIds.length
+      ? await sql`
+          SELECT id, crm_activity_id, file_name, mime_type, size_bytes, direction, created_at
+          FROM crm_attachments
+          WHERE crm_activity_id = ANY(${activityIds})
+          ORDER BY id ASC
+        `
+      : [];
+    const attachmentsByActivity = new Map<number, any[]>();
+    for (const att of attachments) {
+      const list = attachmentsByActivity.get(att.crm_activity_id) || [];
+      list.push(att);
+      attachmentsByActivity.set(att.crm_activity_id, list);
+    }
+    const activityWithAttachments = activity.map((a) => ({ ...a, attachments: attachmentsByActivity.get(a.id) || [] }));
     const quotes = await sql`SELECT * FROM crm_quotes WHERE crm_lead_id = ${leadId} ORDER BY created_at DESC`;
-    return NextResponse.json({ lead, activity, quotes });
+    return NextResponse.json({ lead, activity: activityWithAttachments, quotes });
   }
 
   // Build filtered query using tagged templates.
@@ -308,8 +324,21 @@ export async function POST(request: NextRequest) {
 
   if (action === 'add_note') {
     const { id, activity_type, description, subject } = body;
+    const attachments = Array.isArray(body.attachments) ? body.attachments : [];
     const isFromCustomer = description?.startsWith('📥') || false;
-    await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${id}, ${activity_type || 'note'}, ${description}, ${isFromCustomer})`;
+    const inserted = await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${id}, ${activity_type || 'note'}, ${description}, ${isFromCustomer}) RETURNING id`;
+    const activityId = inserted[0].id;
+    for (const att of attachments.slice(0, 5)) {
+      const fileName = String(att.name || 'attachment').slice(0, 180);
+      const mimeType = String(att.mimeType || 'application/octet-stream').slice(0, 120);
+      const dataBase64 = String(att.dataBase64 || '').replace(/^data:[^;]+;base64,/, '');
+      if (!dataBase64) continue;
+      const sizeBytes = Math.floor((dataBase64.length * 3) / 4);
+      await sql`
+        INSERT INTO crm_attachments (crm_activity_id, crm_lead_id, file_name, mime_type, content_base64, size_bytes, direction)
+        VALUES (${activityId}, ${id}, ${fileName}, ${mimeType}, ${dataBase64}, ${sizeBytes}, ${isFromCustomer ? 'inbound' : 'outbound'})
+      `;
+    }
     const sender = isFromCustomer ? 'customer' : 'you';
     await sql`UPDATE crm_leads SET updated_at = NOW(), last_message_by = ${sender}, last_message_at = NOW(), is_read = ${!isFromCustomer} WHERE id = ${id}`;
 
@@ -328,6 +357,10 @@ export async function POST(request: NextRequest) {
             subject: cleanSubject,
             textContent: bodyText,
             htmlContent: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;white-space:pre-wrap">${bodyText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
+            attachment: attachments.slice(0, 5).map((att: any) => ({
+              name: String(att.name || 'attachment').slice(0, 180),
+              content: String(att.dataBase64 || '').replace(/^data:[^;]+;base64,/, ''),
+            })).filter((att: any) => att.content),
           }),
         });
         if (!res.ok) return NextResponse.json({ error: `Email send failed: ${await res.text()}` }, { status: 502 });
