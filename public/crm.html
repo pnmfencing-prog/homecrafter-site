@@ -496,21 +496,11 @@ function renderBoard() {
     if (messageFilter === 'customer') leads = leads.filter(function(l) { return l.last_message_by === 'customer'; });
     if (messageFilter === 'you') leads = leads.filter(function(l) { return l.last_message_by === 'you'; });
 
-    // Apply per-column message filter
-    var cmf = colMsgFilters[col.key] || 'all';
-    if (cmf === 'customer') leads = leads.filter(function(l) { return l.last_message_by === 'customer'; });
-    if (cmf === 'you') leads = leads.filter(function(l) { return l.last_message_by === 'you'; });
-
     // Keep the most recently active conversation at the top of each column.
     leads = leads.slice().sort(function(a, b) { return tileActivityTime(b) - tileActivityTime(a); });
     
     html += '<div class="column" data-status="' + col.key + '" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">' +
-      '<div class="column-header">' + col.label + ' <span class="column-count">' + leads.length + '</span></div>' +
-      '<div class="col-filters">' +
-        '<button class="col-filter-btn' + (cmf === 'all' ? ' active' : '') + '" onclick="setColFilter(\'' + col.key + '\',\'all\')">All</button>' +
-        '<button class="col-filter-btn' + (cmf === 'you' ? ' active' : '') + '" onclick="setColFilter(\'' + col.key + '\',\'you\')">Msgs Sent</button>' +
-        '<button class="col-filter-btn' + (cmf === 'customer' ? ' active' : '') + '" onclick="setColFilter(\'' + col.key + '\',\'customer\')">Msgs Rcvd</button>' +
-      '</div>';
+      '<div class="column-header">' + col.label + ' <span class="column-count">' + leads.length + '</span></div>';
     leads.forEach(function(l) {
       var sourceClass = 'source-' + (l.source || 'manual');
       var unreadClass = !l.is_read ? ' unread' : '';
