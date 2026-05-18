@@ -284,9 +284,11 @@ function renderProposalView(p) {
     '<strong style="font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b">Description ✎</strong><br>' +
     '<span class="text-content" style="white-space:pre-line">' + (p.description_override || '<em style="color:#ccc">No description</em>') + '</span></div>';
   
+  var invoiceLinks = getInvoiceLinks(p);
   html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1.25rem">';
   html += '<button class="btn btn-primary" onclick="openEditProposal(' + p.id + ')">✏️ Edit</button>';
   html += '<button class="btn btn-outline" onclick="viewPDF(' + p.id + ')">📄 View PDF</button>';
+  if (invoiceLinks.length) html += '<button class="btn btn-outline" onclick="viewInvoices(' + p.id + ')">🧾 View Invoice' + (invoiceLinks.length > 1 ? 's' : '') + '</button>';
   if (p.client_email && p.status !== 'signed') html += '<button class="btn btn-green" onclick="sendProposal(' + p.id + ',\'' + (p.client_email || '') + '\')">✉️ Send</button>';
   if (p.status === 'draft') html += '<button class="btn btn-outline" onclick="updateStatus(' + p.id + ',\'sent\')">Mark Sent</button>';
   if (p.status === 'sent' || p.status === 'opened') html += '<button class="btn btn-green" onclick="updateStatus(' + p.id + ',\'signed\')">Mark Signed ✓</button>';
@@ -575,6 +577,29 @@ function unredactProposal(id) {
 function deleteProposal(id) {
   fetch('/api/proposals', api('POST', { action: 'delete', id: id }))
     .then(function() { closeModal(); loadProposals(); });
+}
+
+function getInvoiceLinks(p) {
+  var text = ((p && p.notes) || '') + '\n' + ((p && p.description_override) || '');
+  var matches = text.match(/(?:https?:\/\/[^\s]+|\/invoices\/[^\s]+)/g) || [];
+  var seen = {};
+  return matches
+    .map(function(url) { return url.replace(/[.,;)]+$/, ''); })
+    .filter(function(url) {
+      if (url.indexOf('/invoices/') === -1 || seen[url]) return false;
+      seen[url] = true;
+      return true;
+    });
+}
+
+function viewInvoices(id) {
+  var proposal = (currentProposal && currentProposal.id === id) ? currentProposal : allProposals.find(function(p) { return p.id === id; });
+  var links = getInvoiceLinks(proposal);
+  if (!links.length) return alert('No invoice is tied to this proposal yet.');
+  if (links.length === 1) return window.open(links[0], '_blank');
+  var choice = prompt('Invoices tied to this proposal:\n\n' + links.map(function(link, i) { return (i + 1) + '. ' + link; }).join('\n') + '\n\nEnter invoice number to open:', '1');
+  var index = parseInt(choice, 10) - 1;
+  if (links[index]) window.open(links[index], '_blank');
 }
 
 function viewPDF(id) {
