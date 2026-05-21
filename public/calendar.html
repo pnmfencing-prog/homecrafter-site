@@ -241,7 +241,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
     </div>
     <div class="modal-body">
       <div class="form-group"><label>Title</label><input type="text" id="ev-title" placeholder="e.g. Fence install — Mike Thompson"></div>
-      <div class="form-group"><label>Date</label><input type="date" id="ev-date"></div>
+      <div class="form-group"><label>Date</label><div style="display:flex;gap:0.5rem;align-items:center"><input type="date" id="ev-date" style="flex:1"><button type="button" class="btn btn-primary" style="padding:0.55rem 0.8rem;font-size:0.68rem;white-space:nowrap" onclick="saveEvent()">Save</button></div></div>
       <div class="form-row">
         <div class="form-group"><label>Start Time</label><input type="time" id="ev-time"></div>
         <div class="form-group"><label>End Time</label><input type="time" id="ev-end"></div>
