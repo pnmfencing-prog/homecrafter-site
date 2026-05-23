@@ -12,6 +12,8 @@ html { width: 100%; height: 100%; overflow: hidden; overscroll-behavior-x: none;
 body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--text); width: 100%; max-width: 100%; height: 100dvh; min-height: 100dvh; overflow: hidden; display: flex; flex-direction: column; touch-action: pan-y pinch-zoom; }
 
 .header { background: var(--midnight); padding: 1rem 1.25rem; display: flex; align-items: center; gap: 0.75rem; }
+.header-back { display:none; border:1px solid rgba(196,170,106,0.45); background:transparent; color:var(--gold); border-radius:999px; padding:0.38rem 0.7rem; font:700 0.68rem 'Montserrat',sans-serif; cursor:pointer; }
+.header-back.on { display:block; }
 .header-logo { font-size: 1rem; font-weight: 700; color: var(--gold); letter-spacing: 0.15em; }
 .header-info { font-size: 0.7rem; color: rgba(255,255,255,0.6); }
 .header-dot { width: 8px; height: 8px; border-radius: 50%; background: #2d8a4e; margin-left: auto; }
@@ -54,6 +56,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 <body>
 
 <div class="header">
+  <button type="button" class="header-back" id="backBtn" onclick="goBackToCrm()">← Back</button>
   <div>
     <div class="header-logo">PNM FENCING</div>
     <div class="header-info" id="headerInfo">Loading...</div>
@@ -134,6 +137,7 @@ function loadMessages() {
       document.getElementById('headerInfo').textContent = (data.lead.service || 'Project') + ' Inquiry' + (STAFF_MODE ? ' · Staff Reply Mode' : '');
       document.getElementById('staffBanner').className = STAFF_MODE ? 'staff-banner on' : 'staff-banner';
       document.getElementById('staffTools').className = STAFF_MODE ? 'staff-tools on' : 'staff-tools';
+      document.getElementById('backBtn').className = STAFF_MODE ? 'header-back on' : 'header-back';
       updateUnreadButton();
       setChannel(CHANNEL);
       renderMessages(data);
@@ -143,25 +147,32 @@ function loadMessages() {
 function updateUnreadButton() {
   var btn = document.getElementById('markUnreadBtn');
   if (!btn) return;
-  btn.textContent = ACTIVE_IS_READ ? 'Mark Unread' : 'Unread ✓';
-  btn.disabled = !STAFF_MODE || !ACTIVE_LEAD_ID || !ACTIVE_IS_READ;
+  btn.textContent = ACTIVE_IS_READ ? 'Mark Unread' : 'Mark Read';
+  btn.disabled = !STAFF_MODE || !ACTIVE_LEAD_ID;
+}
+
+function goBackToCrm() {
+  if (ACTIVE_LEAD_ID) window.location.href = '/crm.html?lead=' + encodeURIComponent(ACTIVE_LEAD_ID);
+  else if (document.referrer) window.history.back();
+  else window.location.href = '/crm.html';
 }
 
 function markUnread() {
   if (!STAFF_MODE || !ACTIVE_LEAD_ID) return;
   var btn = document.getElementById('markUnreadBtn');
+  var nextRead = !ACTIVE_IS_READ;
   if (btn) btn.disabled = true;
   fetch('/api/crm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN },
-    body: JSON.stringify({ action: 'toggle_read', id: ACTIVE_LEAD_ID, is_read: false })
+    body: JSON.stringify({ action: 'toggle_read', id: ACTIVE_LEAD_ID, is_read: nextRead })
   }).then(function(r) {
-    if (!r.ok) throw new Error('Could not mark unread');
-    ACTIVE_IS_READ = false;
+    if (!r.ok) throw new Error('Could not update read status');
+    ACTIVE_IS_READ = nextRead;
     updateUnreadButton();
   }).catch(function() {
     if (btn) btn.disabled = false;
-    alert('Could not mark this thread unread. Please open it from the CRM.');
+    alert('Could not update this thread. Please open it from the CRM.');
   });
 }
 
