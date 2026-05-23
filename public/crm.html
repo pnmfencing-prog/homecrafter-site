@@ -104,6 +104,10 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .lead-card .amount { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 700; color: var(--green); margin-top: 0.3rem; }
 .lead-card .date { font-size: 0.6rem; color: #bbb; margin-top: 0.3rem; }
 .tile-footer { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-top: 0.3rem; }
+.tile-actions { display: inline-flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
+.tile-chat-btn, .tile-note-btn { border: 1px solid #e0ddd6; background: #fff; color: var(--midnight); border-radius: 999px; padding: 0.16rem 0.45rem; font-size: 0.55rem; font-weight: 700; cursor: pointer; white-space: nowrap; text-decoration: none; }
+.tile-chat-btn { border-color: #bfdbfe; color: var(--blue); background: var(--blue-bg); }
+.tile-chat-btn:hover { border-color: var(--blue); transform: translateY(-1px); }
 .tile-note-btn { border: 1px solid #e0ddd6; background: #fff; color: var(--midnight); border-radius: 999px; padding: 0.16rem 0.45rem; font-size: 0.55rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .tile-note-btn.has-notes { border-color: var(--gold); color: var(--midnight); background: rgba(196,170,106,0.12); }
 .tile-note-btn:hover { border-color: var(--gold); transform: translateY(-1px); }
@@ -544,6 +548,7 @@ function renderBoard() {
         '<div class="message-time">' + esc(msgTime) + ' by ' + esc(messageAuthor(l)) + '</div>' +
         '<div class="message-preview">' + esc(msgPreview) + '</div>' : '';
       var calendarBadge = tileCalendarBadge(l);
+      var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="event.stopPropagation()" title="Open chat thread">💬 Chat</a>' : '';
       
       html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="openLeadDetail(' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">' +
         '<div class="name">' + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
@@ -553,7 +558,7 @@ function renderBoard() {
         calendarBadge +
         amount +
         '<div class="tile-footer"><div class="date">' + esc(activityDate) + ' · ' + esc(l.source || 'manual') + '</div>' +
-          '<button class="tile-note-btn' + (l.notes ? ' has-notes' : '') + '" onclick="editTileNotes(event,' + l.id + ')" title="Edit customer notes">📝 Notes</button></div>' +
+          '<div class="tile-actions">' + tileChatButton + '<button class="tile-note-btn' + (l.notes ? ' has-notes' : '') + '" onclick="editTileNotes(event,' + l.id + ')" title="Edit customer notes">📝 Notes</button></div></div>' +
         '</div>';
     });
     html += '</div>';
