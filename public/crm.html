@@ -346,6 +346,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 <script>
 var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
 var allLeads = [];
+var campaigns = [];
 var currentView = 'board';
 var currentFilter = 'all';
 var currentSource = 'all';
@@ -448,6 +449,21 @@ function messageAuthor(l) {
   if (l.latest_message_from_customer) return l.customer_name || 'Customer';
   if (l.latest_message_created_by && l.latest_message_created_by !== 'admin') return l.latest_message_created_by;
   return 'PNM Fencing';
+}
+
+function loadCampaigns() {
+  return fetch('/api/campaigns', api('GET'))
+    .then(function(r) { return r.json(); })
+    .then(function(data) { campaigns = data.campaigns || []; })
+    .catch(function() { campaigns = []; });
+}
+
+function campaignOptions(selectedId) {
+  var html = '<option value="">No campaign</option>';
+  campaigns.forEach(function(c) {
+    html += '<option value="' + c.id + '" ' + (String(c.id) === String(selectedId || '') ? 'selected' : '') + '>' + esc(c.name) + (c.source ? ' (' + esc(c.source) + ')' : '') + '</option>';
+  });
+  return html;
 }
 
 function loadLeads() {
@@ -691,6 +707,12 @@ function openLeadDetail(id, skipHistory) {
           '<a href="/chat.html?t=' + l.chat_token + '&staff=1" target="_blank" style="border:1px solid #bfdbfe;background:#fff;border-radius:6px;cursor:pointer;font-size:0.68rem;padding:0.25rem 0.45rem;color:var(--blue);text-decoration:none;font-weight:600" title="Open chat thread">Chat thread</a>' +
           '<button onclick="navigator.clipboard.writeText(\'https://homecrafter.ai/chat.html?t=' + l.chat_token + '\')" style="border:1px solid #e5e7eb;background:#fff;border-radius:6px;cursor:pointer;font-size:0.68rem;padding:0.25rem 0.45rem" title="Copy customer link">Copy customer link</button>' +
         '</div>' : '') +
+
+        '<div style="margin-bottom:1rem;padding:0.7rem 0.85rem;background:#fff;border:1px solid #e8e3d9;border-radius:10px;display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">' +
+          '<span style="font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--midnight)">Campaign</span>' +
+          '<select id="lead-campaign-select" style="flex:1;min-width:210px;border:1px solid #e0ddd6;border-radius:8px;padding:0.45rem 0.6rem;font-family:Montserrat,sans-serif;font-size:0.75rem">' + campaignOptions(l.campaign_id) + '</select>' +
+          '<button class="btn btn-primary" style="font-size:0.65rem;padding:0.45rem 0.75rem" onclick="assignLeadCampaign(' + l.id + ')">Assign</button>' +
+        '</div>' +
 
         '<details style="margin-bottom:1rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:10px;padding:0.75rem">' +
           '<summary style="cursor:pointer;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--midnight)">✏️ Edit contact info</summary>' +
@@ -1081,6 +1103,20 @@ function addNote(id) {
   });
 }
 
+function assignLeadCampaign(id) {
+  var sel = document.getElementById('lead-campaign-select');
+  if (!sel) return;
+  var campaignId = sel.value ? Number(sel.value) : null;
+  fetch('/api/campaigns', api('POST', { action: 'assign_lead', lead_id: id, campaign_id: campaignId }))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error) { alert(d.error); return; }
+      var lead = allLeads.find(function(l) { return l.id === id; });
+      if (lead) lead.campaign_id = campaignId;
+      loadCampaigns().then(function() { openLeadDetail(id, true); loadLeads(); });
+    });
+}
+
 function toggleRead(id) {
   var lead = allLeads.find(function(l) { return l.id === id; });
   if (!lead) return;
@@ -1258,7 +1294,7 @@ function openLinkedLeadFromUrl() {
 }
 
 // Init
-loadLeads();
+loadCampaigns().then(loadLeads);
 initSwipeDots();
 openLinkedLeadFromUrl();
 setInterval(refreshCrmQuietly, CRM_REFRESH_MS);
