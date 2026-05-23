@@ -462,12 +462,28 @@ function loadCampaigns() {
     .catch(function() { campaigns = []; });
 }
 
+function campaignName(id) {
+  var c = campaigns.find(function(x) { return String(x.id) === String(id || ''); });
+  return c ? c.name : '';
+}
+
 function campaignOptions(selectedId) {
   var html = '<option value="">None</option>';
   campaigns.forEach(function(c) {
-    html += '<option value="' + c.id + '" ' + (String(c.id) === String(selectedId || '') ? 'selected' : '') + '>' + esc(c.name) + (c.source ? ' (' + esc(c.source) + ')' : '') + '</option>';
+    var selected = String(c.id) === String(selectedId || '');
+    var label = (selected ? '✓ ' : '') + c.name + (c.source ? ' (' + c.source + ')' : '') + (selected ? ' — currently assigned' : '');
+    html += '<option value="' + c.id + '" ' + (selected ? 'selected' : '') + '>' + esc(label) + '</option>';
   });
   return html;
+}
+
+function refreshCampaignSelectVisual() {
+  var sel = document.getElementById('lead-campaign-select');
+  if (!sel) return;
+  var assigned = !!sel.value;
+  sel.style.borderColor = assigned ? 'var(--green)' : '#e0ddd6';
+  sel.style.background = assigned ? 'var(--green-bg)' : '#fff';
+  sel.style.color = assigned ? 'var(--green)' : 'var(--midnight)';
 }
 
 function loadLeads() {
@@ -715,8 +731,9 @@ function openLeadDetail(id, skipHistory) {
 
         '<div style="margin-bottom:1rem;padding:0.7rem 0.85rem;background:#fff;border:1px solid #e8e3d9;border-radius:10px;display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">' +
           '<span style="font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--midnight)">Campaign</span>' +
-          '<select id="lead-campaign-select" style="flex:1;min-width:210px;border:1px solid #e0ddd6;border-radius:8px;padding:0.45rem 0.6rem;font-family:Montserrat,sans-serif;font-size:0.75rem">' + campaignOptions(l.campaign_id) + '</select>' +
-          '<button class="btn btn-primary" style="font-size:0.65rem;padding:0.45rem 0.75rem" onclick="assignLeadCampaign(' + l.id + ')">Assign</button>' +
+          '<select id="lead-campaign-select" onchange="refreshCampaignSelectVisual()" style="flex:1;min-width:210px;border:1px solid ' + (l.campaign_id ? 'var(--green)' : '#e0ddd6') + ';background:' + (l.campaign_id ? 'var(--green-bg)' : '#fff') + ';color:' + (l.campaign_id ? 'var(--green)' : 'var(--midnight)') + ';border-radius:8px;padding:0.45rem 0.6rem;font-family:Montserrat,sans-serif;font-size:0.75rem;font-weight:700">' + campaignOptions(l.campaign_id) + '</select>' +
+          '<button id="campaign-assign-btn" class="btn btn-primary" style="font-size:0.65rem;padding:0.45rem 0.75rem" onclick="assignLeadCampaign(' + l.id + ')">Assign</button>' +
+          '<span id="campaign-assign-feedback" style="font-size:0.68rem;font-weight:800;color:' + (l.campaign_id ? 'var(--green)' : 'var(--text-muted)') + ';width:100%">' + (l.campaign_id ? '✓ Currently assigned to ' + esc(campaignName(l.campaign_id)) : 'None assigned yet') + '</span>' +
         '</div>' +
 
         '<details style="margin-bottom:1rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:10px;padding:0.75rem">' +
@@ -1111,14 +1128,31 @@ function addNote(id) {
 function assignLeadCampaign(id) {
   var sel = document.getElementById('lead-campaign-select');
   if (!sel) return;
+  var btn = document.getElementById('campaign-assign-btn');
+  var feedback = document.getElementById('campaign-assign-feedback');
   var campaignId = sel.value ? Number(sel.value) : null;
+  if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
   fetch('/api/campaigns', api('POST', { action: 'assign_lead', lead_id: id, campaign_id: campaignId }))
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.error) { alert(d.error); return; }
+      if (d.error) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Assign'; }
+        if (feedback) { feedback.style.color = 'var(--red)'; feedback.textContent = d.error; }
+        return;
+      }
       var lead = allLeads.find(function(l) { return l.id === id; });
       if (lead) lead.campaign_id = campaignId;
-      loadCampaigns().then(function() { openLeadDetail(id, true); loadLeads(); });
+      if (feedback) {
+        feedback.style.color = campaignId ? 'var(--green)' : 'var(--text-muted)';
+        feedback.textContent = campaignId ? '✓ Assigned to ' + campaignName(campaignId) : '✓ Campaign removed — None assigned';
+      }
+      sel.innerHTML = campaignOptions(campaignId);
+      refreshCampaignSelectVisual();
+      if (btn) { btn.textContent = 'Assigned ✓'; setTimeout(function() { btn.disabled = false; btn.textContent = 'Assign'; }, 1400); }
+      loadCampaigns().then(loadLeads);
+    }).catch(function() {
+      if (btn) { btn.disabled = false; btn.textContent = 'Assign'; }
+      if (feedback) { feedback.style.color = 'var(--red)'; feedback.textContent = 'Could not assign campaign. Try again.'; }
     });
 }
 
