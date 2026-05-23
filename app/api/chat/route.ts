@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   }
 
   const leads = await sql`
-    SELECT id, customer_name, service_type FROM crm_leads WHERE chat_token = ${token}
+    SELECT id, customer_name, service_type, is_read FROM crm_leads WHERE chat_token = ${token}
   `;
   if (leads.length === 0) {
     return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   `;
 
   return NextResponse.json({
-    lead: { name: lead.customer_name, service: lead.service_type },
+    lead: { id: lead.id, name: lead.customer_name, service: lead.service_type, isRead: lead.is_read },
     messages: messages.map((m: any) => {
       const description = m.description || '';
       const hasOutboundPrefix = description.startsWith('📤');

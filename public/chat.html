@@ -37,6 +37,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .staff-tools.on { display:flex; }
 .staff-tools button { flex:0 0 auto; padding:0.35rem 0.75rem; border-radius:999px; border:1px solid #e0ddd6; background:#fff; color:var(--midnight); font:600 0.72rem 'Montserrat',sans-serif; }
 .staff-tools button.active { background:var(--midnight); color:var(--gold); border-color:var(--midnight); }
+.staff-tools .mark-unread { margin-left:auto; color:#c0392b; border-color:#f1c4bd; }
+.staff-tools .mark-unread:hover { background:#fef2f2; }
 .subject-row { display:none; padding:0.45rem 1rem 0; background:#fff; }
 .subject-row.on { display:block; }
 .subject-row input { width:100%; padding:0.55rem 0.8rem; border:1px solid #e0ddd6; border-radius:12px; font-family:'Montserrat',sans-serif; font-size:16px; outline:none; }
@@ -65,6 +67,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 <div class="staff-tools" id="staffTools">
   <button type="button" id="modeText" class="active" onclick="setChannel('sms')">💬 Text</button>
   <button type="button" id="modeEmail" onclick="setChannel('email')">✉️ Email</button>
+  <button type="button" id="markUnreadBtn" class="mark-unread" onclick="markUnread()">Mark Unread</button>
 </div>
 <div class="subject-row" id="subjectRow">
   <input type="text" id="emailSubject" value="Following up from PNM Fencing" placeholder="Email subject...">
@@ -86,6 +89,8 @@ var STAFF_MODE = params.get('staff') === '1';
 var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
 var pollTimer = null;
 var CHANNEL = 'sms';
+var ACTIVE_LEAD_ID = null;
+var ACTIVE_IS_READ = true;
 
 function timeStr(t) {
   return new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -124,12 +129,40 @@ function loadMessages() {
         document.getElementById('messages').innerHTML = '<div class="error">Chat not found.</div>';
         return;
       }
+      ACTIVE_LEAD_ID = data.lead.id;
+      ACTIVE_IS_READ = data.lead.isRead !== false;
       document.getElementById('headerInfo').textContent = (data.lead.service || 'Project') + ' Inquiry' + (STAFF_MODE ? ' · Staff Reply Mode' : '');
       document.getElementById('staffBanner').className = STAFF_MODE ? 'staff-banner on' : 'staff-banner';
       document.getElementById('staffTools').className = STAFF_MODE ? 'staff-tools on' : 'staff-tools';
+      updateUnreadButton();
       setChannel(CHANNEL);
       renderMessages(data);
     });
+}
+
+function updateUnreadButton() {
+  var btn = document.getElementById('markUnreadBtn');
+  if (!btn) return;
+  btn.textContent = ACTIVE_IS_READ ? 'Mark Unread' : 'Unread ✓';
+  btn.disabled = !STAFF_MODE || !ACTIVE_LEAD_ID || !ACTIVE_IS_READ;
+}
+
+function markUnread() {
+  if (!STAFF_MODE || !ACTIVE_LEAD_ID) return;
+  var btn = document.getElementById('markUnreadBtn');
+  if (btn) btn.disabled = true;
+  fetch('/api/crm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN },
+    body: JSON.stringify({ action: 'toggle_read', id: ACTIVE_LEAD_ID, is_read: false })
+  }).then(function(r) {
+    if (!r.ok) throw new Error('Could not mark unread');
+    ACTIVE_IS_READ = false;
+    updateUnreadButton();
+  }).catch(function() {
+    if (btn) btn.disabled = false;
+    alert('Could not mark this thread unread. Please open it from the CRM.');
+  });
 }
 
 function sendMsg() {
