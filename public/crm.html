@@ -459,7 +459,7 @@ function loadCampaigns() {
 }
 
 function campaignOptions(selectedId) {
-  var html = '<option value="">No campaign</option>';
+  var html = '<option value="">None</option>';
   campaigns.forEach(function(c) {
     html += '<option value="' + c.id + '" ' + (String(c.id) === String(selectedId || '') ? 'selected' : '') + '>' + esc(c.name) + (c.source ? ' (' + esc(c.source) + ')' : '') + '</option>';
   });
