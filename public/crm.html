@@ -175,6 +175,12 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .btn-blue { background: var(--blue); color: #fff; }
 .btn-purple { background: #7c3aed; color: #fff; }
 .btn-dark { background: var(--midnight); color: var(--gold); }
+.stage-picker { position: relative; display: inline-block; }
+.stage-menu { display: none; position: absolute; left: 0; top: calc(100% + 0.35rem); min-width: 190px; background: #fff; border: 1px solid #e0ddd6; border-radius: 10px; box-shadow: 0 12px 30px rgba(30,24,69,0.18); padding: 0.3rem; z-index: 20; }
+.stage-menu.show { display: block; }
+.stage-menu button { display: block; width: 100%; border: 0; background: #fff; color: var(--midnight); text-align: left; padding: 0.55rem 0.65rem; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 800; cursor: pointer; }
+.stage-menu button:hover { background: var(--cream); color: #7c3aed; }
+.stage-menu button.current { background: #f5f3ff; color: #7c3aed; }
 
 /* View toggle */
 .view-toggle { display: flex; gap: 0.25rem; background: #fff; border-radius: 8px; padding: 0.2rem; border: 1px solid #e0ddd6; }
@@ -574,7 +580,7 @@ function renderBoard() {
       var calendarBadge = tileCalendarBadge(l);
       var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="event.stopPropagation()" title="Open chat thread">💬 Chat</a>' : '';
       
-      html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="openLeadDetail(' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)">' +
+      html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="onLeadCardClick(event,' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" ontouchstart="onTouchDragStart(event)" ontouchmove="onTouchDragMove(event)" ontouchend="onTouchDragEnd(event)" ontouchcancel="onTouchDragEnd(event)">' +
         '<div class="name">' + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
         msgSummary +
         '<div class="service">' + esc(l.service_type || '') + '</div>' +
@@ -696,18 +702,7 @@ function openLeadDetail(id, skipHistory) {
         renderBoard();
       }
 
-      var statusBtns = '';
-      var nextStatuses = {
-        new: [{ s: 'contacted', label: 'Mark Contacted', cls: 'btn-blue' }],
-        contacted: [{ s: 'quoted', label: 'Mark Quoted', cls: 'btn-purple' }, { s: 'lost', label: 'Mark Lost', cls: 'btn-red' }],
-        quoted: [{ s: 'scheduled', label: 'Schedule Job', cls: 'btn-dark' }, { s: 'lost', label: 'Mark Lost', cls: 'btn-red' }],
-        scheduled: [{ s: 'won', label: 'Job Won ✓', cls: 'btn-green' }, { s: 'lost', label: 'Mark Lost', cls: 'btn-red' }],
-        lost: [{ s: 'new', label: 'Reopen', cls: 'btn-blue' }],
-        won: [],
-      };
-      (nextStatuses[l.status] || []).forEach(function(ns) {
-        statusBtns += '<button class="btn ' + ns.cls + '" onclick="updateStatus(' + l.id + ',\'' + ns.s + '\')">' + ns.label + '</button> ';
-      });
+      var statusBtns = stagePickerHtml(l.id, l.status);
       activeLeadEmail = (l.customer_email || '').trim();
       var hasValidEmail = isValidEmail(activeLeadEmail);
 
@@ -886,10 +881,46 @@ function openLeadDetail(id, skipHistory) {
     });
 }
 
+function stagePickerHtml(id, currentStatus) {
+  var stages = [
+    { s: 'new', label: 'New' },
+    { s: 'contacted', label: 'Contacted' },
+    { s: 'quoted', label: 'Quoted' },
+    { s: 'scheduled', label: 'Scheduled' },
+    { s: 'won', label: 'Won' },
+    { s: 'lost', label: 'Lost' }
+  ];
+  return '<div class="stage-picker">' +
+    '<button class="btn btn-purple" onclick="toggleStageMenu(event,' + id + ')">Change Stage ▾</button>' +
+    '<div class="stage-menu" id="stage-menu-' + id + '">' +
+      stages.map(function(st) {
+        return '<button class="' + (st.s === currentStatus ? 'current' : '') + '" onclick="selectStage(event,' + id + ',\'' + st.s + '\')">' + st.label + '</button>';
+      }).join('') +
+    '</div>' +
+  '</div>';
+}
+
+function toggleStageMenu(e, id) {
+  e.preventDefault();
+  e.stopPropagation();
+  document.querySelectorAll('.stage-menu.show').forEach(function(menu) {
+    if (menu.id !== 'stage-menu-' + id) menu.classList.remove('show');
+  });
+  var menu = document.getElementById('stage-menu-' + id);
+  if (menu) menu.classList.toggle('show');
+}
+
+function selectStage(e, id, status) {
+  e.preventDefault();
+  e.stopPropagation();
+  updateStatus(id, status);
+}
+
 function updateStatus(id, status) {
   var reason = null;
   if (status === 'lost') {
     reason = prompt('Lost reason? (not_interested, hired_other, no_response, price)');
+    if (reason === null) return;
   }
   fetch('/api/crm', api('POST', { action: 'update_status', id: id, status: status, lost_reason: reason }))
     .then(function() { closeModal(); loadLeads(); });
@@ -1210,6 +1241,18 @@ function importCSV(input) {
 // Drag and drop
 var draggedId = null;
 var draggedEl = null;
+var suppressNextCardClick = false;
+var touchDrag = null;
+
+function onLeadCardClick(e, id) {
+  if (suppressNextCardClick) {
+    e.preventDefault();
+    e.stopPropagation();
+    suppressNextCardClick = false;
+    return;
+  }
+  openLeadDetail(id);
+}
 
 function onDragStart(e) {
   draggedId = e.target.dataset.id;
@@ -1246,29 +1289,123 @@ function onDrop(e) {
   var col = e.target.closest('.column');
   if (!col || !draggedId) return;
   col.classList.remove('drag-over');
-  var newStatus = col.dataset.status;
-  var id = parseInt(draggedId);
-  
-  // Find current status
+  moveLeadToStatus(parseInt(draggedId), col.dataset.status);
+}
+
+function onTouchDragStart(e) {
+  if (!e.touches || e.touches.length !== 1) return;
+  if (e.target.closest('a, button, input, select, textarea')) return;
+  var card = e.currentTarget;
+  var t = e.touches[0];
+  touchDrag = {
+    id: parseInt(card.dataset.id),
+    card: card,
+    startX: t.clientX,
+    startY: t.clientY,
+    x: t.clientX,
+    y: t.clientY,
+    active: false,
+    clone: null,
+    scrollTimer: null
+  };
+}
+
+function onTouchDragMove(e) {
+  if (!touchDrag || !e.touches || e.touches.length !== 1) return;
+  var t = e.touches[0];
+  var dx = t.clientX - touchDrag.startX;
+  var dy = t.clientY - touchDrag.startY;
+  touchDrag.x = t.clientX;
+  touchDrag.y = t.clientY;
+
+  if (!touchDrag.active) {
+    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
+    if (Math.abs(dx) < Math.abs(dy)) return;
+    beginTouchCardDrag();
+  }
+
+  e.preventDefault();
+  moveTouchCardClone(t.clientX, t.clientY);
+  updateTouchDropColumn(t.clientX, t.clientY);
+  autoScrollTouchBoard(t.clientX);
+}
+
+function beginTouchCardDrag() {
+  if (!touchDrag || touchDrag.active) return;
+  touchDrag.active = true;
+  suppressNextCardClick = true;
+  touchDrag.card.classList.add('dragging');
+  var rect = touchDrag.card.getBoundingClientRect();
+  var clone = touchDrag.card.cloneNode(true);
+  clone.style.position = 'fixed';
+  clone.style.left = rect.left + 'px';
+  clone.style.top = rect.top + 'px';
+  clone.style.width = rect.width + 'px';
+  clone.style.pointerEvents = 'none';
+  clone.style.zIndex = '2000';
+  clone.style.opacity = '0.92';
+  clone.style.transform = 'scale(1.02)';
+  clone.style.boxShadow = '0 14px 35px rgba(30,24,69,0.22)';
+  document.body.appendChild(clone);
+  touchDrag.clone = clone;
+}
+
+function moveTouchCardClone(x, y) {
+  if (!touchDrag || !touchDrag.clone) return;
+  touchDrag.clone.style.left = Math.max(8, x - touchDrag.clone.offsetWidth / 2) + 'px';
+  touchDrag.clone.style.top = Math.max(80, y - 34) + 'px';
+}
+
+function updateTouchDropColumn(x, y) {
+  document.querySelectorAll('.column.drag-over').forEach(function(c) { c.classList.remove('drag-over'); });
+  var clone = touchDrag && touchDrag.clone;
+  if (clone) clone.style.display = 'none';
+  var el = document.elementFromPoint(x, y);
+  if (clone) clone.style.display = '';
+  var col = el && el.closest ? el.closest('.column') : null;
+  if (col) col.classList.add('drag-over');
+}
+
+function autoScrollTouchBoard(x) {
+  var board = document.getElementById('board');
+  if (!board) return;
+  var rect = board.getBoundingClientRect();
+  var edge = 56;
+  if (x > rect.right - edge) board.scrollLeft += 18;
+  else if (x < rect.left + edge) board.scrollLeft -= 18;
+}
+
+function onTouchDragEnd(e) {
+  if (!touchDrag) return;
+  var drag = touchDrag;
+  touchDrag = null;
+  document.querySelectorAll('.column.drag-over').forEach(function(c) { c.classList.remove('drag-over'); });
+  if (!drag.active) return;
+
+  if (drag.clone) drag.clone.remove();
+  drag.card.classList.remove('dragging');
+  drag.card.style.opacity = '';
+
+  var el = document.elementFromPoint(drag.x, drag.y);
+  var col = el && el.closest ? el.closest('.column') : null;
+  if (col) moveLeadToStatus(drag.id, col.dataset.status);
+  setTimeout(function() { suppressNextCardClick = false; }, 700);
+}
+
+function moveLeadToStatus(id, newStatus) {
   var lead = allLeads.find(function(l) { return l.id === id; });
   if (!lead || lead.status === newStatus) return;
-  
-  // If dropping to "lost", ask for reason
   var reason = null;
   if (newStatus === 'lost') {
     reason = prompt('Lost reason? (not_interested, hired_other, no_response, price)');
-    if (reason === null) return; // cancelled
+    if (reason === null) return;
   }
-  
-  // Optimistic UI update
   lead.status = newStatus;
   renderBoard();
-  
-  // API call
   fetch('/api/crm', api('POST', { action: 'update_status', id: id, status: newStatus, lost_reason: reason }))
     .then(function(r) { return r.json(); })
     .then(function() { loadLeads(); })
-    .catch(function() { loadLeads(); }); // reload on error to revert
+    .catch(function() { loadLeads(); });
 }
 
 // Search debounce
