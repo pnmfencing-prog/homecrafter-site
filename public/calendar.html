@@ -18,7 +18,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .header { background: linear-gradient(135deg, var(--midnight), var(--midnight-light)); padding: 1.5rem; text-align: center; }
 .logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.8rem; letter-spacing: 0.2em; color: var(--gold); }
 .header-sub { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-top: 0.2rem; }
-.header-nav { display: flex; gap: 1rem; justify-content: center; margin-top: 0.75rem; }
+.header-nav { display: flex; gap: 1rem 1.25rem; justify-content: center; margin-top: 0.75rem; flex-wrap: wrap; }
 .header-nav a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; transition: color 0.2s; }
 .header-nav a:hover, .header-nav a.active { color: var(--gold); }
 
@@ -104,6 +104,10 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 
 @media (max-width: 768px) {
+  .header { padding: 1.25rem 0.9rem 1.35rem; }
+  .logo { font-size: 1.55rem; letter-spacing: 0.18em; }
+  .header-nav { display: grid; grid-template-columns: repeat(3, max-content); justify-content: center; gap: 0.55rem 1.05rem; max-width: 100%; }
+  .header-nav a { font-size: 0.66rem; letter-spacing: 0.07em; white-space: nowrap; }
   .cal-day { min-height: 50px; padding: 0.25rem; }
   .cal-event-preview { display: none; }
   .form-row { grid-template-columns: 1fr; }
@@ -155,6 +159,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
     <a href="/crm.html">Sales Board</a>
     <a href="/calendar.html" class="active">Calendar</a>
     <a href="/proposals.html">Proposals</a>
+    <a href="/campaigns.html">Campaigns</a>
+    <a href="/imports.html">Imports</a>
   </div>
 </div>
 
