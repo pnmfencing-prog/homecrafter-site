@@ -509,10 +509,29 @@ function loadLeads() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       allLeads = data.leads || [];
-      renderStats(data.stats);
       renderBoard();
       renderList();
     });
+}
+
+function visibleLeadsForBoard() {
+  var leads = allLeads.slice();
+  if (readFilter === 'unread') leads = leads.filter(function(l) { return !l.is_read; });
+  if (readFilter === 'read') leads = leads.filter(function(l) { return l.is_read; });
+  if (messageFilter === 'customer') leads = leads.filter(function(l) { return l.last_message_by === 'customer'; });
+  if (messageFilter === 'you') leads = leads.filter(function(l) { return l.last_message_by === 'you'; });
+  return leads;
+}
+
+function renderStatsFromLeads(leads) {
+  var s = { total: leads.length, pipeline_value: 0, total_revenue: 0 };
+  COLUMNS.forEach(function(col) { s[col.key + '_count'] = 0; });
+  leads.forEach(function(l) {
+    s[(l.status || 'new') + '_count'] = (s[(l.status || 'new') + '_count'] || 0) + 1;
+    if (l.status === 'won') s.total_revenue += Number(l.job_value || 0);
+    if (l.status === 'quoted' || l.status === 'scheduled') s.pipeline_value += Number(l.quoted_amount || 0);
+  });
+  renderStats(s);
 }
 
 function renderStats(s) {
@@ -533,30 +552,26 @@ function renderStats(s) {
     '<div class="revenue-item">Total Leads: <strong>' + s.total + '</strong></div>';
 }
 
-function renderRcvdCounts() {
+function renderRcvdCounts(visible) {
   var el = document.getElementById('rcvdCounts');
   if (!el) return;
-  var html = '<span class="rcvd-label">Rcvd by column</span>';
+  var label = messageFilter === 'customer' ? 'Rcvd by column' : messageFilter === 'you' ? 'Sent by column' : 'All by column';
+  visible = visible || visibleLeadsForBoard();
+  var html = '<span class="rcvd-label">' + label + '</span>';
   COLUMNS.forEach(function(col) {
-    var count = allLeads.filter(function(l) { return l.status === col.key && l.last_message_by === 'customer'; }).length;
+    var count = visible.filter(function(l) { return l.status === col.key; }).length;
     html += '<button class="rcvd-count' + (count ? ' has' : '') + '" onclick="scrollToStatus(\'' + col.key + '\')" title="Jump to ' + esc(col.label) + '">' + esc(col.label) + ': ' + count + '</button>';
   });
   el.innerHTML = html;
 }
 
 function renderBoard() {
-  renderRcvdCounts();
   var html = '';
+  var visible = visibleLeadsForBoard();
+  renderStatsFromLeads(visible);
+  renderRcvdCounts(visible);
   COLUMNS.forEach(function(col) {
-    var leads = allLeads.filter(function(l) { return l.status === col.key; });
-    
-    // Apply read/unread filter
-    if (readFilter === 'unread') leads = leads.filter(function(l) { return !l.is_read; });
-    if (readFilter === 'read') leads = leads.filter(function(l) { return l.is_read; });
-    
-    // Apply global message filter
-    if (messageFilter === 'customer') leads = leads.filter(function(l) { return l.last_message_by === 'customer'; });
-    if (messageFilter === 'you') leads = leads.filter(function(l) { return l.last_message_by === 'you'; });
+    var leads = visible.filter(function(l) { return l.status === col.key; });
 
     // Keep the most recently active conversation at the top of each column.
     leads = leads.slice().sort(function(a, b) { return tileActivityTime(b) - tileActivityTime(a); });
