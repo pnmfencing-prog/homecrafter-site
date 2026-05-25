@@ -20,7 +20,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .header { background: linear-gradient(135deg, var(--midnight), var(--midnight-light)); padding: 1.5rem; text-align: center; position: relative; }
 .logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.8rem; letter-spacing: 0.2em; color: var(--gold); }
 .header-sub { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-top: 0.2rem; }
-.portal-home { position: absolute; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: var(--gold); text-decoration: none; font-size: 1rem; background: rgba(255,255,255,0.06); transition: all 0.2s; z-index: 3; }
+.portal-home { position: fixed; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: var(--gold); text-decoration: none; font-size: 1rem; background: rgba(255,255,255,0.06); transition: all 0.2s; z-index: 9999; }
 .portal-home:hover { background: rgba(196,170,106,0.16); transform: translateY(-1px); }
 .header-nav { display: flex; gap: 1rem 1.25rem; justify-content: center; align-items: center; margin-top: 0.75rem; flex-wrap: wrap; }
 .header-nav a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; transition: color 0.2s; white-space: nowrap; }
@@ -148,6 +148,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 #leadModal .modal-header { position: sticky; top: 0; z-index: 5; border-radius: 0; }
 #leadModal .modal-body { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
 #leadModal .modal-close { font-size: 0.8rem; color: var(--gold); border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; padding: 0.45rem 0.9rem; }
+.modal-actions { display: flex; align-items: center; gap: 0.5rem; }
+.modal-home { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: var(--gold); text-decoration: none; font-size: 1rem; background: rgba(255,255,255,0.06); }
 #leadModal .modal-close::before { content: '← Back'; }
 #leadModal .modal-close { color: transparent; line-height: 1; }
 #leadModal .modal-close::before { color: var(--gold); }
@@ -231,8 +233,9 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   #leadModal.modal-overlay.show { position: fixed; inset: 0; width: 100%; max-width: 100%; height: 100dvh; padding: 0; overflow: hidden; align-items: stretch; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; }
   #leadModal .modal { width: 100%; max-width: 100%; height: 100dvh; min-height: 100dvh; display: flex; flex-direction: column; overflow: hidden; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; }
   #leadModal .modal-header { flex: 0 0 auto; padding: 0.85rem 1rem; }
-  #leadModal .modal-header h2 { font-size: 1rem; line-height: 1.2; max-width: calc(100vw - 7rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #leadModal .modal-header h2 { font-size: 1rem; line-height: 1.2; max-width: calc(100vw - 10rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #leadModal .modal-close { flex-shrink: 0; padding: 0.4rem 0.75rem; }
+  .modal-home { width: 30px; height: 30px; font-size: 0.9rem; flex-shrink: 0; }
   #leadModal .modal-body { flex: 1 1 auto; width: 100%; max-width: 100%; min-width: 0; overflow-y: auto; overflow-x: clip; -webkit-overflow-scrolling: touch; overscroll-behavior-x: none; touch-action: pan-y pinch-zoom; padding: 0.85rem; }
   #leadModal .modal-body * { max-width: 100%; }
   #leadModal .modal-body [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
@@ -324,7 +327,10 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <div class="modal">
     <div class="modal-header">
       <h2 id="modalTitle">Lead Details</h2>
-      <button class="modal-close" onclick="goBackFromLead()" aria-label="Back to previous page">&times;</button>
+      <div class="modal-actions">
+        <a class="modal-home" href="/calendar.html" title="Portal home" aria-label="Portal home">&#8962;</a>
+        <button class="modal-close" onclick="goBackFromLead()" aria-label="Back to previous page">&times;</button>
+      </div>
     </div>
     <div class="modal-body" id="modalBody"></div>
   </div>
