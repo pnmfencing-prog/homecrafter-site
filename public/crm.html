@@ -320,7 +320,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <div class="modal">
     <div class="modal-header">
       <h2 id="modalTitle">Lead Details</h2>
-      <button class="modal-close" onclick="closeModal()" aria-label="Back to sales board">&times;</button>
+      <button class="modal-close" onclick="goBackFromLead()" aria-label="Back to previous page">&times;</button>
     </div>
     <div class="modal-body" id="modalBody"></div>
   </div>
@@ -669,11 +669,18 @@ function setView(view) {
 
 function openNewLeadModal() { document.getElementById('newLeadModal').classList.add('show'); }
 function closeNewModal() { document.getElementById('newLeadModal').classList.remove('show'); }
+function goBackFromLead() {
+  if (window.location.search.match(/[?&](lead|id)=/) && history.length > 1) {
+    history.back();
+    return;
+  }
+  closeModal();
+}
 function closeModal() {
   activeLeadId = null;
   document.getElementById('leadModal').classList.remove('show');
   if (window.location.search.match(/[?&](lead|id)=/)) {
-    history.pushState(null, '', '/crm.html');
+    history.replaceState(null, '', '/crm.html');
   }
 }
 
@@ -1479,7 +1486,7 @@ function refreshCrmQuietly() {
   // Don't interrupt Dan while typing inside an open thread.
   if (leadModalOpen && noteText && document.activeElement === noteText) return;
   if (leadModalOpen && activeLeadId) {
-    openLeadDetail(activeLeadId);
+    openLeadDetail(activeLeadId, true);
     return;
   }
   loadLeads();
