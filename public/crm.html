@@ -20,6 +20,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .header { background: linear-gradient(135deg, var(--midnight), var(--midnight-light)); padding: 1.5rem; text-align: center; position: relative; }
 .logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.8rem; letter-spacing: 0.2em; color: var(--gold); }
 .header-sub { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-top: 0.2rem; }
+.portal-home { position: absolute; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: var(--gold); text-decoration: none; font-size: 1rem; background: rgba(255,255,255,0.06); transition: all 0.2s; }
+.portal-home:hover { background: rgba(196,170,106,0.16); transform: translateY(-1px); }
 .header-nav { display: flex; gap: 1rem 1.25rem; justify-content: center; align-items: center; margin-top: 0.75rem; flex-wrap: wrap; }
 .header-nav a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; transition: color 0.2s; white-space: nowrap; }
 .header-nav a:hover, .header-nav a.active { color: var(--gold); }
@@ -207,6 +209,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 @media (max-width: 768px) {
   html, body { width: 100%; max-width: 100%; overflow-x: hidden; overscroll-behavior-x: none; }
   .header { padding: 1.25rem 0.9rem 1.35rem; }
+  .portal-home { top: 0.7rem; left: 0.7rem; width: 30px; height: 30px; font-size: 0.9rem; }
   .logo { font-size: 1.55rem; letter-spacing: 0.18em; }
   .header-nav { display: grid; grid-template-columns: repeat(3, max-content); justify-content: center; gap: 0.55rem 1.05rem; max-width: 100%; }
   .header-nav a { font-size: 0.66rem; letter-spacing: 0.07em; }
@@ -261,6 +264,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 <body>
 
 <div class="header">
+  <a class="portal-home" href="/calendar.html" title="Portal home" aria-label="Portal home">⌂</a>
   <div class="logo">PNM FENCING</div>
   <div class="header-sub">Sales Board</div>
   <div class="header-nav">
