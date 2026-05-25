@@ -545,9 +545,14 @@ body {
   .assurance { gap: 24px; }
   .container { padding: 36px 18px 48px; }
 }
+
+.portal-home { position: fixed; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: #c4aa6a; text-decoration: none; font-size: 1rem; background: rgba(30,24,69,0.72); transition: all 0.2s; z-index: 9999; backdrop-filter: blur(6px); }
+.portal-home:hover { background: rgba(196,170,106,0.18); transform: translateY(-1px); }
+@media (max-width: 640px) { .portal-home { top: 0.7rem; left: 0.7rem; width: 30px; height: 30px; font-size: 0.9rem; } }
 </style>
 </head>
 <body>
+<a class="portal-home" href="/services.html" title="Home" aria-label="Home">&#8962;</a>
 
 <div class="hero">
   <!-- Pro nav hidden from homeowner flow -->

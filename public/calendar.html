@@ -18,7 +18,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .header { background: linear-gradient(135deg, var(--midnight), var(--midnight-light)); padding: 1.5rem; text-align: center; position: relative; }
 .logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.8rem; letter-spacing: 0.2em; color: var(--gold); }
 .header-sub { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-top: 0.2rem; }
-.portal-home { position: absolute; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: var(--gold); text-decoration: none; font-size: 1rem; background: rgba(255,255,255,0.06); transition: all 0.2s; }
+.portal-home { position: absolute; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: var(--gold); text-decoration: none; font-size: 1rem; background: rgba(255,255,255,0.06); transition: all 0.2s; z-index: 3; }
 .portal-home:hover { background: rgba(196,170,106,0.16); transform: translateY(-1px); }
 .header-nav { display: flex; gap: 1rem 1.25rem; justify-content: center; margin-top: 0.75rem; flex-wrap: wrap; }
 .header-nav a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; transition: color 0.2s; }
@@ -156,7 +156,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 <body>
 
 <div class="header">
-  <a class="portal-home" href="/calendar.html" title="Portal home" aria-label="Portal home">⌂</a>
+  <a class="portal-home" href="/calendar.html" title="Portal home" aria-label="Portal home">&#8962;</a>
   <div class="logo">PNM FENCING</div>
   <div class="header-sub">Calendar & Tasks</div>
   <div class="header-nav">

@@ -17,6 +17,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .header::before { content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:radial-gradient(ellipse at 30% 50%,rgba(196,170,106,0.08) 0%,transparent 60%); pointer-events:none; }
 .logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 2.2rem; letter-spacing: 0.35em; color: var(--gold); text-transform: uppercase; margin-bottom: 0.4rem; }
 .header-subtitle { font-weight: 300; font-size: 0.8rem; letter-spacing: 0.2em; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+.portal-home { position: absolute; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: var(--gold); text-decoration: none; font-size: 1rem; background: rgba(255,255,255,0.06); transition: all 0.2s; z-index: 3; }
+.portal-home:hover { background: rgba(196,170,106,0.16); transform: translateY(-1px); }
 .gold-rule { width: 60px; height: 1px; background: var(--gold); margin: 1rem auto 0; opacity: 0.5; }
 .header-nav { margin-top: 1rem; display: flex; justify-content: center; gap: 1.5rem; }
 .header-nav a { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.5); text-decoration: none; transition: color 0.2s; }
@@ -56,7 +58,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .filter-row-2 { display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; margin-top: 0.75rem; align-items: end; }
 .filter-search input { width: 100%; }
 .filter-actions { display: flex; gap: 0.5rem; align-items: end; }
-.btn-filter { font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; padding: 0.5rem 1.2rem; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.btn-filter { font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; padding: 0.5rem 1.2rem; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s; z-index: 3; }
 .btn-apply { background: var(--midnight); color: var(--gold-light); }
 .btn-apply:hover { background: var(--midnight-light); }
 .btn-clear { background: transparent; color: var(--text-muted); border: 1.5px solid var(--cream-dark); }
@@ -81,7 +83,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 
 /* Pagination */
 .pagination { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 1.25rem; flex-wrap: wrap; }
-.pagination button { font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 600; padding: 0.4rem 0.9rem; border: 1.5px solid var(--cream-dark); border-radius: 8px; background: #fff; color: var(--text); cursor: pointer; transition: all 0.2s; }
+.pagination button { font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 600; padding: 0.4rem 0.9rem; border: 1.5px solid var(--cream-dark); border-radius: 8px; background: #fff; color: var(--text); cursor: pointer; transition: all 0.2s; z-index: 3; }
 .pagination button:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 .pagination button.active { background: var(--midnight); color: var(--gold-light); border-color: var(--midnight); }
@@ -96,6 +98,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .table-wrap { overflow-x: auto; }
 
 @media (max-width: 768px) {
+  .portal-home { top: 0.7rem; left: 0.7rem; width: 30px; height: 30px; font-size: 0.9rem; }
   .stat-cards { grid-template-columns: repeat(3, 1fr); }
   .filter-grid { grid-template-columns: 1fr 1fr; }
   .container { padding: 1.25rem 1rem 2rem; }
@@ -113,6 +116,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 <body>
 
 <div class="header">
+  <a class="portal-home" href="/admin-dashboard.html" title="Portal home" aria-label="Portal home">&#8962;</a>
   <div class="logo">HomeCrafter</div>
   <div class="header-subtitle">Admin Command Center</div>
   <div class="gold-rule"></div>

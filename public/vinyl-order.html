@@ -33,9 +33,14 @@ body { font-family: 'Montserrat', sans-serif; background: #f8f9fa; color: #2d2d2
 .btn { background: #c4aa6a; color: #1e1845; border: none; padding: 1rem 2rem; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 1rem; width: 100%; transition: all 0.2s; }
 .btn:hover { background: #d4c394; transform: translateY(-1px); }
 @media (max-width: 600px) { .form-row { flex-direction: column; gap: 0.5rem; } .checkbox-group, .radio-group { flex-direction: column; gap: 0.5rem; } }
+
+.portal-home { position: fixed; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: #c4aa6a; text-decoration: none; font-size: 1rem; background: rgba(30,24,69,0.72); transition: all 0.2s; z-index: 9999; backdrop-filter: blur(6px); }
+.portal-home:hover { background: rgba(196,170,106,0.18); transform: translateY(-1px); }
+@media (max-width: 640px) { .portal-home { top: 0.7rem; left: 0.7rem; width: 30px; height: 30px; font-size: 0.9rem; } }
 </style>
 </head>
 <body>
+<a class="portal-home" href="/calendar.html" title="Portal home" aria-label="Portal home">&#8962;</a>
 
 <div class="container">
   <div class="header">

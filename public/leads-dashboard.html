@@ -17,6 +17,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .header::before { content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:radial-gradient(ellipse at 30% 50%,rgba(196,170,106,0.08) 0%,transparent 60%); pointer-events:none; }
 .logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.8rem; letter-spacing: 0.2em; color: var(--gold); text-transform: uppercase; margin-bottom: 0.4rem; }
 .header-subtitle { font-weight: 300; font-size: 0.8rem; letter-spacing: 0.2em; color: rgba(255,255,255,0.6); text-transform: uppercase; }
+.portal-home { position: absolute; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: var(--gold); text-decoration: none; font-size: 1rem; background: rgba(255,255,255,0.06); transition: all 0.2s; z-index: 3; }
+.portal-home:hover { background: rgba(196,170,106,0.16); transform: translateY(-1px); }
 .gold-rule { width: 60px; height: 1px; background: var(--gold); margin: 1rem auto 0; opacity: 0.5; }
 
 .nav { display:flex; justify-content:center; gap:2rem; padding:0.85rem 1.5rem; background:#fff; border-bottom:1px solid var(--cream-dark); }
@@ -88,6 +90,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .footer-text { font-size:0.7rem; color:var(--text-muted); letter-spacing:0.04em; }
 
 @media (max-width: 640px) {
+  .portal-home { top: 0.7rem; left: 0.7rem; width: 30px; height: 30px; font-size: 0.9rem; }
   .header { padding:2rem 1rem 1.5rem; }
   .logo { font-size:1.5rem; letter-spacing:0.15em; }
   .container { padding:1.25rem 1rem 2rem; }
@@ -114,6 +117,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 </div>
 
 <div class="header">
+  <a class="portal-home" href="/pro-dashboard.html" title="Portal home" aria-label="Portal home">&#8962;</a>
   <div class="logo">HomeCrafter</div>
   <div class="header-subtitle">Premium Lead Marketplace</div>
   <div class="gold-rule"></div>
