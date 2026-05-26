@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { normalizeText } from '@/lib/text';
 
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
@@ -354,7 +355,8 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === 'add_note') {
-    const { id, activity_type, description, subject } = body;
+    const { id, activity_type, subject } = body;
+    const description = normalizeText(body.description || '');
     const attachments = Array.isArray(body.attachments) ? body.attachments : [];
     const isFromCustomer = description?.startsWith('📥') || false;
     const inserted = await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${id}, ${activity_type || 'note'}, ${description}, ${isFromCustomer}) RETURNING id`;
@@ -377,7 +379,7 @@ export async function POST(request: NextRequest) {
       const leads = await sql`SELECT customer_name, customer_email FROM crm_leads WHERE id = ${id} LIMIT 1`;
       const to = leads[0]?.customer_email;
       const cleanSubject = (subject || 'Following up from PNM Fencing').trim();
-      const bodyText = String(description || '').replace(/^(📤|📥)\s*/, '').replace(/^Subject:\s*[^\n]+\n\n/, '');
+      const bodyText = normalizeText(description || '').replace(/^(📤|📥)\s*/, '').replace(/^Subject:\s*[^\n]+\n\n/, '');
       if (to && process.env.BREVO_API_KEY) {
         const res = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { normalizeText } from '@/lib/text';
 
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
         ${body.removal_type || null}, ${body.removal_footage || 0},
         ${body.total || null}, ${body.deposit || null}, ${body.installment_2 || null}, ${body.installment_3 || null},
         ${body.spot_holding_fee || 150}, ${body.status || 'draft'}, ${body.pdf_filename || null},
-        ${body.notes || null}, ${body.description_override || null})
+        ${body.notes ? normalizeText(body.notes) : null}, ${body.description_override ? normalizeText(body.description_override) : null})
       RETURNING *
     `;
     return NextResponse.json({ success: true, proposal: result[0] });
@@ -109,8 +110,8 @@ export async function POST(request: NextRequest) {
     if (f.height !== undefined) await sql`UPDATE proposals SET height = ${f.height}, updated_at = NOW() WHERE id = ${id}`;
     if (f.color !== undefined) await sql`UPDATE proposals SET color = ${f.color}, updated_at = NOW() WHERE id = ${id}`;
     if (f.material !== undefined) await sql`UPDATE proposals SET material = ${f.material}, updated_at = NOW() WHERE id = ${id}`;
-    if (f.notes !== undefined) await sql`UPDATE proposals SET notes = ${f.notes}, updated_at = NOW() WHERE id = ${id}`;
-    if (f.description_override !== undefined) await sql`UPDATE proposals SET description_override = ${f.description_override}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.notes !== undefined) await sql`UPDATE proposals SET notes = ${f.notes ? normalizeText(f.notes) : null}, updated_at = NOW() WHERE id = ${id}`;
+    if (f.description_override !== undefined) await sql`UPDATE proposals SET description_override = ${f.description_override ? normalizeText(f.description_override) : null}, updated_at = NOW() WHERE id = ${id}`;
     return NextResponse.json({ success: true });
   }
 

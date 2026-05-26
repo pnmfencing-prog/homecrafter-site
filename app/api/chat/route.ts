@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { normalizeText, normalizeTrimmedText } from '@/lib/text';
 
 // GET — fetch messages for a chat token (customer-facing)
 export async function GET(request: NextRequest) {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     lead: { id: lead.id, name: lead.customer_name, service: lead.service_type, isRead: lead.is_read },
     messages: messages.map((m: any) => {
-      const description = m.description || '';
+      const description = normalizeText(m.description || '');
       const hasOutboundPrefix = description.startsWith('📤');
       const hasInboundPrefix = description.startsWith('📥');
       return {
@@ -51,7 +52,7 @@ function isAdmin(request: NextRequest): boolean {
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const token = body.token;
-  const text = (body.message || '').trim();
+  const text = normalizeTrimmedText(body.message || '');
   const fromStaff = body.fromStaff === true;
   const channel = fromStaff && body.channel === 'email' ? 'email' : 'sms';
   const subject = String(body.subject || 'Following up from PNM Fencing').trim();

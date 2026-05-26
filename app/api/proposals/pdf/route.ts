@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { normalizeText } from '@/lib/text';
 
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
@@ -97,7 +98,7 @@ ${p.redacted ? `
 ` : `
 <div class="item-header"><span>Description</span><span>Amount</span></div>
 
-<div class="description">${p.description_override || `Supply and install up to approximately ${p.footage} linear feet of ${p.height} high ${(p.color || 'WHITE').toUpperCase()} ${p.material || 'vinyl'} solid privacy fencing ${gateText}
+<div class="description">${normalizeText(p.description_override || `Supply and install up to approximately ${p.footage} linear feet of ${p.height} high ${(p.color || 'WHITE').toUpperCase()} ${p.material || 'vinyl'} solid privacy fencing ${gateText}
 7" heavy duty rails
 Standard post caps
 Disposal of packing materials included.
@@ -111,7 +112,7 @@ Utility mark-out included.
 PNM not responsible for unmarked sprinkler lines and miscellaneous pipes.
 Fence to follow grade of ground.
 Footing soil dispersed around posts/sections.
-PNM not responsible for earth settling.`}</div>
+PNM not responsible for earth settling.`)}</div>
 
 <div class="amount">$${Number(p.total).toLocaleString('en-US', {minimumFractionDigits: 2})}*</div>
 
