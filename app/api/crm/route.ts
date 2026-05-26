@@ -95,7 +95,18 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
-      WHERE l.status = ${status} AND (l.customer_name ILIKE ${searchPat} OR l.customer_phone ILIKE ${searchPat} OR l.customer_email ILIKE ${searchPat} OR l.customer_address ILIKE ${searchPat})
+      WHERE l.status = ${status} AND (
+        l.customer_name ILIKE ${searchPat}
+        OR l.customer_phone ILIKE ${searchPat}
+        OR l.customer_email ILIKE ${searchPat}
+        OR l.customer_address ILIKE ${searchPat}
+        OR l.notes ILIKE ${searchPat}
+        OR EXISTS (
+          SELECT 1 FROM crm_activity a
+          WHERE a.crm_lead_id = l.id
+            AND a.description ILIKE ${searchPat}
+        )
+      )
       ORDER BY l.created_at DESC`;
   } else if (status && status !== 'all') {
     leads = await sql`
@@ -126,7 +137,18 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
-      WHERE l.source = ${source} AND (l.customer_name ILIKE ${searchPat} OR l.customer_phone ILIKE ${searchPat} OR l.customer_email ILIKE ${searchPat} OR l.customer_address ILIKE ${searchPat})
+      WHERE l.source = ${source} AND (
+        l.customer_name ILIKE ${searchPat}
+        OR l.customer_phone ILIKE ${searchPat}
+        OR l.customer_email ILIKE ${searchPat}
+        OR l.customer_address ILIKE ${searchPat}
+        OR l.notes ILIKE ${searchPat}
+        OR EXISTS (
+          SELECT 1 FROM crm_activity a
+          WHERE a.crm_lead_id = l.id
+            AND a.description ILIKE ${searchPat}
+        )
+      )
       ORDER BY l.created_at DESC`;
   } else if (source && source !== 'all') {
     leads = await sql`
@@ -157,7 +179,16 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
-      WHERE l.customer_name ILIKE ${searchPat} OR l.customer_phone ILIKE ${searchPat} OR l.customer_email ILIKE ${searchPat} OR l.customer_address ILIKE ${searchPat}
+      WHERE l.customer_name ILIKE ${searchPat}
+        OR l.customer_phone ILIKE ${searchPat}
+        OR l.customer_email ILIKE ${searchPat}
+        OR l.customer_address ILIKE ${searchPat}
+        OR l.notes ILIKE ${searchPat}
+        OR EXISTS (
+          SELECT 1 FROM crm_activity a
+          WHERE a.crm_lead_id = l.id
+            AND a.description ILIKE ${searchPat}
+        )
       ORDER BY l.created_at DESC`;
   } else {
     leads = await sql`
