@@ -102,11 +102,15 @@ export async function GET(request: NextRequest) {
         OR l.customer_phone ILIKE ${searchPat}
         OR l.customer_email ILIKE ${searchPat}
         OR l.customer_address ILIKE ${searchPat}
-        OR regexp_replace(COALESCE(l.notes, ''), '\s+', ' ', 'g') ILIKE ${searchPat}
+        OR l.notes ILIKE ${searchPat}
+        OR regexp_replace(COALESCE(l.notes, ''), '[[:space:]]+', ' ', 'g') ILIKE ${searchPat}
         OR EXISTS (
           SELECT 1 FROM crm_activity a
           WHERE a.crm_lead_id = l.id
-            AND regexp_replace(replace(replace(COALESCE(a.description, ''), E'\\n', ' '), E'\\r', ' '), '\s+', ' ', 'g') ILIKE ${searchPat}
+            AND (
+              a.description ILIKE ${searchPat}
+              OR regexp_replace(replace(replace(COALESCE(a.description, ''), E'\\n', ' '), E'\\r', ' '), '[[:space:]]+', ' ', 'g') ILIKE ${searchPat}
+            )
         )
       )
       ORDER BY l.created_at DESC`;
@@ -145,11 +149,15 @@ export async function GET(request: NextRequest) {
         OR l.customer_phone ILIKE ${searchPat}
         OR l.customer_email ILIKE ${searchPat}
         OR l.customer_address ILIKE ${searchPat}
-        OR regexp_replace(COALESCE(l.notes, ''), '\s+', ' ', 'g') ILIKE ${searchPat}
+        OR l.notes ILIKE ${searchPat}
+        OR regexp_replace(COALESCE(l.notes, ''), '[[:space:]]+', ' ', 'g') ILIKE ${searchPat}
         OR EXISTS (
           SELECT 1 FROM crm_activity a
           WHERE a.crm_lead_id = l.id
-            AND regexp_replace(replace(replace(COALESCE(a.description, ''), E'\\n', ' '), E'\\r', ' '), '\s+', ' ', 'g') ILIKE ${searchPat}
+            AND (
+              a.description ILIKE ${searchPat}
+              OR regexp_replace(replace(replace(COALESCE(a.description, ''), E'\\n', ' '), E'\\r', ' '), '[[:space:]]+', ' ', 'g') ILIKE ${searchPat}
+            )
         )
       )
       ORDER BY l.created_at DESC`;
@@ -187,11 +195,15 @@ export async function GET(request: NextRequest) {
         OR l.customer_phone ILIKE ${searchPat}
         OR l.customer_email ILIKE ${searchPat}
         OR l.customer_address ILIKE ${searchPat}
-        OR regexp_replace(COALESCE(l.notes, ''), '\s+', ' ', 'g') ILIKE ${searchPat}
+        OR l.notes ILIKE ${searchPat}
+        OR regexp_replace(COALESCE(l.notes, ''), '[[:space:]]+', ' ', 'g') ILIKE ${searchPat}
         OR EXISTS (
           SELECT 1 FROM crm_activity a
           WHERE a.crm_lead_id = l.id
-            AND regexp_replace(replace(replace(COALESCE(a.description, ''), E'\\n', ' '), E'\\r', ' '), '\s+', ' ', 'g') ILIKE ${searchPat}
+            AND (
+              a.description ILIKE ${searchPat}
+              OR regexp_replace(replace(replace(COALESCE(a.description, ''), E'\\n', ' '), E'\\r', ' '), '[[:space:]]+', ' ', 'g') ILIKE ${searchPat}
+            )
         )
       ORDER BY l.created_at DESC`;
   } else {
