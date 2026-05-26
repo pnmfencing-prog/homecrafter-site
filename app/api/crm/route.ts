@@ -83,7 +83,8 @@ export async function GET(request: NextRequest) {
   // Include latest SMS/email preview so customer cards show the message at a glance.
   let leads;
   if (status && status !== 'all' && search) {
-    const searchPat = `%${search}%`;
+    const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
+    const searchPat = `%${normalizedSearch}%`;
     leads = await sql`
       SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
@@ -101,11 +102,11 @@ export async function GET(request: NextRequest) {
         OR l.customer_phone ILIKE ${searchPat}
         OR l.customer_email ILIKE ${searchPat}
         OR l.customer_address ILIKE ${searchPat}
-        OR l.notes ILIKE ${searchPat}
+        OR regexp_replace(COALESCE(l.notes, ''), '\s+', ' ', 'g') ILIKE ${searchPat}
         OR EXISTS (
           SELECT 1 FROM crm_activity a
           WHERE a.crm_lead_id = l.id
-            AND a.description ILIKE ${searchPat}
+            AND regexp_replace(replace(replace(COALESCE(a.description, ''), E'\\n', ' '), E'\\r', ' '), '\s+', ' ', 'g') ILIKE ${searchPat}
         )
       )
       ORDER BY l.created_at DESC`;
@@ -125,7 +126,8 @@ export async function GET(request: NextRequest) {
       WHERE l.status = ${status}
       ORDER BY l.created_at DESC`;
   } else if (source && source !== 'all' && search) {
-    const searchPat = `%${search}%`;
+    const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
+    const searchPat = `%${normalizedSearch}%`;
     leads = await sql`
       SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
@@ -143,11 +145,11 @@ export async function GET(request: NextRequest) {
         OR l.customer_phone ILIKE ${searchPat}
         OR l.customer_email ILIKE ${searchPat}
         OR l.customer_address ILIKE ${searchPat}
-        OR l.notes ILIKE ${searchPat}
+        OR regexp_replace(COALESCE(l.notes, ''), '\s+', ' ', 'g') ILIKE ${searchPat}
         OR EXISTS (
           SELECT 1 FROM crm_activity a
           WHERE a.crm_lead_id = l.id
-            AND a.description ILIKE ${searchPat}
+            AND regexp_replace(replace(replace(COALESCE(a.description, ''), E'\\n', ' '), E'\\r', ' '), '\s+', ' ', 'g') ILIKE ${searchPat}
         )
       )
       ORDER BY l.created_at DESC`;
@@ -167,7 +169,8 @@ export async function GET(request: NextRequest) {
       WHERE l.source = ${source}
       ORDER BY l.created_at DESC`;
   } else if (search) {
-    const searchPat = `%${search}%`;
+    const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
+    const searchPat = `%${normalizedSearch}%`;
     leads = await sql`
       SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
@@ -184,11 +187,11 @@ export async function GET(request: NextRequest) {
         OR l.customer_phone ILIKE ${searchPat}
         OR l.customer_email ILIKE ${searchPat}
         OR l.customer_address ILIKE ${searchPat}
-        OR l.notes ILIKE ${searchPat}
+        OR regexp_replace(COALESCE(l.notes, ''), '\s+', ' ', 'g') ILIKE ${searchPat}
         OR EXISTS (
           SELECT 1 FROM crm_activity a
           WHERE a.crm_lead_id = l.id
-            AND a.description ILIKE ${searchPat}
+            AND regexp_replace(replace(replace(COALESCE(a.description, ''), E'\\n', ' '), E'\\r', ' '), '\s+', ' ', 'g') ILIKE ${searchPat}
         )
       ORDER BY l.created_at DESC`;
   } else {
