@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   const includeLeads = searchParams.get('includeLeads') === '1';
+  const includeNonresponders = searchParams.get('includeNonresponders') === '1';
 
   const campaigns = id
     ? await sql`
@@ -91,7 +92,26 @@ export async function GET(request: NextRequest) {
     `;
   }
 
-  return NextResponse.json({ campaigns, messages, leads });
+  let nonresponders: any[] = [];
+  if (includeNonresponders) {
+    nonresponders = await sql`
+      SELECT lead_id, lead_code, customer_name, customer_phone, customer_email, customer_city, service_type,
+             source, status, created_at, last_outreach_at, outreach_count, email_outreach_count,
+             customer_responded, outreach_paused, campaign_id, campaign_name, campaign_sms_steps,
+             final_send_day, days_since_last_outreach
+      FROM crm_campaign_nonresponders
+      WHERE campaign_id IS NOT NULL
+        AND customer_responded = false
+        AND outreach_paused = false
+        AND outreach_count >= campaign_sms_steps
+        AND COALESCE(email_outreach_count, 0) >= campaign_sms_steps
+        AND days_since_last_outreach >= 1
+      ORDER BY last_outreach_at ASC NULLS LAST, created_at ASC
+      LIMIT 1000
+    `;
+  }
+
+  return NextResponse.json({ campaigns, messages, leads, nonresponders });
 }
 
 export async function POST(request: NextRequest) {
