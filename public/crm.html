@@ -747,6 +747,11 @@ function openLeadDetail(id, skipHistory) {
       var statusBtns = stagePickerHtml(l.id, l.status);
       activeLeadEmail = (l.customer_email || '').trim();
       var hasValidEmail = isValidEmail(activeLeadEmail);
+      var lastInbound = act.slice().reverse().find(function(a) {
+        var desc = normalizeText(a.description || '');
+        return (a.activity_type === 'sms' || a.activity_type === 'email') && (a.is_from_customer === true || desc.startsWith('📥'));
+      });
+      var defaultReplyChannel = lastInbound && lastInbound.activity_type === 'email' && hasValidEmail ? 'email' : 'sms';
 
       var activityHtml = '';
       act.forEach(function(a) {
@@ -897,10 +902,10 @@ function openLeadDetail(id, skipHistory) {
             '</div>' +
           '</div>' : '') +
           '<div class="quick-note">' +
-            '<input type="hidden" id="note-type" value="sms">' +
+            '<input type="hidden" id="note-type" value="' + defaultReplyChannel + '">' +
             '<div class="channel-toggle">' +
-              '<button type="button" id="channel-sms" class="btn btn-outline active" onclick="setMessageChannel(\'sms\',' + l.id + ')">💬 Text</button>' +
-              '<button type="button" id="channel-email" class="btn btn-outline" ' + (!hasValidEmail ? 'disabled' : '') + ' onclick="setMessageChannel(\'email\',' + l.id + ')">✉️ Email</button>' +
+              '<button type="button" id="channel-sms" class="btn btn-outline ' + (defaultReplyChannel === 'sms' ? 'active' : '') + '" onclick="setMessageChannel(\'sms\',' + l.id + ')">💬 Text</button>' +
+              '<button type="button" id="channel-email" class="btn btn-outline ' + (defaultReplyChannel === 'email' ? 'active' : '') + '" ' + (!hasValidEmail ? 'disabled' : '') + ' onclick="setMessageChannel(\'email\',' + l.id + ')">✉️ Email</button>' +
             '</div>' +
             '<div id="email-subject-row" class="email-subject-row"><input type="text" id="email-subject" placeholder="Email subject..." style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.8rem"></div>' +
             '<select id="message-template" style="width:95px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem" onchange="applyMessageTemplate(this.value)">' +
@@ -920,6 +925,7 @@ function openLeadDetail(id, skipHistory) {
       document.getElementById('leadModal').classList.add('show');
       var chatEl = document.getElementById('chatThread');
       if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
+      setMessageChannel(defaultReplyChannel, l.id);
       autoGrowTextarea(document.getElementById('note-text'));
     });
 }
@@ -1128,7 +1134,6 @@ function applyMessageTemplate(templateKey) {
     styles: 'Standard styles link below: www.fencecraftersnj.com/pdf/2014-01-22%2022_47_03.pdf'
   };
   if (!templateKey || !templates[templateKey]) return;
-  document.getElementById('note-type').value = 'sms';
   document.getElementById('note-text').value = templates[templateKey];
   document.getElementById('message-template').value = '';
   var noteText = document.getElementById('note-text');
