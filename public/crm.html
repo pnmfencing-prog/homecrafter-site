@@ -722,7 +722,37 @@ function createLead() {
   });
 }
 
+var CHAT_AUTO_SCROLL_THRESHOLD = 120;
+
+function getOpenThreadScrollState() {
+  var chatEl = document.getElementById('chatThread');
+  var modalBody = document.querySelector('#leadModal .modal-body');
+  return {
+    chatTop: chatEl ? chatEl.scrollTop : null,
+    chatDistanceFromBottom: chatEl ? (chatEl.scrollHeight - chatEl.clientHeight - chatEl.scrollTop) : 0,
+    modalTop: modalBody ? modalBody.scrollTop : null,
+    modalDistanceFromBottom: modalBody ? (modalBody.scrollHeight - modalBody.clientHeight - modalBody.scrollTop) : 0,
+  };
+}
+
+function isReadingOlderThreadContent(state) {
+  if (!state) return false;
+  return state.chatDistanceFromBottom > CHAT_AUTO_SCROLL_THRESHOLD || state.modalDistanceFromBottom > CHAT_AUTO_SCROLL_THRESHOLD;
+}
+
+function restoreOpenThreadScrollState(state) {
+  if (!state) return;
+  var chatEl = document.getElementById('chatThread');
+  var modalBody = document.querySelector('#leadModal .modal-body');
+  if (chatEl && state.chatTop !== null) chatEl.scrollTop = state.chatTop;
+  if (modalBody && state.modalTop !== null) modalBody.scrollTop = state.modalTop;
+}
+
 function openLeadDetail(id, skipHistory) {
+  var modalAlreadyOpen = document.getElementById('leadModal').classList.contains('show');
+  var refreshingSameLead = modalAlreadyOpen && String(activeLeadId) === String(id);
+  var scrollState = refreshingSameLead ? getOpenThreadScrollState() : null;
+  var keepScrollPosition = isReadingOlderThreadContent(scrollState);
   activeLeadId = id;
   if (!skipHistory) {
     var currentLeadParam = new URLSearchParams(window.location.search).get('lead');
@@ -924,7 +954,11 @@ function openLeadDetail(id, skipHistory) {
       document.getElementById('modalBody').innerHTML = html;
       document.getElementById('leadModal').classList.add('show');
       var chatEl = document.getElementById('chatThread');
-      if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
+      if (keepScrollPosition) {
+        restoreOpenThreadScrollState(scrollState);
+      } else if (chatEl) {
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }
       setMessageChannel(defaultReplyChannel, l.id);
       autoGrowTextarea(document.getElementById('note-text'));
     });
@@ -1512,6 +1546,13 @@ function refreshCrmQuietly() {
   // Don't interrupt Dan while typing inside an open thread.
   if (leadModalOpen && noteText && document.activeElement === noteText) return;
   if (leadModalOpen && activeLeadId) {
+    // If Dan is reading older messages, do not re-render the thread underneath
+    // his thumb. Re-rendering resets dimensions and feels like the thread is
+    // dragging itself back to the newest message.
+    if (isReadingOlderThreadContent(getOpenThreadScrollState())) {
+      loadLeads();
+      return;
+    }
     openLeadDetail(activeLeadId, true);
     return;
   }
