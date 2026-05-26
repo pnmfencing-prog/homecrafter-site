@@ -8,18 +8,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'hc-pro-secret-change-in-production
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limit: 5 login attempts per IP per 15 minutes
+    // Keep this forgiving for legitimate mobile login attempts.
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    if (!rateLimit(`login:${ip}`, 5, 5 * 60 * 1000)) {
+    if (!rateLimit(`login:${ip}`, 50, 15 * 60 * 1000)) {
       return NextResponse.json(
-        { success: false, message: 'Too many login attempts. Please try again in 5 minutes.' },
+        { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' },
         { status: 429 }
       );
     }
 
     const { email, password, remember } = await request.json();
+    const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const cleanPassword = typeof password === 'string' ? password.trim() : '';
 
-    if (!email || !password) {
+    if (!cleanEmail || !cleanPassword) {
       return NextResponse.json(
         { success: false, message: 'Email and password required' },
         { status: 400 }
@@ -30,12 +32,12 @@ export async function POST(request: NextRequest) {
     const users = await sql`
       SELECT id, first_name, last_name, email, password_hash, status 
       FROM pro_accounts 
-      WHERE email = ${email.toLowerCase()}
+      WHERE email = ${cleanEmail}
     `;
 
     if (users.length === 0) {
       // Constant-time: still run bcrypt compare to prevent timing attacks
-      await bcrypt.compare(password, '$2b$12$invalidhashplaceholderxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+      await bcrypt.compare(cleanPassword, '$2b$12$invalidhashplaceholderxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
       return NextResponse.json(
         { success: false, message: 'Invalid credentials' },
         { status: 401 }
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const valid = await bcrypt.compare(password, user.password_hash);
+    const valid = await bcrypt.compare(cleanPassword, user.password_hash);
     if (!valid) {
       return NextResponse.json(
         { success: false, message: 'Invalid credentials' },
