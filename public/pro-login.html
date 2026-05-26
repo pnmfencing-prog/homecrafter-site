@@ -65,6 +65,8 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
 .login-btn:hover { background: #2a2260; box-shadow: 0 8px 32px rgba(30,24,69,0.2); transform: translateY(-1px); }
 
 .error-msg { color: #a0522d; font-size: 12px; margin-top: 12px; display: none; font-weight: 600; letter-spacing: 0.5px; }
+.success-msg { color: #237a3b; font-size: 12px; margin-top: 12px; display: none; font-weight: 600; letter-spacing: 0.5px; line-height: 1.5; }
+.hidden { display: none; }
 .contact-link { margin-top: 24px; font-size: 12px; color: #b8b0a4; }
 .contact-link a { color: #c4aa6a; text-decoration: none; font-weight: 600; }
 .contact-link a:hover { text-decoration: underline; }
@@ -111,9 +113,34 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
       </div>
       <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
       <div class="error-msg" id="errorMsg"></div>
-      <div style="margin-top:16px"><a href="mailto:trent@homecrafter.ai?subject=Password%20Reset%20Request" style="font-size:11px;color:#b8b0a4;text-decoration:none;font-weight:500;">Forgot password?</a></div>
+      <div style="margin-top:16px"><a href="#" onclick="showForgot(event)" style="font-size:11px;color:#b8b0a4;text-decoration:none;font-weight:500;">Forgot password?</a></div>
     </form>
-    <div class="contact-link">Don't have an account? <a href="/pro-signup.html">Create one</a></div>
+
+    <form id="forgotForm" class="hidden">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="resetEmail" placeholder="you@company.com" required>
+      </div>
+      <button type="submit" class="login-btn" id="forgotBtn">Send Reset Link</button>
+      <div class="error-msg" id="forgotError"></div>
+      <div class="success-msg" id="forgotSuccess"></div>
+      <div style="margin-top:16px"><a href="#" onclick="showLogin(event)" style="font-size:11px;color:#b8b0a4;text-decoration:none;font-weight:500;">Back to sign in</a></div>
+    </form>
+
+    <form id="resetForm" class="hidden">
+      <div class="field">
+        <label>New Password</label>
+        <input type="password" id="newPassword" placeholder="At least 10 characters" required minlength="10">
+      </div>
+      <div class="field">
+        <label>Confirm Password</label>
+        <input type="password" id="confirmPassword" placeholder="Confirm new password" required minlength="10">
+      </div>
+      <button type="submit" class="login-btn" id="resetBtn">Change Password</button>
+      <div class="error-msg" id="resetError"></div>
+      <div class="success-msg" id="resetSuccess"></div>
+    </form>
+    <div class="contact-link" id="signupLink">Don't have an account? <a href="/pro-signup.html">Create one</a></div>
   </div>
 </div>
 
@@ -123,17 +150,51 @@ body { font-family: 'Montserrat', sans-serif; background: #faf9f6; color: #2a2a2
 </div>
 
 <script>
+var params = new URLSearchParams(window.location.search);
+var resetToken = params.get('reset') || '';
+
+function setInlineMessage(el, text) {
+  el.textContent = text;
+  el.style.display = text ? 'block' : 'none';
+}
+
+function showOnly(formId) {
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('forgotForm').classList.add('hidden');
+  document.getElementById('resetForm').classList.add('hidden');
+  document.getElementById('signupLink').style.display = formId === 'loginForm' ? 'block' : 'none';
+  document.getElementById(formId).classList.remove('hidden');
+}
+
+function showForgot(e) {
+  if (e) e.preventDefault();
+  document.getElementById('resetEmail').value = document.getElementById('email').value || localStorage.getItem('hc_remember_email') || '';
+  showOnly('forgotForm');
+}
+
+function showLogin(e) {
+  if (e) e.preventDefault();
+  showOnly('loginForm');
+}
+
 // Pre-fill remembered email
 (function() {
   var saved = localStorage.getItem('hc_remember_email');
+  var resetEmail = params.get('email') || '';
   if (saved) {
     document.getElementById('email').value = saved;
     document.getElementById('rememberMe').checked = true;
   }
+  if (resetEmail) {
+    document.getElementById('email').value = resetEmail;
+    document.getElementById('resetEmail').value = resetEmail;
+  }
+  if (resetToken) showOnly('resetForm');
 })();
 
-// Redirect if already logged in with valid session
+// Redirect if already logged in with valid session, except when changing password
 (async () => {
+  if (resetToken) return;
   const token = localStorage.getItem('hc_pro_token');
   if (!token) return;
   try {
@@ -185,6 +246,69 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     errEl.style.display = 'block';
     btn.disabled = false; btn.textContent = 'Sign In';
   }
+});
+
+document.getElementById('forgotForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('forgotBtn');
+  const errEl = document.getElementById('forgotError');
+  const successEl = document.getElementById('forgotSuccess');
+  btn.disabled = true; btn.textContent = 'Sending...';
+  setInlineMessage(errEl, '');
+  setInlineMessage(successEl, '');
+
+  try {
+    const res = await fetch('/api/pro-password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'request_reset', email: document.getElementById('resetEmail').value })
+    });
+    if (!res.ok) throw new Error('Request failed');
+    setInlineMessage(successEl, 'If that email is on file, a reset link has been sent. It expires in 30 minutes.');
+  } catch(err) {
+    setInlineMessage(errEl, 'Could not send reset email. Please try again.');
+  }
+  btn.disabled = false; btn.textContent = 'Send Reset Link';
+});
+
+document.getElementById('resetForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('resetBtn');
+  const errEl = document.getElementById('resetError');
+  const successEl = document.getElementById('resetSuccess');
+  const password = document.getElementById('newPassword').value;
+  const confirm = document.getElementById('confirmPassword').value;
+  setInlineMessage(errEl, '');
+  setInlineMessage(successEl, '');
+
+  if (password !== confirm) {
+    setInlineMessage(errEl, 'Passwords do not match.');
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Changing...';
+  try {
+    const res = await fetch('/api/pro-password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset_password', token: resetToken, password: password })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      localStorage.removeItem('hc_pro_token');
+      localStorage.removeItem('hc_pro_name');
+      window.history.replaceState({}, document.title, '/pro-login.html');
+      resetToken = '';
+      showOnly('loginForm');
+      setInlineMessage(document.getElementById('errorMsg'), '');
+      alert('Password changed. You can sign in with the new password now.');
+    } else {
+      setInlineMessage(errEl, data.message || 'Could not reset password.');
+    }
+  } catch(err) {
+    setInlineMessage(errEl, 'Unable to connect. Please try again.');
+  }
+  btn.disabled = false; btn.textContent = 'Change Password';
 });
 </script>
 
