@@ -97,6 +97,24 @@ body {
 .error-msg.show {
   display: block;
 }
+.helper-link {
+  display: inline-block;
+  margin-top: 0.85rem;
+  color: #6b5a2e;
+  font-size: 0.76rem;
+  text-decoration: none;
+  font-weight: 500;
+}
+.helper-link:hover { text-decoration: underline; }
+.success-msg {
+  color: #237a3b;
+  font-size: 0.78rem;
+  margin-top: 0.75rem;
+  display: none;
+  line-height: 1.5;
+}
+.success-msg.show { display: block; }
+.hidden { display: none; }
 
 .portal-home { position: fixed; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: #c4aa6a; text-decoration: none; font-size: 1rem; background: rgba(30,24,69,0.72); transition: all 0.2s; z-index: 9999; backdrop-filter: blur(6px); }
 .portal-home:hover { background: rgba(196,170,106,0.18); transform: translateY(-1px); }
@@ -110,7 +128,7 @@ body {
   <div class="logo">PNM FENCING</div>
   <div class="logo-sub">Management Portal</div>
   
-  <form onsubmit="handleLogin(event)">
+  <form id="loginForm" onsubmit="handleLogin(event)">
     <div class="form-group">
       <label>Username</label>
       <input type="text" id="username" placeholder="Enter username" autocomplete="username" required>
@@ -120,18 +138,81 @@ body {
       <input type="password" id="password" placeholder="Enter password" autocomplete="current-password" required>
     </div>
     <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
+    <a href="#" class="helper-link" onclick="showForgot(event)">Forgot password?</a>
   </form>
+
+  <form id="forgotForm" class="hidden" onsubmit="handleForgot(event)">
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="resetUsername" placeholder="Enter username" autocomplete="username" value="admin" required>
+    </div>
+    <button type="submit" class="login-btn" id="forgotBtn">Send Reset Link</button>
+    <a href="#" class="helper-link" onclick="showLogin(event)">Back to sign in</a>
+  </form>
+
+  <form id="resetForm" class="hidden" onsubmit="handleReset(event)">
+    <div class="form-group">
+      <label>New Password</label>
+      <input type="password" id="newPassword" placeholder="Enter new password" autocomplete="new-password" required minlength="10">
+    </div>
+    <div class="form-group">
+      <label>Confirm Password</label>
+      <input type="password" id="confirmPassword" placeholder="Confirm new password" autocomplete="new-password" required minlength="10">
+    </div>
+    <button type="submit" class="login-btn" id="resetBtn">Change Password</button>
+  </form>
+
   <div class="error-msg" id="errorMsg">Invalid username or password</div>
+  <div class="success-msg" id="successMsg"></div>
 </div>
 
 <script>
+var resetToken = new URLSearchParams(window.location.search).get('reset') || '';
+
+function setMessage(type, text) {
+  var errorMsg = document.getElementById('errorMsg');
+  var successMsg = document.getElementById('successMsg');
+  errorMsg.classList.remove('show');
+  successMsg.classList.remove('show');
+  if (type === 'error') {
+    errorMsg.textContent = text;
+    errorMsg.classList.add('show');
+  }
+  if (type === 'success') {
+    successMsg.textContent = text;
+    successMsg.classList.add('show');
+  }
+}
+
+function showOnly(formId) {
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('forgotForm').classList.add('hidden');
+  document.getElementById('resetForm').classList.add('hidden');
+  document.getElementById(formId).classList.remove('hidden');
+  setMessage('', '');
+}
+
+function showForgot(e) {
+  if (e) e.preventDefault();
+  document.getElementById('resetUsername').value = document.getElementById('username').value || 'admin';
+  showOnly('forgotForm');
+}
+
+function showLogin(e) {
+  if (e) e.preventDefault();
+  showOnly('loginForm');
+}
+
+if (resetToken) {
+  showOnly('resetForm');
+}
+
 function handleLogin(e) {
   e.preventDefault();
   var btn = document.getElementById('loginBtn');
-  var errorMsg = document.getElementById('errorMsg');
   btn.disabled = true;
   btn.textContent = 'Signing in...';
-  errorMsg.classList.remove('show');
+  setMessage('', '');
   
   var username = document.getElementById('username').value;
   var password = document.getElementById('password').value;
@@ -148,17 +229,78 @@ function handleLogin(e) {
       var redirect = new URLSearchParams(window.location.search).get('redirect') || '/calendar.html';
       window.location.href = redirect;
     } else {
-      errorMsg.textContent = data.error || 'Invalid username or password';
-      errorMsg.classList.add('show');
+      setMessage('error', data.error || 'Invalid username or password');
       btn.disabled = false;
       btn.textContent = 'Sign In';
     }
   })
   .catch(function() {
-    errorMsg.textContent = 'Connection error. Please try again.';
-    errorMsg.classList.add('show');
+    setMessage('error', 'Connection error. Please try again.');
     btn.disabled = false;
     btn.textContent = 'Sign In';
+  });
+}
+
+function handleForgot(e) {
+  e.preventDefault();
+  var btn = document.getElementById('forgotBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  setMessage('', '');
+
+  fetch('/api/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'request_reset', username: document.getElementById('resetUsername').value })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function() {
+    setMessage('success', 'If that username exists, a password reset link has been emailed to the admin address.');
+    btn.disabled = false;
+    btn.textContent = 'Send Reset Link';
+  })
+  .catch(function() {
+    setMessage('error', 'Could not send reset link. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Send Reset Link';
+  });
+}
+
+function handleReset(e) {
+  e.preventDefault();
+  var btn = document.getElementById('resetBtn');
+  var password = document.getElementById('newPassword').value;
+  var confirm = document.getElementById('confirmPassword').value;
+  if (password !== confirm) {
+    setMessage('error', 'Passwords do not match.');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Changing...';
+  setMessage('', '');
+
+  fetch('/api/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'reset_password', token: resetToken, password: password })
+  })
+  .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+  .then(function(result) {
+    if (result.ok && result.data.success) {
+      resetToken = '';
+      window.history.replaceState({}, document.title, '/login.html');
+      showOnly('loginForm');
+      setMessage('success', 'Password changed. You can sign in with the new password now.');
+    } else {
+      setMessage('error', result.data.error || 'Could not reset password.');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Change Password';
+  })
+  .catch(function() {
+    setMessage('error', 'Connection error. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Change Password';
   });
 }
 </script>
