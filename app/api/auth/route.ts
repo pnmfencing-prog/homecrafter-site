@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHash, randomBytes } from 'crypto';
 
 const CRM_USERNAME = process.env.CRM_USERNAME || 'admin';
-const CRM_PASSWORD = process.env.CRM_PASSWORD || 'pnm2026!';
+const CRM_PASSWORD = process.env.CRM_PASSWORD || 'HomeCrafter2026';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'pnm-fencing-session-secret-2026';
 
 function generateToken(username: string): string {
