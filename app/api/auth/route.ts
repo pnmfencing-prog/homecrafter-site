@@ -122,6 +122,8 @@ export function verifyToken(token: string): boolean {
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { username, password, action, token } = body;
+  const loginUsername = typeof username === 'string' ? username.trim() : username;
+  const loginPassword = typeof password === 'string' ? password.trim() : password;
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   
   // Logout
@@ -143,7 +145,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    if ((username || CRM_USERNAME) === CRM_USERNAME) {
+    if ((loginUsername || CRM_USERNAME).toLowerCase() === CRM_USERNAME.toLowerCase()) {
       await ensureAuthTables();
       const rawToken = randomBytes(32).toString('hex');
       const tokenHash = hashResetToken(rawToken);
@@ -162,10 +164,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Too many attempts. Please try again later.' }, { status: 429 });
     }
 
-    if (!token || typeof token !== 'string' || !password || typeof password !== 'string') {
+    if (!token || typeof token !== 'string' || !loginPassword || typeof loginPassword !== 'string') {
       return NextResponse.json({ success: false, error: 'Reset token and new password are required' }, { status: 400 });
     }
-    if (password.length < 10) {
+    if (loginPassword.length < 10) {
       return NextResponse.json({ success: false, error: 'Password must be at least 10 characters' }, { status: 400 });
     }
 
@@ -184,7 +186,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Reset link is invalid or expired' }, { status: 400 });
     }
 
-    await setStoredPassword(password);
+    await setStoredPassword(loginPassword);
     await sql`UPDATE crm_password_resets SET used_at = NOW() WHERE id = ${rows[0].id}`;
     const response = NextResponse.json({ success: true });
     response.cookies.set('pnm_session', '', { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 0, path: '/' });
@@ -192,15 +194,15 @@ export async function POST(request: NextRequest) {
   }
   
   // Login
-  if (!username || !password) {
+  if (!loginUsername || !loginPassword) {
     return NextResponse.json({ success: false, error: 'Username and password required' }, { status: 400 });
   }
   
-  if (username !== CRM_USERNAME || !(await passwordMatches(password))) {
+  if (loginUsername.toLowerCase() !== CRM_USERNAME.toLowerCase() || !(await passwordMatches(loginPassword))) {
     return NextResponse.json({ success: false, error: 'Invalid username or password' }, { status: 401 });
   }
   
-  const sessionToken = generateToken(username);
+  const sessionToken = generateToken(CRM_USERNAME);
   
   const response = NextResponse.json({ success: true });
   response.cookies.set('pnm_session', sessionToken, {
