@@ -28,6 +28,10 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .msg.out .bubble { background: var(--midnight); color: #fff; border-radius: 14px 14px 4px 14px; }
 .msg.in .bubble { background: #fff; color: var(--text); border-radius: 14px 14px 14px 4px; }
 .msg .time { font-size: 0.55rem; color: #aaa; margin-top: 0.2rem; }
+.attachments { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.attachment-img { display: block; max-width: min(220px, 100%); max-height: 240px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.08); object-fit: cover; }
+.attachment-link { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.55rem; border-radius: 8px; background: rgba(255,255,255,0.92); border: 1px solid #e0ddd6; color: var(--midnight); font-size: 0.72rem; text-decoration: none; font-weight: 600; }
+.msg.out .attachment-link { color: var(--gold); background: rgba(255,255,255,0.08); border-color: rgba(196,170,106,0.35); }
 
 .compose { display: flex; gap: 0.5rem; padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #eee; flex-shrink: 0; align-items: flex-end; }
 .compose textarea { flex: 1; min-width: 0; min-height: 44px; max-height: 35vh; padding: 0.7rem 1rem; border: 1px solid #e0ddd6; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 16px; line-height: 1.35; outline: none; resize: none; overflow-y: auto; }
@@ -104,6 +108,24 @@ function timeStr(t) {
   return new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+function esc(value) {
+  return String(value || '').replace(/[&<>"']/g, function(ch) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+  });
+}
+
+function renderAttachments(attachments) {
+  if (!attachments || !attachments.length) return '';
+  return '<div class="attachments">' + attachments.map(function(att) {
+    var url = '/api/crm-attachments/' + encodeURIComponent(att.id);
+    var name = esc(att.file_name || 'attachment');
+    if ((att.mime_type || '').indexOf('image/') === 0) {
+      return '<a href="' + url + '" target="_blank" rel="noopener"><img class="attachment-img" src="' + url + '" alt="' + name + '"></a>';
+    }
+    return '<a class="attachment-link" href="' + url + '" target="_blank" rel="noopener">📎 ' + name + '</a>';
+  }).join('') + '</div>';
+}
+
 function renderMessages(data) {
   var el = document.getElementById('messages');
   if (!data.messages.length) {
@@ -113,7 +135,7 @@ function renderMessages(data) {
     data.messages.forEach(function(m) {
       var cls = m.fromCustomer ? 'in' : 'out';
       html += '<div class="msg ' + cls + '">' +
-        '<div class="bubble">' + m.text + '</div>' +
+        '<div class="bubble">' + esc(m.text).replace(/\n/g, '<br>') + renderAttachments(m.attachments) + '</div>' +
         '<div class="time">' + timeStr(m.time) + '</div></div>';
     });
     el.innerHTML = html;

@@ -24,6 +24,22 @@ export async function GET(request: NextRequest) {
     ORDER BY created_at ASC
   `;
 
+  const activityIds = messages.map((m: any) => m.id);
+  const attachments = activityIds.length
+    ? await sql`
+        SELECT id, crm_activity_id, file_name, mime_type, size_bytes, direction, created_at
+        FROM crm_attachments
+        WHERE crm_activity_id = ANY(${activityIds})
+        ORDER BY id ASC
+      `
+    : [];
+  const attachmentsByActivity = new Map<number, any[]>();
+  for (const att of attachments) {
+    const list = attachmentsByActivity.get(att.crm_activity_id) || [];
+    list.push(att);
+    attachmentsByActivity.set(att.crm_activity_id, list);
+  }
+
   return NextResponse.json({
     lead: { id: lead.id, name: lead.customer_name, service: lead.service_type, isRead: lead.is_read },
     messages: messages.map((m: any) => {
@@ -37,6 +53,7 @@ export async function GET(request: NextRequest) {
         // dark/right even if an older row was accidentally flagged inbound.
         fromCustomer: hasInboundPrefix ? true : hasOutboundPrefix ? false : m.is_from_customer,
         time: m.created_at,
+        attachments: attachmentsByActivity.get(m.id) || [],
       };
     }),
   });
