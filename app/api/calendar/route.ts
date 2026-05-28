@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   if (date) {
     const events = await sql`
-      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, p.estimate_no AS proposal_estimate_no
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token, p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   if (month) {
     const startDate = `${month}-01`;
     const events = await sql`
-      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, p.estimate_no AS proposal_estimate_no
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token, p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   const to = searchParams.get('to');
   if (from && to && searchParams.get('missed') !== 'true') {
     const events = await sql`
-      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, p.estimate_no AS proposal_estimate_no
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token, p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     let events;
     if (from && to) {
       events = await sql`
-        SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, p.estimate_no AS proposal_estimate_no
+        SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.chat_token, p.estimate_no AS proposal_estimate_no
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       `;
     } else {
       events = await sql`
-        SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, p.estimate_no AS proposal_estimate_no
+        SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.chat_token, p.estimate_no AS proposal_estimate_no
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
   // Default: upcoming 14 days
   const events = await sql`
-    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, p.estimate_no AS proposal_estimate_no
+    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token, p.estimate_no AS proposal_estimate_no
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
   
   // Also get overdue
   const overdue = await sql`
-    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, p.estimate_no AS proposal_estimate_no
+    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.chat_token, p.estimate_no AS proposal_estimate_no
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
       LEFT JOIN proposals p ON ce.proposal_id = p.id

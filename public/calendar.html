@@ -321,11 +321,20 @@ var MONTHS = ['January','February','March','April','May','June','July','August',
 var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 function formatCrmThreadBadge(e) {
-  if (!e.crm_lead_id) return '';
-  return '<div style="margin-top:0.3rem">' +
-    '<a href="/crm.html?lead=' + e.crm_lead_id + '" onclick="event.stopPropagation()" ' +
-    'style="display:inline-block;padding:0.25rem 0.6rem;background:#2563eb;color:#fff;border-radius:6px;font-size:0.65rem;font-weight:600;text-decoration:none;letter-spacing:0.03em;margin-right:0.3rem;margin-bottom:0.2rem">' +
-    '💬 CRM Thread</a></div>';
+  if (!e.crm_lead_id && !e.chat_token) return '';
+  var html = '<div style="margin-top:0.3rem">';
+  if (e.crm_lead_id) {
+    html += '<a href="/crm.html?lead=' + e.crm_lead_id + '" onclick="event.stopPropagation()" ' +
+      'style="display:inline-block;padding:0.25rem 0.6rem;background:#2563eb;color:#fff;border-radius:6px;font-size:0.65rem;font-weight:600;text-decoration:none;letter-spacing:0.03em;margin-right:0.3rem;margin-bottom:0.2rem">' +
+      '📇 CRM Lead</a>';
+  }
+  if (e.chat_token) {
+    html += '<a href="/chat.html?t=' + encodeURIComponent(e.chat_token) + '&staff=1" target="_blank" onclick="event.stopPropagation()" ' +
+      'style="display:inline-block;padding:0.25rem 0.6rem;background:#1e1845;color:#c4aa6a;border-radius:6px;font-size:0.65rem;font-weight:600;text-decoration:none;letter-spacing:0.03em;margin-right:0.3rem;margin-bottom:0.2rem">' +
+      '💬 Chat Thread</a>';
+  }
+  html += '</div>';
+  return html;
 }
 
 function formatProposalBadge(e) {
@@ -914,6 +923,7 @@ function loadMissed() {
             '<div class="event-time" style="color:var(--red)">' + d + (e.event_time ? ' · ' + fmtTime12(e.event_time) : '') + '</div>' +
             formatCustomerInfo(e) +
             (e.description ? '<div class="event-meta">' + e.description.substring(0, 100) + '</div>' : '') +
+            formatCrmThreadBadge(e) +
           '</div>' +
           '<div class="event-actions">' +
             '<button class="edit-btn" onclick="editEvent(' + e.id + ')">Edit</button>' +
@@ -1073,6 +1083,7 @@ function renderFeed() {
           (e.location ? '<div class="event-meta">📍 ' + e.location + '</div>' : '') +
           formatCustomerInfo(e) +
           (e.description ? '<div class="event-meta" style="margin-top:0.3rem;white-space:pre-line">' + e.description.substring(0, 200) + '</div>' : '') +
+          formatCrmThreadBadge(e) +
           formatProposalBadge(e) +
           '<div class="event-meta" style="margin-top:0.25rem"><span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;color:' + 
             (e.status === 'completed' ? 'var(--green)' : e.status === 'missed' ? 'var(--red)' : e.status === 'cancelled' ? '#999' : 'var(--blue)') + 
