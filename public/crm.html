@@ -520,7 +520,53 @@ function refreshCampaignSelectVisual() {
   sel.style.color = assigned ? 'var(--green)' : 'var(--midnight)';
 }
 
+function markLeadReadLocally(id, isRead) {
+  var changed = false;
+  allLeads.forEach(function(l) {
+    if (String(l.id) === String(id) && l.is_read !== isRead) {
+      l.is_read = isRead;
+      changed = true;
+    }
+  });
+  if (changed) {
+    renderBoard();
+    renderList();
+  }
+}
+
+function consumeReadSignals() {
+  var changed = false;
+  try {
+    Object.keys(localStorage).forEach(function(key) {
+      if (key.indexOf('crm_read_lead_') !== 0) return;
+      var data = JSON.parse(localStorage.getItem(key) || '{}');
+      if (!data.id) return;
+      allLeads.forEach(function(l) {
+        if (String(l.id) === String(data.id) && l.is_read !== data.is_read) {
+          l.is_read = data.is_read;
+          changed = true;
+        }
+      });
+      if (Date.now() - Number(data.at || 0) > 600000) localStorage.removeItem(key);
+    });
+  } catch (e) {}
+  if (changed) {
+    renderBoard();
+    renderList();
+  }
+}
+
+function openTileChat(event, id, token) {
+  event.preventDefault();
+  event.stopPropagation();
+  markLeadReadLocally(id, true);
+  try { localStorage.setItem('crm_read_lead_' + id, JSON.stringify({ id: id, is_read: true, at: Date.now() })); } catch (e) {}
+  fetch('/api/crm', api('POST', { action: 'toggle_read', id: id, is_read: true })).catch(function() {});
+  window.open('/chat.html?t=' + encodeURIComponent(token) + '&staff=1', '_blank', 'noopener');
+}
+
 function loadLeads() {
+  consumeReadSignals();
   var params = '?status=' + currentFilter + '&source=' + currentSource;
   var search = document.getElementById('searchBox').value;
   if (search) params += '&search=' + encodeURIComponent(search);
@@ -613,7 +659,7 @@ function renderBoard() {
         '<div class="message-time">' + esc(msgTime) + ' by ' + esc(messageAuthor(l)) + '</div>' +
         '<div class="message-preview">' + esc(msgPreview) + '</div>' : '';
       var calendarBadge = tileCalendarBadge(l);
-      var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="event.stopPropagation()" title="Open chat thread">💬 Chat</a>' : '';
+      var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="openTileChat(event,' + l.id + ',\'' + escAttr(l.chat_token) + '\')" title="Open chat thread">💬 Chat</a>' : '';
       
       html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="onLeadCardClick(event,' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" ontouchstart="onTouchDragStart(event)" ontouchmove="onTouchDragMove(event)" ontouchend="onTouchDragEnd(event)" ontouchcancel="onTouchDragEnd(event)">' +
         '<div class="name">' + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
@@ -768,10 +814,9 @@ function openLeadDetail(id, skipHistory) {
       
       // Auto-mark as read when opening
       if (!l.is_read) {
+        markLeadReadLocally(l.id, true);
+        try { localStorage.setItem('crm_read_lead_' + l.id, JSON.stringify({ id: l.id, is_read: true, at: Date.now() })); } catch (e) {}
         fetch('/api/crm', api('POST', { action: 'toggle_read', id: l.id, is_read: true }));
-        var localLead = allLeads.find(function(x) { return x.id === l.id; });
-        if (localLead) localLead.is_read = true;
-        renderBoard();
       }
 
       var statusBtns = stagePickerHtml(l.id, l.status);
@@ -1532,6 +1577,16 @@ function scrollToStatus(status) {
 }
 
 window.addEventListener('resize', initSwipeDots);
+window.addEventListener('storage', function(e) {
+  if (e.key && e.key.indexOf('crm_read_lead_') === 0) consumeReadSignals();
+});
+window.addEventListener('focus', function() {
+  consumeReadSignals();
+  setTimeout(loadLeads, 150);
+});
+window.addEventListener('pageshow', function() {
+  consumeReadSignals();
+});
 window.addEventListener('popstate', function() {
   var params = new URLSearchParams(window.location.search);
   var leadId = params.get('lead') || params.get('id');

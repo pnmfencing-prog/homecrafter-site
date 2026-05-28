@@ -41,8 +41,9 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .staff-banner.on { display:block; }
 .staff-tools { display:none; gap:0.4rem; padding:0.55rem 1rem 0; background:#fff; border-top:1px solid #eee; }
 .staff-tools.on { display:flex; }
-.staff-tools button { flex:0 0 auto; padding:0.35rem 0.75rem; border-radius:999px; border:1px solid #e0ddd6; background:#fff; color:var(--midnight); font:600 0.72rem 'Montserrat',sans-serif; }
+.staff-tools button, .staff-tools select { flex:0 0 auto; padding:0.35rem 0.75rem; border-radius:999px; border:1px solid #e0ddd6; background:#fff; color:var(--midnight); font:600 0.72rem 'Montserrat',sans-serif; }
 .staff-tools button.active { background:var(--midnight); color:var(--gold); border-color:var(--midnight); }
+.staff-tools select { max-width: 145px; cursor: pointer; }
 .staff-tools .mark-unread { margin-left:auto; color:#c0392b; border-color:#f1c4bd; }
 .staff-tools .mark-unread:hover { background:#fef2f2; }
 .subject-row { display:none; padding:0.45rem 1rem 0; background:#fff; }
@@ -79,6 +80,12 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 <div class="staff-tools" id="staffTools">
   <button type="button" id="modeText" class="active" onclick="setChannel('sms')">💬 Text</button>
   <button type="button" id="modeEmail" onclick="setChannel('email')">✉️ Email</button>
+  <select id="templateSelect" onchange="applyMessageTemplate(this.value)" title="Insert template">
+    <option value="">Templates</option>
+    <option value="qualify">Material / removal / gates</option>
+    <option value="hope">Hope follow-up</option>
+    <option value="styles">Standard styles</option>
+  </select>
   <button type="button" id="markUnreadBtn" class="mark-unread" onclick="markUnread()">Mark Unread</button>
 </div>
 <div class="subject-row" id="subjectRow">
@@ -103,6 +110,7 @@ var pollTimer = null;
 var CHANNEL = 'sms';
 var ACTIVE_LEAD_ID = null;
 var ACTIVE_IS_READ = true;
+var MARK_READ_ON_NEXT_LOAD = STAFF_MODE;
 
 function timeStr(t) {
   return new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -151,8 +159,31 @@ function setChannel(channel) {
   document.getElementById('msgInput').placeholder = CHANNEL === 'email' ? 'Type email body...' : (STAFF_MODE ? 'Reply as PNM Fencing...' : 'Type a message...');
 }
 
+function notifyLeadRead(id, isRead) {
+  if (!id) return;
+  try {
+    localStorage.setItem('crm_read_lead_' + id, JSON.stringify({ id: id, is_read: isRead, at: Date.now() }));
+  } catch (e) {}
+}
+
+function applyMessageTemplate(templateKey) {
+  var templates = {
+    qualify: 'OK, no problem. What type of material were you looking for?\n\nDid you need any removal of existing wood or chain-link fencing?\n\nAlso, did you need any gates?',
+    hope: 'Hope all is well, just wanted to make sure you had received the pricing information. If you have any questions at all feel free to reach out anytime.',
+    styles: 'Standard styles link below: www.fencecraftersnj.com/pdf/2014-01-22%2022_47_03.pdf'
+  };
+  if (!templateKey || !templates[templateKey]) return;
+  var input = document.getElementById('msgInput');
+  input.value = templates[templateKey];
+  document.getElementById('templateSelect').value = '';
+  autoGrowTextarea(input);
+  input.focus();
+}
+
 function loadMessages() {
-  fetch('/api/chat?token=' + TOKEN)
+  var url = '/api/chat?token=' + TOKEN + (STAFF_MODE ? '&staff=1' : '') + (MARK_READ_ON_NEXT_LOAD ? '&markRead=1' : '');
+  MARK_READ_ON_NEXT_LOAD = false;
+  fetch(url, STAFF_MODE ? { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } } : undefined)
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.error) {
@@ -161,7 +192,9 @@ function loadMessages() {
       }
       ACTIVE_LEAD_ID = data.lead.id;
       ACTIVE_IS_READ = data.lead.isRead !== false;
-      document.getElementById('headerInfo').textContent = (data.lead.service || 'Project') + ' Inquiry' + (STAFF_MODE ? ' · Staff Reply Mode' : '');
+      if (STAFF_MODE && ACTIVE_IS_READ) notifyLeadRead(ACTIVE_LEAD_ID, true);
+      var customerName = data.lead.name || 'Customer';
+      document.getElementById('headerInfo').textContent = customerName + ' · ' + (data.lead.service || 'Project') + ' Inquiry' + (STAFF_MODE ? ' · Staff Reply Mode' : '');
       document.getElementById('staffBanner').className = STAFF_MODE ? 'staff-banner on' : 'staff-banner';
       document.getElementById('staffTools').className = STAFF_MODE ? 'staff-tools on' : 'staff-tools';
       document.getElementById('backBtn').className = STAFF_MODE ? 'header-back on' : 'header-back';
@@ -196,6 +229,7 @@ function markUnread() {
   }).then(function(r) {
     if (!r.ok) throw new Error('Could not update read status');
     ACTIVE_IS_READ = nextRead;
+    notifyLeadRead(ACTIVE_LEAD_ID, nextRead);
     updateUnreadButton();
   }).catch(function() {
     if (btn) btn.disabled = false;
@@ -218,6 +252,7 @@ function sendMsg() {
   }).then(function(r) {
     document.getElementById('sendBtn').disabled = false;
     if (!r.ok) alert('Could not send message. Please open the thread from the CRM.');
+    if (STAFF_MODE && ACTIVE_LEAD_ID) notifyLeadRead(ACTIVE_LEAD_ID, true);
     loadMessages();
   });
 }

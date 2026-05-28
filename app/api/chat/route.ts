@@ -16,6 +16,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
   }
   const lead = leads[0];
+  const staffMode = request.nextUrl.searchParams.get('staff') === '1';
+  const markRead = request.nextUrl.searchParams.get('markRead') === '1';
+  if (staffMode && markRead && isAdmin(request) && lead.is_read === false) {
+    await sql`UPDATE crm_leads SET is_read = true WHERE id = ${lead.id}`;
+    lead.is_read = true;
+  }
 
   const messages = await sql`
     SELECT id, activity_type, description, is_from_customer, created_at
