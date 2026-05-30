@@ -985,7 +985,7 @@ function openLeadDetail(id, skipHistory) {
             '</div>' +
             '<div id="email-subject-row" class="email-subject-row"><input type="text" id="email-subject" placeholder="Email subject..." style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.8rem"></div>' +
             '<select id="message-template" style="width:95px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem" onchange="applyMessageTemplate(this.value)">' +
-              '<option value="">Templates</option><option value="qualify">Material / removal / gates</option><option value="hope">Hope follow-up</option><option value="styles">Standard styles</option>' +
+              '<option value="">Templates</option><option value="qualify">Material / removal / gates</option><option value="hope">Hope follow-up</option><option value="review_call">Review over phone</option><option value="styles">Standard styles</option>' +
             '</select>' +
             '<input id="message-attachments" type="file" multiple accept="image/*,.pdf" style="font-size:0.7rem;max-width:145px">' +
             '<textarea id="note-text" rows="1" placeholder="Type a message..." style="flex:1;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-family:Montserrat,sans-serif;font-size:0.8rem;line-height:1.35" oninput="autoGrowTextarea(this)" onkeydown="handleMessageKeydown(event,' + l.id + ')"></textarea>' +
@@ -1212,6 +1212,7 @@ function applyMessageTemplate(templateKey) {
   var templates = {
     qualify: 'OK, no problem. What type of material were you looking for?\n\nDid you need any removal of existing wood or chain-link fencing?\n\nAlso, did you need any gates?',
     hope: 'Hope all is well, just wanted to make sure you had received the pricing information. If you have any questions at all feel free to reach out anytime.',
+    review_call: 'Kindly let us know if you have a best day/time this week to review over the phone',
     styles: 'Standard styles link below: www.fencecraftersnj.com/pdf/2014-01-22%2022_47_03.pdf'
   };
   if (!templateKey || !templates[templateKey]) return;
