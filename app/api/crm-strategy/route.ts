@@ -169,6 +169,68 @@ async function analyze() {
     }
   ];
 
+  const marketingChannels = [
+    {
+      channel: 'Batch leads / homeowner lists',
+      priority: 'highest',
+      strategy: 'Keep building targeted homeowner pools from deed activity, permits, high-value moves, and old-fence neighborhoods, then run compliant follow-up campaigns that route every response into the CRM.',
+      nextAction: 'Create one repeatable monthly batch: source list, dedupe against CRM, enrich contact info, send first-touch campaign, track booked estimate rate.'
+    },
+    {
+      channel: 'Local SEO',
+      priority: 'high',
+      strategy: 'Build durable organic demand around town + fence type searches: “vinyl fence installer Westfield”, “pool code aluminum fence Monmouth”, “cedar fence replacement NJ”.',
+      nextAction: 'Publish/refresh service-area pages using real job photos, material explanations, permit notes, and FAQs pulled from CRM questions.'
+    },
+    {
+      channel: 'Google Business Profile / LSA',
+      priority: 'high',
+      strategy: 'Turn completed jobs into reviews and photos. These channels already produce high-intent callers, so the goal is faster response and more proof.',
+      nextAction: 'After every completed job, trigger a review/photo request and add best before/after images to GBP.'
+    },
+    {
+      channel: 'Social proof content',
+      priority: 'medium',
+      strategy: 'Use Instagram/Facebook/TikTok less as “posting” and more as proof: before/after reels, gate installs, pool-code explainers, price-range education, crew/process clips.',
+      nextAction: 'Save one photo/video set per job and turn it into 3 assets: before/after, material tip, customer-area post.'
+    },
+    {
+      channel: 'Referral loops',
+      priority: 'medium',
+      strategy: 'Fence jobs are neighborhood-visible. Make each install create nearby demand from neighbors, HOAs, landscapers, realtors, pool companies, and property managers.',
+      nextAction: 'Create a neighbor card/SMS/email follow-up for “we’re installing nearby” and a simple referral reward note.'
+    },
+    {
+      channel: 'Past customer reactivation',
+      priority: 'medium',
+      strategy: 'Use the CRM to identify old quotes, lost-not-now leads, and seasonal delays. The cheapest lead is often someone already in the system.',
+      nextAction: 'Run monthly campaigns for: spring repairs, pool season, storm damage, old quote check-ins, and September/October installs.'
+    }
+  ];
+
+  const marketingExperiments = [
+    {
+      title: 'Neighborhood fence map campaign',
+      why: 'Install photos plus a town/neighborhood angle makes outreach feel local instead of generic.',
+      test: 'Pick 3 recent install neighborhoods and contact nearby homeowners with “we just finished a fence near you” messaging.'
+    },
+    {
+      title: 'Fence buyer education funnel',
+      why: 'Customers ask the same questions about material, gates, removal, permits, and pricing. Answering these publicly can create SEO and sales trust.',
+      test: 'Publish 5 short pages/posts from CRM questions: vinyl vs wood, pool code aluminum, gate sizing, removal costs, and survey/permit basics.'
+    },
+    {
+      title: 'Seasonal delay follow-up engine',
+      why: 'Many leads are “not now,” not dead. Mid-season reminders can catch people when they are ready.',
+      test: 'Tag delayed leads by target month and schedule a warm follow-up 30–45 days before their expected install window.'
+    },
+    {
+      title: 'Estimate recovery campaign',
+      why: 'People who say they never received an estimate or need a price are high-intent and easy to lose.',
+      test: 'Create a saved view for “waiting on estimate / estimate not received” and contact within 1 business day.'
+    }
+  ];
+
   const avgResponse = avg(responseMinutes);
   const topOutbound = topPhrases(outboundTexts);
   const topCustomer = topPhrases(customerTexts);
@@ -196,6 +258,8 @@ async function analyze() {
     customerQuestions,
     communicationLessons,
     strategyIdeas,
+    marketingChannels,
+    marketingExperiments,
     topCustomerPhrases: topCustomer,
     topOutboundPhrases: topOutbound,
     learningSummary,
