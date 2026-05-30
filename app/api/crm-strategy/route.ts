@@ -61,6 +61,27 @@ async function ensureTable() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS crm_strategy_todos (
+      id SERIAL PRIMARY KEY,
+      task TEXT NOT NULL,
+      importance INTEGER NOT NULL DEFAULT 80 CHECK (importance BETWEEN 1 AND 100),
+      completed BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  const existing = await sql`SELECT COUNT(*)::int AS count FROM crm_strategy_todos`;
+  if (!existing[0]?.count) {
+    await sql`
+      INSERT INTO crm_strategy_todos (task, importance) VALUES
+      ('Follow up fastest with every new lead before they shop around', 100),
+      ('Build automated missed-lead rescue campaign for quiet prospects', 92),
+      ('Collect and publish more finished-job photos/testimonials', 86),
+      ('Reactivate old unsold estimates with a simple seasonal offer', 78),
+      ('Improve Google Business Profile posts and review requests', 72)
+    `;
+  }
 }
 
 async function analyze() {
@@ -276,13 +297,48 @@ export async function GET(request: NextRequest) {
     ORDER BY created_at DESC
     LIMIT 10
   `;
-  return NextResponse.json({ ...data, saved });
+  const todos = await sql`
+    SELECT id, task, importance, completed, created_at, updated_at
+    FROM crm_strategy_todos
+    ORDER BY completed ASC, importance DESC, updated_at DESC
+  `;
+  return NextResponse.json({ ...data, saved, strategyTodos: todos });
 }
 
 export async function POST(request: NextRequest) {
   if (!isAdmin(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   await ensureTable();
   const body = await request.json().catch(() => ({}));
+
+  if (body.action === 'save_todo') {
+    const task = String(body.task || '').trim();
+    const importance = Math.max(1, Math.min(100, Number(body.importance) || 80));
+    if (!task) return NextResponse.json({ error: 'Task is required' }, { status: 400 });
+    let todo;
+    if (body.id) {
+      const updated = await sql`
+        UPDATE crm_strategy_todos
+        SET task = ${task}, importance = ${importance}, completed = ${!!body.completed}, updated_at = NOW()
+        WHERE id = ${Number(body.id)}
+        RETURNING id, task, importance, completed, created_at, updated_at
+      `;
+      todo = updated[0];
+    } else {
+      const inserted = await sql`
+        INSERT INTO crm_strategy_todos (task, importance, completed)
+        VALUES (${task}, ${importance}, ${!!body.completed})
+        RETURNING id, task, importance, completed, created_at, updated_at
+      `;
+      todo = inserted[0];
+    }
+    return NextResponse.json({ success: true, todo });
+  }
+
+  if (body.action === 'delete_todo') {
+    await sql`DELETE FROM crm_strategy_todos WHERE id = ${Number(body.id)}`;
+    return NextResponse.json({ success: true });
+  }
+
   const data = await analyze();
   const title = String(body.title || 'CRM communication learning snapshot').slice(0, 200);
   const result = await sql`
