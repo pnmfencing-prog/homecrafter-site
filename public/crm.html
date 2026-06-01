@@ -139,8 +139,11 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-start; padding-top: 5vh; }
 .modal-overlay.show { display: flex; }
 .modal { background: #fff; border-radius: 16px; width: 95%; max-width: 600px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-.modal-header { background: var(--midnight); color: var(--gold); padding: 1.25rem 1.5rem; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center; gap: 0.85rem; }
-.modal-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 600; min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modal-header { background: var(--midnight); color: var(--gold); padding: 1.25rem 1.5rem; border-radius: 16px 16px 0 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.85rem; }
+.modal-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lead-modal-title { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+.lead-code-badge { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 2.85rem; padding: 0.15rem 0.45rem; border: 1px solid rgba(196,170,106,0.4); border-radius: 999px; font-family: 'Montserrat', sans-serif; font-size: 0.72rem; line-height: 1; }
+.lead-title-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modal-close { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.5rem; cursor: pointer; }
 .modal-body { padding: 1.5rem; }
 #leadModal.modal-overlay { background: #fff; padding-top: 0; align-items: stretch; overflow-y: auto; }
@@ -233,8 +236,11 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   /* Mobile CRM thread: fixed full-screen, no side-scroll or pinch/drag needed */
   #leadModal.modal-overlay.show { position: fixed; inset: 0; width: 100%; max-width: 100%; height: 100dvh; padding: 0; overflow: hidden; align-items: stretch; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; }
   #leadModal .modal { width: 100%; max-width: 100%; height: 100dvh; min-height: 100dvh; display: flex; flex-direction: column; overflow: hidden; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; }
-  #leadModal .modal-header { flex: 0 0 auto; padding: 0.85rem 1rem; gap: 0.65rem; }
+  #leadModal .modal-header { flex: 0 0 auto; grid-template-columns: minmax(0, 1fr) auto; padding: 0.85rem 1rem; gap: 0.65rem; }
   #leadModal .modal-header h2 { font-size: 1rem; line-height: 1.2; max-width: none; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #leadModal .lead-code-badge { min-width: 2.4rem; padding: 0.18rem 0.38rem; font-size: 0.62rem; }
+  #leadModal .lead-modal-title { gap: 0.45rem; }
+  #leadModal .lead-title-name { font-size: 1rem; }
   #leadModal .modal-close { flex-shrink: 0; padding: 0.4rem 0.75rem; }
   .modal-home { width: 30px; height: 30px; font-size: 0.9rem; flex-shrink: 0; }
   #leadModal .modal-body { flex: 1 1 auto; width: 100%; max-width: 100%; min-width: 0; overflow-y: auto; overflow-x: clip; -webkit-overflow-scrolling: touch; overscroll-behavior-x: none; touch-action: pan-y pinch-zoom; padding: 0.85rem; }
@@ -815,7 +821,7 @@ function openLeadDetail(id, skipHistory) {
       activeLeadDetail = l;
       var act = (data.activity || []).sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); });
 
-      document.getElementById('modalTitle').textContent = '#' + (l.lead_code || l.id) + ' — ' + (l.customer_name || 'Lead');
+      document.getElementById('modalTitle').innerHTML = '<span class="lead-modal-title"><span class="lead-code-badge">#' + esc(l.lead_code || l.id) + '</span><span class="lead-title-name">' + esc(l.customer_name || 'Lead') + '</span></span>';
       
       // Auto-mark as read when opening
       if (!l.is_read) {
