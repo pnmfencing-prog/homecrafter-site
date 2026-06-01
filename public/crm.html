@@ -570,15 +570,17 @@ function openTileChat(event, id, token) {
 function loadLeads() {
   consumeReadSignals();
   var params = '?status=' + currentFilter + '&source=' + currentSource;
-  var search = document.getElementById('searchBox').value;
+  var searchEl = document.getElementById('searchBox');
+  var search = searchEl ? searchEl.value : '';
   if (search) params += '&search=' + encodeURIComponent(search);
 
-  fetch('/api/crm' + params, api('GET'))
+  return fetch('/api/crm' + params, api('GET'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
       allLeads = data.leads || [];
       renderBoard();
       renderList();
+      return allLeads;
     });
 }
 
@@ -1151,7 +1153,7 @@ function submitLeadCalendar(leadId) {
       var data = result.data || {};
       if (result.ok && (data.success || data.event)) {
         if (feedback) feedback.textContent = '✅ Added to calendar.';
-        return loadLeads().then(function() { openLeadDetail(leadId, true); });
+        return Promise.resolve(loadLeads()).then(function() { openLeadDetail(leadId, true); });
       }
       throw new Error(data.error || 'Failed to add calendar event');
     }).catch(function(e) {
