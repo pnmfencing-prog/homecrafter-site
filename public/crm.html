@@ -916,13 +916,13 @@ function openLeadDetail(id, skipHistory) {
           (tileCalendarBadge(l) ? '<div style="width:100%;margin-bottom:0.15rem">' + tileCalendarBadge(l) + '</div>' : '') +
           '<button type="button" class="btn btn-outline" style="font-size:0.65rem" onclick="showCalendarAddForm(event,' + l.id + ')">📅 Add to Calendar</button>' +
           '<a class="btn btn-outline" href="/proposals.html" style="font-size:0.65rem;text-decoration:none">📄 Proposals</a>' +
-          '<div id="calendar-add-form" style="display:none;width:100%;margin-top:0.5rem;padding:0.75rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:10px">' +
+          '<div id="calendar-add-form" style="display:none;width:100%;margin-top:0.5rem;margin-bottom:1rem;padding:0.75rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:10px;position:relative;z-index:6">' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">' +
-              '<input id="calendar-title" placeholder="Event title" style="grid-column:span 2;padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem">' +
-              '<select id="calendar-type" style="padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem"><option value="appointment">Appointment</option><option value="follow_up">Follow-up</option><option value="task">Task</option><option value="reminder">Reminder</option></select>' +
-              '<input id="calendar-date" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" style="padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem;-webkit-appearance:none;appearance:none;background:#fff;color:var(--midnight)">' +
-              '<input id="calendar-time" type="text" inputmode="text" placeholder="10:00 AM" value="10:00 AM" style="padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem;-webkit-appearance:none;appearance:none;background:#fff;color:var(--midnight)">' +
-              '<button type="button" id="calendar-create-btn" class="btn btn-primary" style="font-size:0.7rem" onclick="submitLeadCalendar(' + l.id + ')">Create Calendar Event</button>' +
+              '<input id="calendar-title" placeholder="Event title" style="grid-column:span 2;padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem;background:#fff;color:var(--midnight)">' +
+              '<select id="calendar-type" style="padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem;background:#fff;color:var(--midnight)"><option value="appointment">Appointment</option><option value="follow_up">Follow-up</option><option value="task">Task</option><option value="reminder">Reminder</option></select>' +
+              '<input id="calendar-date" type="date" style="padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem;background:#fff;color:var(--midnight);min-height:42px" onclick="openNativePicker(this)">' +
+              '<select id="calendar-time" style="padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem;background:#fff;color:var(--midnight);min-height:42px">' + calendarTimeOptions('10:00') + '</select>' +
+              '<button type="button" id="calendar-create-btn" class="btn btn-primary" style="grid-column:span 2;font-size:0.78rem;min-height:46px;position:relative;z-index:7" onpointerdown="event.preventDefault();event.stopPropagation();submitLeadCalendar(event,' + l.id + ')" onclick="event.preventDefault();event.stopPropagation();return false;">Create Calendar Event</button>' +
             '</div>' +
             '<div id="calendar-add-feedback" style="font-size:0.68rem;margin-top:0.5rem;color:var(--text-muted)"></div>' +
           '</div>' +
@@ -1086,6 +1086,25 @@ function todayIsoDate() {
   return d.toISOString().slice(0, 10);
 }
 
+function openNativePicker(el) {
+  try {
+    if (el && typeof el.showPicker === 'function') el.showPicker();
+  } catch (e) {}
+}
+
+function calendarTimeOptions(selected) {
+  var html = '';
+  for (var h = 7; h <= 19; h++) {
+    for (var m = 0; m < 60; m += 15) {
+      var value = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      var hour12 = h % 12 || 12;
+      var label = hour12 + ':' + String(m).padStart(2, '0') + ' ' + (h >= 12 ? 'PM' : 'AM');
+      html += '<option value="' + value + '"' + (value === selected ? ' selected' : '') + '>' + label + '</option>';
+    }
+  }
+  return html;
+}
+
 function normalizeCalendarDate(value) {
   value = String(value || '').trim();
   if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(value)) {
@@ -1135,7 +1154,8 @@ function showCalendarAddForm(event, leadId) {
   if (feedback) feedback.textContent = 'Choose date/time, then create the event.';
 }
 
-function submitLeadCalendar(leadId) {
+function submitLeadCalendar(event, leadId) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
   var lead = leadForCalendar(leadId);
   var address = [lead.customer_address, lead.customer_city, lead.customer_state, lead.customer_zip].filter(Boolean).join(', ');
   var title = (document.getElementById('calendar-title') || {}).value || '';
@@ -1148,8 +1168,8 @@ function submitLeadCalendar(leadId) {
   var feedback = document.getElementById('calendar-add-feedback');
   title = title.trim();
   if (!title) { if (feedback) feedback.textContent = 'Enter an event title first.'; return; }
-  if (!date) { if (feedback) feedback.textContent = 'Enter a date like 2026-06-01 or 6/1.'; return; }
-  if (time === '') { if (feedback) feedback.textContent = 'Enter a time like 10:00 AM or 14:30.'; return; }
+  if (!date) { if (feedback) feedback.textContent = 'Choose a date from the date picker first.'; return; }
+  if (time === '') { if (feedback) feedback.textContent = 'Choose a time first.'; return; }
   if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
   if (feedback) feedback.textContent = 'Creating calendar event...';
 
