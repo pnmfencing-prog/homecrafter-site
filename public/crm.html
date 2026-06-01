@@ -912,8 +912,8 @@ function openLeadDetail(id, skipHistory) {
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">' +
               '<input id="calendar-title" placeholder="Event title" style="grid-column:span 2;padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem">' +
               '<select id="calendar-type" style="padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem"><option value="appointment">Appointment</option><option value="follow_up">Follow-up</option><option value="task">Task</option><option value="reminder">Reminder</option></select>' +
-              '<input id="calendar-date" type="date" style="padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem">' +
-              '<input id="calendar-time" type="time" value="10:00" style="padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem">' +
+              '<input id="calendar-date" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" style="padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem;-webkit-appearance:none;appearance:none;background:#fff;color:var(--midnight)">' +
+              '<input id="calendar-time" type="text" inputmode="text" placeholder="10:00 AM" value="10:00 AM" style="padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem;-webkit-appearance:none;appearance:none;background:#fff;color:var(--midnight)">' +
               '<button type="button" id="calendar-create-btn" class="btn btn-primary" style="font-size:0.7rem" onclick="submitLeadCalendar(' + l.id + ')">Create Calendar Event</button>' +
             '</div>' +
             '<div id="calendar-add-feedback" style="font-size:0.68rem;margin-top:0.5rem;color:var(--text-muted)"></div>' +
@@ -1078,6 +1078,41 @@ function todayIsoDate() {
   return d.toISOString().slice(0, 10);
 }
 
+function normalizeCalendarDate(value) {
+  value = String(value || '').trim();
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(value)) {
+    var parts = value.split('-');
+    return parts[0] + '-' + parts[1].padStart(2, '0') + '-' + parts[2].padStart(2, '0');
+  }
+  var slash = value.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+  if (slash) {
+    var year = slash[3] ? slash[3] : String(new Date().getFullYear());
+    if (year.length === 2) year = '20' + year;
+    return year + '-' + slash[1].padStart(2, '0') + '-' + slash[2].padStart(2, '0');
+  }
+  var parsed = new Date(value);
+  if (!isNaN(parsed.getTime())) {
+    parsed.setMinutes(parsed.getMinutes() - parsed.getTimezoneOffset());
+    return parsed.toISOString().slice(0, 10);
+  }
+  return '';
+}
+
+function normalizeCalendarTime(value) {
+  value = String(value || '').trim().toLowerCase();
+  if (!value) return null;
+  value = value.replace(/\s+/g, '');
+  var match = value.match(/^(\d{1,2})(?::?(\d{2}))?(am|pm)?$/);
+  if (!match) return '';
+  var h = parseInt(match[1], 10);
+  var m = match[2] || '00';
+  var suffix = match[3];
+  if (suffix === 'pm' && h < 12) h += 12;
+  if (suffix === 'am' && h === 12) h = 0;
+  if (h > 23 || Number(m) > 59) return '';
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
 function showCalendarAddForm(event, leadId) {
   if (event) { event.preventDefault(); event.stopPropagation(); }
   var lead = leadForCalendar(leadId);
@@ -1097,13 +1132,16 @@ function submitLeadCalendar(leadId) {
   var address = [lead.customer_address, lead.customer_city, lead.customer_state, lead.customer_zip].filter(Boolean).join(', ');
   var title = (document.getElementById('calendar-title') || {}).value || '';
   var type = (document.getElementById('calendar-type') || {}).value || 'appointment';
-  var date = (document.getElementById('calendar-date') || {}).value || '';
-  var time = (document.getElementById('calendar-time') || {}).value || '';
+  var rawDate = (document.getElementById('calendar-date') || {}).value || '';
+  var rawTime = (document.getElementById('calendar-time') || {}).value || '';
+  var date = normalizeCalendarDate(rawDate);
+  var time = normalizeCalendarTime(rawTime);
   var btn = document.getElementById('calendar-create-btn');
   var feedback = document.getElementById('calendar-add-feedback');
   title = title.trim();
   if (!title) { if (feedback) feedback.textContent = 'Enter an event title first.'; return; }
-  if (!date) { if (feedback) feedback.textContent = 'Choose a date first.'; return; }
+  if (!date) { if (feedback) feedback.textContent = 'Enter a date like 2026-06-01 or 6/1.'; return; }
+  if (time === '') { if (feedback) feedback.textContent = 'Enter a time like 10:00 AM or 14:30.'; return; }
   if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
   if (feedback) feedback.textContent = 'Creating calendar event...';
 
