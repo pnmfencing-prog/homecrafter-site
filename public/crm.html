@@ -320,8 +320,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
     <button class="btn" data-rf="read" onclick="setReadFilter('read')">Read</button>
   </div>
   <div class="read-filter">
-    <button class="btn active" data-cf="all" onclick="setCampaignFilter('all')">All Campaigns</button>
-    <button class="btn" data-cf="no_active" onclick="setCampaignFilter('no_active')">No Active Campaign</button>
+    <button class="btn" data-cf="no_active" onclick="toggleNoActiveCampaignFilter()">No Active Campaign</button>
   </div>
 </div>
 
@@ -392,7 +391,7 @@ var currentFilter = 'all';
 var currentSource = 'all';
 var readFilter = 'all';
 var messageFilter = 'all'; // global: 'all', 'you' (msg sent), 'customer' (msg rcvd)
-var campaignFilter = 'all'; // 'all' or 'no_active'
+var campaignFilter = 'all'; // 'all' or 'no_active' — no_active means unassigned or completed
 var colMsgFilters = {}; // per-column: 'all', 'you' (msg sent), 'customer' (msg rcvd)
 var activeLeadId = null;
 var activeLeadDetail = null;
@@ -703,10 +702,10 @@ function setReadFilter(filter) {
   renderBoard();
 }
 
-function setCampaignFilter(filter) {
-  campaignFilter = filter;
+function toggleNoActiveCampaignFilter() {
+  campaignFilter = campaignFilter === 'no_active' ? 'all' : 'no_active';
   document.querySelectorAll('[data-cf]').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.cf === filter);
+    b.classList.toggle('active', campaignFilter === 'no_active' && b.dataset.cf === 'no_active');
   });
   loadLeads();
 }

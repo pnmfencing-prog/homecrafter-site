@@ -270,7 +270,8 @@ export async function GET(request: NextRequest) {
 
   leads = await enrichCampaignStatus(leads);
   if (campaignFilter === 'no_active') {
-    leads = leads.filter((lead) => !lead.campaign_active_now);
+    // Dan's intended filter: leads with no campaign assigned, plus leads whose assigned campaign completed.
+    leads = leads.filter((lead) => !lead.campaign_id || lead.campaign_completed);
   }
 
   const leadIds = leads.map((lead) => lead.id);
