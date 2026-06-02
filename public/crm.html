@@ -319,6 +319,10 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
     <button class="btn" data-rf="unread" onclick="setReadFilter('unread')">Unread</button>
     <button class="btn" data-rf="read" onclick="setReadFilter('read')">Read</button>
   </div>
+  <div class="read-filter">
+    <button class="btn active" data-cf="all" onclick="setCampaignFilter('all')">All Campaigns</button>
+    <button class="btn" data-cf="no_active" onclick="setCampaignFilter('no_active')">No Active Campaign</button>
+  </div>
 </div>
 
 <!-- Kanban Board -->
@@ -388,6 +392,7 @@ var currentFilter = 'all';
 var currentSource = 'all';
 var readFilter = 'all';
 var messageFilter = 'all'; // global: 'all', 'you' (msg sent), 'customer' (msg rcvd)
+var campaignFilter = 'all'; // 'all' or 'no_active'
 var colMsgFilters = {}; // per-column: 'all', 'you' (msg sent), 'customer' (msg rcvd)
 var activeLeadId = null;
 var activeLeadDetail = null;
@@ -576,6 +581,7 @@ function openTileChat(event, id, token) {
 function loadLeads() {
   consumeReadSignals();
   var params = '?status=' + currentFilter + '&source=' + currentSource;
+  if (campaignFilter !== 'all') params += '&campaign=' + encodeURIComponent(campaignFilter);
   var searchEl = document.getElementById('searchBox');
   var search = searchEl ? searchEl.value : '';
   if (search) params += '&search=' + encodeURIComponent(search);
@@ -670,11 +676,13 @@ function renderBoard() {
         '<div class="message-preview">' + esc(msgPreview) + '</div>' : '';
       var calendarBadge = tileCalendarBadge(l);
       var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="openTileChat(event,' + l.id + ',\'' + escAttr(l.chat_token) + '\')" title="Open chat thread">💬 Chat</a>' : '';
+      var campaignBadge = l.campaign_completed ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#ecfdf5;color:#047857;font-size:0.55rem;font-weight:900;letter-spacing:0.06em;text-transform:uppercase">Campaign Completed</div>' : (!l.campaign_active_now ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:0.55rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase">No Active Campaign</div>' : '');
       
       html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="onLeadCardClick(event,' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" ontouchstart="onTouchDragStart(event)" ontouchmove="onTouchDragMove(event)" ontouchend="onTouchDragEnd(event)" ontouchcancel="onTouchDragEnd(event)">' +
         '<div class="name">' + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
         msgSummary +
         '<div class="service">' + esc(l.service_type || '') + '</div>' +
+        campaignBadge +
         '<div class="meta">' + (l.customer_phone ? '📞 ' + esc(l.customer_phone) : '') + '</div>' +
         calendarBadge +
         amount +
@@ -693,6 +701,14 @@ function setReadFilter(filter) {
     b.classList.toggle('active', b.dataset.rf === filter);
   });
   renderBoard();
+}
+
+function setCampaignFilter(filter) {
+  campaignFilter = filter;
+  document.querySelectorAll('[data-cf]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.cf === filter);
+  });
+  loadLeads();
 }
 
 function setMessageFilter(filter) {
@@ -831,6 +847,8 @@ function openLeadDetail(id, skipHistory) {
       }
 
       var statusBtns = stagePickerHtml(l.id, l.status);
+      var campaignStatusText = l.campaign_completed ? '<strong style="color:#047857">COMPLETED</strong>' : l.campaign_active_now ? '<strong style="color:var(--green)">ACTIVE</strong>' : '<strong style="color:var(--text-muted)">NO ACTIVE CAMPAIGN</strong>';
+      var campaignProgressText = l.campaign_id ? 'SMS ' + Number(l.campaign_sms_sent || 0) + '/' + Number(l.campaign_sms_steps || 0) + ' · Email ' + Number(l.campaign_email_sent || 0) + '/' + Number(l.campaign_email_steps || 0) : '';
       activeLeadEmail = (l.customer_email || '').trim();
       var hasValidEmail = isValidEmail(activeLeadEmail);
       var lastInbound = act.slice().reverse().find(function(a) {
@@ -869,7 +887,7 @@ function openLeadDetail(id, skipHistory) {
           '<span style="font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--midnight)">Campaign</span>' +
           '<select id="lead-campaign-select" onchange="refreshCampaignSelectVisual()" style="flex:1;min-width:210px;border:1px solid ' + (l.campaign_id ? 'var(--green)' : '#e0ddd6') + ';background:' + (l.campaign_id ? 'var(--green-bg)' : '#fff') + ';color:' + (l.campaign_id ? 'var(--green)' : 'var(--midnight)') + ';border-radius:8px;padding:0.45rem 0.6rem;font-family:Montserrat,sans-serif;font-size:0.75rem;font-weight:700">' + campaignOptions(l.campaign_id) + '</select>' +
           '<button id="campaign-assign-btn" class="btn btn-primary" style="font-size:0.65rem;padding:0.45rem 0.75rem" onclick="assignLeadCampaign(' + l.id + ')">Assign</button>' +
-          '<span id="campaign-assign-feedback" style="font-size:0.68rem;font-weight:800;color:' + (l.campaign_id ? 'var(--green)' : 'var(--text-muted)') + ';width:100%">' + (l.campaign_id ? '✓ Currently assigned to ' + esc(campaignName(l.campaign_id)) : 'None assigned yet') + '</span>' +
+          '<span id="campaign-assign-feedback" style="font-size:0.68rem;font-weight:800;color:' + (l.campaign_id ? 'var(--green)' : 'var(--text-muted)') + ';width:100%">' + (l.campaign_id ? '✓ Currently assigned to ' + esc(campaignName(l.campaign_id)) + ' — ' + campaignStatusText + (campaignProgressText ? ' <span style="font-weight:700;color:var(--text-muted)">(' + esc(campaignProgressText) + ')</span>' : '') : 'None assigned yet — ' + campaignStatusText) + '</span>' +
         '</div>' +
 
         '<details style="margin-bottom:1rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:10px;padding:0.75rem">' +

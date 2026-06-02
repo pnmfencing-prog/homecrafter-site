@@ -8,6 +8,50 @@ function isAdmin(request: NextRequest): boolean {
   return token === (process.env.ADMIN_TOKEN || 'hc-admin-2026');
 }
 
+async function enrichCampaignStatus(leads: any[]) {
+  const leadIds = leads.map((lead) => lead.id).filter(Boolean);
+  if (!leadIds.length) return leads;
+
+  const rows = await sql`
+    SELECT
+      l.id AS lead_id,
+      camp.name AS campaign_name,
+      camp.is_active AS campaign_is_active,
+      COALESCE(l.outreach_count, 0)::int AS campaign_sms_sent,
+      COALESCE(l.email_outreach_count, 0)::int AS campaign_email_sent,
+      COALESCE(MAX(m.step_number) FILTER (WHERE m.channel IN ('sms', 'both') AND COALESCE(m.sms_body, '') <> ''), 0)::int AS campaign_sms_steps,
+      COALESCE(MAX(m.step_number) FILTER (WHERE m.channel IN ('email', 'both') AND COALESCE(m.email_body, m.sms_body, '') <> ''), 0)::int AS campaign_email_steps
+    FROM crm_leads l
+    LEFT JOIN crm_campaigns camp ON camp.id = l.campaign_id
+    LEFT JOIN crm_campaign_messages m ON m.campaign_id = camp.id AND m.is_active = true
+    WHERE l.id = ANY(${leadIds})
+    GROUP BY l.id, camp.name, camp.is_active, l.outreach_count, l.email_outreach_count
+  `;
+  const byLeadId = new Map(rows.map((row) => [row.lead_id, row]));
+  return leads.map((lead) => {
+    const row = byLeadId.get(lead.id) || {};
+    const smsSent = Number(row.campaign_sms_sent || lead.outreach_count || 0);
+    const emailSent = Number(row.campaign_email_sent || lead.email_outreach_count || 0);
+    const smsSteps = Number(row.campaign_sms_steps || 0);
+    const emailSteps = Number(row.campaign_email_steps || 0);
+    const hasCampaign = Boolean(lead.campaign_id);
+    const hasSteps = smsSteps > 0 || emailSteps > 0;
+    const campaignCompleted = hasCampaign && hasSteps && smsSent >= smsSteps && emailSent >= emailSteps;
+    const campaignActiveNow = hasCampaign && row.campaign_is_active === true && !campaignCompleted && !lead.customer_responded && !lead.outreach_paused;
+    return {
+      ...lead,
+      campaign_name: row.campaign_name || null,
+      campaign_is_active: row.campaign_is_active ?? null,
+      campaign_sms_sent: smsSent,
+      campaign_email_sent: emailSent,
+      campaign_sms_steps: smsSteps,
+      campaign_email_steps: emailSteps,
+      campaign_completed: campaignCompleted,
+      campaign_active_now: campaignActiveNow,
+    };
+  });
+}
+
 export async function GET(request: NextRequest) {
   if (!isAdmin(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -18,6 +62,7 @@ export async function GET(request: NextRequest) {
   const source = searchParams.get('source');
   const search = searchParams.get('search');
   const id = searchParams.get('id');
+  const campaignFilter = searchParams.get('campaign');
 
   // Single lead with activity
   if (id) {
@@ -57,7 +102,8 @@ export async function GET(request: NextRequest) {
       FROM ranked
       WHERE rn = 1
     `;
-    const lead = { ...leads[0], ...(activeEvents[0] || {}) };
+    const enrichedLead = (await enrichCampaignStatus([leads[0]]))[0];
+    const lead = { ...enrichedLead, ...(activeEvents[0] || {}) };
     const activity = await sql`SELECT * FROM crm_activity WHERE crm_lead_id = ${leadId} ORDER BY created_at DESC LIMIT 50`;
     const activityIds = activity.map((a) => a.id);
     const attachments = activityIds.length
@@ -220,6 +266,11 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       ORDER BY l.created_at DESC`;
+  }
+
+  leads = await enrichCampaignStatus(leads);
+  if (campaignFilter === 'no_active') {
+    leads = leads.filter((lead) => !lead.campaign_active_now);
   }
 
   const leadIds = leads.map((lead) => lead.id);
