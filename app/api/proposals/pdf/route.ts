@@ -35,6 +35,17 @@ export async function GET(request: NextRequest) {
   // Generate PDF HTML for viewing in browser
   const spot = Number(p.spot_holding_fee ?? 150);
   const gateText = p.gate_count > 0 ? `${p.gate_count} GATE${p.gate_count > 1 ? 'S' : ''}` : 'NO GATES';
+  const standardTerms = `Disposal of packing materials included.
+No removal of old fencing.
+Delivery included.
+Concrete on all posts*
+
+Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete.
+Utility mark-out Included.
+
+PNM not responsible for unmarked sprinkler lines and miscellaneous pipes.
+
+Fence to follow grade of ground. Footing soil dispersed around posts/sections. PNM not responsible for earth settling.`;
   
   const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -70,7 +81,7 @@ export async function GET(request: NextRequest) {
 <button class="print-btn" onclick="window.print()">🖨 Print / Save PDF</button>
 
 <div class="company">PNM FENCING NJ LLC</div>
-<div class="company-sub">PO Box ___ Oakhurst, NJ 07712 | 1-(908)-692-4847</div>
+<div class="company-sub">PO Box 437 Oakhurst, NJ 07712 | 1-(908)-692-4847</div>
 
 <div class="header">
   <div>
@@ -101,18 +112,9 @@ ${p.redacted ? `
 <div class="description">${normalizeText(p.description_override || `Supply and install up to approximately ${p.footage} linear feet of ${p.height} high ${(p.color || 'WHITE').toUpperCase()} ${p.material || 'vinyl'} solid privacy fencing ${gateText}
 7" heavy duty rails
 Standard post caps
-Disposal of packing materials included.
-${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type || 'existing fence'} included.` : 'No removal of existing fence.'}
-Delivery included.
-Concrete on all posts*
+${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type || 'existing fence'} included.` : ''}`)}</div>
 
-Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete.
-
-Utility mark-out included.
-PNM not responsible for unmarked sprinkler lines and miscellaneous pipes.
-Fence to follow grade of ground.
-Footing soil dispersed around posts/sections.
-PNM not responsible for earth settling.`)}</div>
+<div class="description" style="margin-top:12px">${normalizeText(standardTerms)}</div>
 
 <div class="amount">$${Number(p.total).toLocaleString('en-US', {minimumFractionDigits: 2})}*</div>
 
@@ -139,7 +141,7 @@ PNM not responsible for earth settling.`)}</div>
 </div>
 `}
 
-${p.redacted ? '' : '<div class="cancel"><strong>YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.</strong> IF YOU WISH TO CANCEL THIS CONTRACT, YOU MUST EITHER: <br>1. SEND A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION BY REGISTERED OR CERTIFIED MAIL, RETURN RECEIPT REQUESTED; OR <br>2. PERSONALLY DELIVER A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION TO: <br><br>PNM Fencing NJ LLC<br>PO Box ___ Oakhurst, NJ 07712<br>1-(908)-692-4847 <br><br>If you cancel this contract within the three day period, you are entitled to a full refund of your money. Refunds must be made within 30 days.</div>'}
+${p.redacted ? '' : '<div class="cancel"><strong>YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.</strong> IF YOU WISH TO CANCEL THIS CONTRACT, YOU MUST EITHER: <br>1. SEND A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION BY REGISTERED OR CERTIFIED MAIL, RETURN RECEIPT REQUESTED; OR <br>2. PERSONALLY DELIVER A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION TO: <br><br>PNM<br>PO Box 437<br>Oakhurst NJ 07712<br>1-(908)-692-4847 <br><br>If you cancel this contract within the three day period, you are entitled to a full refund of your money. Refunds must be made within 30 days.</div>'}
 
 ${p.redacted ? '' : (() => {
   if (p.signature_data) {

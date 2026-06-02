@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         ${body.gate_count || 0}, ${body.panels || null}, ${body.extra_posts || 2},
         ${body.removal_type || null}, ${body.removal_footage || 0},
         ${body.total || null}, ${body.deposit || null}, ${body.installment_2 || null}, ${body.installment_3 || null},
-        ${body.spot_holding_fee || 150}, ${body.status || 'draft'}, ${body.pdf_filename || null},
+        ${body.spot_holding_fee ?? 150}, ${body.status || 'draft'}, ${body.pdf_filename || null},
         ${body.notes ? normalizeText(body.notes) : null}, ${body.description_override ? normalizeText(body.description_override) : null})
       RETURNING *
     `;
