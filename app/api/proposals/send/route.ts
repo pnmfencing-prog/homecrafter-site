@@ -20,8 +20,11 @@ export async function POST(request: NextRequest) {
   const p = proposals[0];
   if (!p.client_email) return NextResponse.json({ error: 'No client email on this proposal' }, { status: 400 });
 
-  const spot = p.spot_holding_fee || 150;
+  const spot = Number(p.spot_holding_fee ?? 150);
   const gateText = p.gate_count > 0 ? `${p.gate_count} gate${p.gate_count > 1 ? 's' : ''}` : 'no gates';
+  const scopeText = p.description_override
+    ? String(p.description_override).replace(/\s+/g, ' ').trim()
+    : `${p.footage || ''} LF of ${p.height || ''} ${(p.color || 'white').toUpperCase()} ${p.material || 'vinyl'} privacy fence, ${gateText}`.replace(/\s+/g, ' ').trim();
   const companyName = body.company_name || 'PNM Fencing NJ LLC';
 
   const emailHtml = `
@@ -57,7 +60,7 @@ export async function POST(request: NextRequest) {
     </tr>
     <tr>
       <td style="padding:8px 12px;background:#faf9f6;font-size:12px;font-weight:bold;color:#666;border-bottom:1px solid #eee;">Scope</td>
-      <td style="padding:8px 12px;background:#faf9f6;font-size:14px;border-bottom:1px solid #eee;">${p.footage} LF of ${p.height} ${(p.color || 'white').toUpperCase()} ${p.material || 'vinyl'} privacy fence, ${gateText}</td>
+      <td style="padding:8px 12px;background:#faf9f6;font-size:14px;border-bottom:1px solid #eee;">${scopeText}</td>
     </tr>
   </table>
 

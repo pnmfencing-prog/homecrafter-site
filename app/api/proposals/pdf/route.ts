@@ -35,8 +35,9 @@ export async function GET(request: NextRequest) {
   // Generate PDF HTML for viewing in browser
   const spot = Number(p.spot_holding_fee ?? 150);
   const gateText = p.gate_count > 0 ? `${p.gate_count} GATE${p.gate_count > 1 ? 'S' : ''}` : 'NO GATES';
+  const removalIncluded = Number(p.removal_footage || 0) > 0 || /removal of existing|removal included|remove existing/i.test(p.description_override || '');
   const standardTerms = `Disposal of packing materials included.
-No removal of old fencing.
+${removalIncluded ? 'Removal of old fencing included.' : 'No removal of old fencing.'}
 Delivery included.
 Concrete on all posts*
 
