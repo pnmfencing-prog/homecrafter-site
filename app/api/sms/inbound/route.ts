@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
   if (newLeadAutoReply) {
     twiml += `<Message>${escapeXml(newLeadAutoReply)}</Message>`;
   } else if (!isBusinessHours && !suppressAnyReply) {
-    twiml += "<Message>Thanks for reaching out to PNM Fencing! Our office hours are Mon-Fri 8AM-6PM and Sat 9AM-2PM. We'll get back to you on the next business day. For urgent matters, call (732) 337-6181.</Message>";
+    twiml += "<Message>Thanks for reaching out to PNM Fencing! Our office hours are Mon-Fri 8AM-6PM and Sat 9AM-2PM. We'll get back to you on the next business day. For urgent matters, call (908) 503-5473.</Message>";
   }
 
   twiml += '</Response>';
