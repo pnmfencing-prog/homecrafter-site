@@ -269,8 +269,14 @@ export async function GET(request: NextRequest) {
   }
 
   leads = await enrichCampaignStatus(leads);
-  if (campaignFilter === 'no_active') {
-    // Dan's intended filter: leads with no campaign assigned, plus leads whose assigned campaign completed.
+  if (campaignFilter === 'campaign_completed') {
+    // Completed is its own bucket so Dan can see who may need a different campaign next.
+    leads = leads.filter((lead) => lead.campaign_completed);
+  } else if (campaignFilter === 'no_campaign') {
+    // Unassigned only. Completed campaign leads must not fall into this bucket.
+    leads = leads.filter((lead) => !lead.campaign_id && !lead.campaign_completed);
+  } else if (campaignFilter === 'no_active') {
+    // Backward compatibility for any old links/bookmarks.
     leads = leads.filter((lead) => !lead.campaign_id || lead.campaign_completed);
   }
 

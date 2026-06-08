@@ -320,7 +320,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
     <button class="btn" data-rf="read" onclick="setReadFilter('read')">Read</button>
   </div>
   <div class="read-filter">
-    <button class="btn" data-cf="no_active" onclick="toggleNoActiveCampaignFilter()">No Active Campaign</button>
+    <button class="btn" data-cf="campaign_completed" onclick="setCampaignFilter('campaign_completed')">Campaign Completed</button>
+    <button class="btn" data-cf="no_campaign" onclick="setCampaignFilter('no_campaign')">No Campaign Assigned</button>
   </div>
 </div>
 
@@ -391,7 +392,7 @@ var currentFilter = 'all';
 var currentSource = 'all';
 var readFilter = 'all';
 var messageFilter = 'all'; // global: 'all', 'you' (msg sent), 'customer' (msg rcvd)
-var campaignFilter = 'all'; // 'all' or 'no_active' — no_active means unassigned or completed
+var campaignFilter = 'all'; // 'all', 'campaign_completed', or 'no_campaign'
 var colMsgFilters = {}; // per-column: 'all', 'you' (msg sent), 'customer' (msg rcvd)
 var activeLeadId = null;
 var activeLeadDetail = null;
@@ -675,7 +676,7 @@ function renderBoard() {
         '<div class="message-preview">' + esc(msgPreview) + '</div>' : '';
       var calendarBadge = tileCalendarBadge(l);
       var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="openTileChat(event,' + l.id + ',\'' + escAttr(l.chat_token) + '\')" title="Open chat thread">💬 Chat</a>' : '';
-      var campaignBadge = l.campaign_completed ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#ecfdf5;color:#047857;font-size:0.55rem;font-weight:900;letter-spacing:0.06em;text-transform:uppercase">Campaign Completed</div>' : (!l.campaign_active_now ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:0.55rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase">No Active Campaign</div>' : '');
+      var campaignBadge = l.campaign_completed ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#ecfdf5;color:#047857;font-size:0.55rem;font-weight:900;letter-spacing:0.06em;text-transform:uppercase">Campaign Completed</div>' : (!l.campaign_id ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:0.55rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase">No Campaign Assigned</div>' : '');
       
       html += '<div class="lead-card ' + sourceClass + unreadClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="onLeadCardClick(event,' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" ontouchstart="onTouchDragStart(event)" ontouchmove="onTouchDragMove(event)" ontouchend="onTouchDragEnd(event)" ontouchcancel="onTouchDragEnd(event)">' +
         '<div class="name">' + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
@@ -702,10 +703,10 @@ function setReadFilter(filter) {
   renderBoard();
 }
 
-function toggleNoActiveCampaignFilter() {
-  campaignFilter = campaignFilter === 'no_active' ? 'all' : 'no_active';
+function setCampaignFilter(filter) {
+  campaignFilter = campaignFilter === filter ? 'all' : filter;
   document.querySelectorAll('[data-cf]').forEach(function(b) {
-    b.classList.toggle('active', campaignFilter === 'no_active' && b.dataset.cf === 'no_active');
+    b.classList.toggle('active', campaignFilter !== 'all' && b.dataset.cf === campaignFilter);
   });
   loadLeads();
 }
