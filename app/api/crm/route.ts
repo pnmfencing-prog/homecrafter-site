@@ -2,6 +2,50 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { normalizeText } from '@/lib/text';
 
+const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
+const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
+const TWILIO_FROM = process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '';
+
+function normalizePhone(phone: string): string {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  if ((phone || '').startsWith('+')) return phone;
+  return digits ? `+${digits}` : '';
+}
+
+async function sendTwilioSms(to: string, body: string): Promise<string | null> {
+  if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
+    throw new Error('Twilio environment variables are not configured');
+  }
+  const cleanTo = normalizePhone(to);
+  if (!/^\+\d{10,15}$/.test(cleanTo)) {
+    throw new Error(`Invalid phone: ${to}`);
+  }
+
+  const params = new URLSearchParams();
+  params.append('From', TWILIO_FROM);
+  params.append('To', cleanTo);
+  params.append('Body', body);
+
+  const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: params.toString(),
+  });
+  const text = await res.text();
+  let payload: any = {};
+  try { payload = JSON.parse(text); } catch {}
+  if (!res.ok || payload.error_code || payload.code) {
+    throw new Error(`Twilio SMS failed: ${text}`);
+  }
+  return payload.sid || null;
+}
+
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
   const token = auth.replace('Bearer ', '');
@@ -432,6 +476,20 @@ export async function POST(request: NextRequest) {
     const description = normalizeText(body.description || '');
     const attachments = Array.isArray(body.attachments) ? body.attachments : [];
     const isFromCustomer = description?.startsWith('📥') || false;
+
+    if (activity_type === 'sms' && !isFromCustomer) {
+      const leads = await sql`SELECT customer_phone FROM crm_leads WHERE id = ${id} LIMIT 1`;
+      const to = leads[0]?.customer_phone;
+      const smsBody = normalizeText(description || '').replace(/^(📤|📥)\s*/, '');
+      if (!to) return NextResponse.json({ error: 'Customer phone is missing' }, { status: 400 });
+      if (!smsBody) return NextResponse.json({ error: 'SMS body is missing' }, { status: 400 });
+      try {
+        await sendTwilioSms(to, smsBody);
+      } catch (err: any) {
+        return NextResponse.json({ error: err?.message || 'SMS send failed' }, { status: 502 });
+      }
+    }
+
     const inserted = await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${id}, ${activity_type || 'note'}, ${description}, ${isFromCustomer}) RETURNING id`;
     const activityId = inserted[0].id;
     for (const att of attachments.slice(0, 5)) {
