@@ -57,19 +57,36 @@ async function enrichCampaignStatus(leads: any[]) {
   if (!leadIds.length) return leads;
 
   const rows = await sql`
+    WITH default_angi_campaign AS (
+      SELECT id, name, is_active
+      FROM crm_campaigns
+      WHERE source = 'angi' AND is_default = true AND is_active = true
+      ORDER BY id ASC
+      LIMIT 1
+    ), lead_base AS (
+      SELECT
+        l.*,
+        CASE
+          WHEN l.campaign_id IS NOT NULL THEN l.campaign_id
+          WHEN l.source = 'angi' THEN (SELECT id FROM default_angi_campaign)
+          ELSE NULL
+        END AS effective_campaign_id
+      FROM crm_leads l
+      WHERE l.id = ANY(${leadIds})
+    )
     SELECT
       l.id AS lead_id,
+      l.effective_campaign_id AS campaign_id,
       camp.name AS campaign_name,
       camp.is_active AS campaign_is_active,
       COALESCE(l.outreach_count, 0)::int AS campaign_sms_sent,
       COALESCE(l.email_outreach_count, 0)::int AS campaign_email_sent,
       COALESCE(MAX(m.step_number) FILTER (WHERE m.channel IN ('sms', 'both') AND COALESCE(m.sms_body, '') <> ''), 0)::int AS campaign_sms_steps,
       COALESCE(MAX(m.step_number) FILTER (WHERE m.channel IN ('email', 'both') AND COALESCE(m.email_body, m.sms_body, '') <> ''), 0)::int AS campaign_email_steps
-    FROM crm_leads l
-    LEFT JOIN crm_campaigns camp ON camp.id = l.campaign_id
+    FROM lead_base l
+    LEFT JOIN crm_campaigns camp ON camp.id = l.effective_campaign_id
     LEFT JOIN crm_campaign_messages m ON m.campaign_id = camp.id AND m.is_active = true
-    WHERE l.id = ANY(${leadIds})
-    GROUP BY l.id, camp.name, camp.is_active, l.outreach_count, l.email_outreach_count
+    GROUP BY l.id, l.effective_campaign_id, camp.name, camp.is_active, l.outreach_count, l.email_outreach_count
   `;
   const byLeadId = new Map(rows.map((row) => [row.lead_id, row]));
   return leads.map((lead) => {
@@ -78,12 +95,14 @@ async function enrichCampaignStatus(leads: any[]) {
     const emailSent = Number(row.campaign_email_sent || lead.email_outreach_count || 0);
     const smsSteps = Number(row.campaign_sms_steps || 0);
     const emailSteps = Number(row.campaign_email_steps || 0);
-    const hasCampaign = Boolean(lead.campaign_id);
+    const campaignId = row.campaign_id || lead.campaign_id || null;
+    const hasCampaign = Boolean(campaignId);
     const hasSteps = smsSteps > 0 || emailSteps > 0;
     const campaignCompleted = hasCampaign && hasSteps && smsSent >= smsSteps && emailSent >= emailSteps;
     const campaignActiveNow = hasCampaign && row.campaign_is_active === true && !campaignCompleted && !lead.customer_responded && !lead.outreach_paused;
     return {
       ...lead,
+      campaign_id: campaignId,
       campaign_name: row.campaign_name || null,
       campaign_is_active: row.campaign_is_active ?? null,
       campaign_sms_sent: smsSent,
@@ -314,14 +333,15 @@ export async function GET(request: NextRequest) {
 
   leads = await enrichCampaignStatus(leads);
   if (campaignFilter === 'campaign_completed') {
-    // Completed is its own bucket so Dan can see who may need a different campaign next.
-    leads = leads.filter((lead) => lead.campaign_completed);
+    // Match the Campaigns > Assign Leads page: campaign management filters only cover assignable lead stages.
+    leads = leads.filter((lead) => ['new', 'contacted'].includes(lead.status) && lead.campaign_completed);
   } else if (campaignFilter === 'no_campaign') {
     // Unassigned only. Completed campaign leads must not fall into this bucket.
-    leads = leads.filter((lead) => !lead.campaign_id && !lead.campaign_completed);
+    // Match the Campaigns > Assign Leads page: campaign management filters only cover assignable lead stages.
+    leads = leads.filter((lead) => ['new', 'contacted'].includes(lead.status) && !lead.campaign_id && !lead.campaign_completed);
   } else if (campaignFilter === 'no_active') {
     // Backward compatibility for any old links/bookmarks.
-    leads = leads.filter((lead) => !lead.campaign_id || lead.campaign_completed);
+    leads = leads.filter((lead) => ['new', 'contacted'].includes(lead.status) && (!lead.campaign_id || lead.campaign_completed));
   }
 
   const leadIds = leads.map((lead) => lead.id);
