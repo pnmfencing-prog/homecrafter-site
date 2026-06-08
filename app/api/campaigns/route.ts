@@ -84,10 +84,29 @@ export async function GET(request: NextRequest) {
   let leads: any[] = [];
   if (includeLeads) {
     leads = await sql`
-      SELECT id, lead_code, customer_name, customer_phone, customer_email, source, status, campaign_id, outreach_count, customer_responded, outreach_paused, created_at
-      FROM crm_leads
-      WHERE status IN ('new','contacted')
-      ORDER BY created_at DESC
+      SELECT
+        l.id, l.lead_code, l.customer_name, l.customer_phone, l.customer_email, l.source, l.status,
+        l.campaign_id, l.outreach_count, l.email_outreach_count, l.customer_responded, l.outreach_paused, l.created_at,
+        camp.name AS campaign_name,
+        COALESCE(steps.sms_steps, 0)::int AS campaign_sms_steps,
+        COALESCE(steps.email_steps, 0)::int AS campaign_email_steps,
+        (
+          l.campaign_id IS NOT NULL
+          AND (COALESCE(steps.sms_steps, 0) > 0 OR COALESCE(steps.email_steps, 0) > 0)
+          AND COALESCE(l.outreach_count, 0) >= COALESCE(steps.sms_steps, 0)
+          AND COALESCE(l.email_outreach_count, 0) >= COALESCE(steps.email_steps, 0)
+        ) AS campaign_completed
+      FROM crm_leads l
+      LEFT JOIN crm_campaigns camp ON camp.id = l.campaign_id
+      LEFT JOIN LATERAL (
+        SELECT
+          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
+          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
+        FROM crm_campaign_messages
+        WHERE campaign_id = l.campaign_id AND is_active = true
+      ) steps ON true
+      WHERE l.status IN ('new','contacted')
+      ORDER BY l.created_at DESC
       LIMIT 500
     `;
   }
