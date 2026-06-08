@@ -333,15 +333,15 @@ export async function GET(request: NextRequest) {
 
   leads = await enrichCampaignStatus(leads);
   if (campaignFilter === 'campaign_completed') {
-    // Match the Campaigns > Assign Leads page: campaign management filters only cover assignable lead stages.
-    leads = leads.filter((lead) => ['new', 'contacted'].includes(lead.status) && lead.campaign_completed);
+    // Campaign filters cover the full lead lifecycle, matching the Campaigns page.
+    leads = leads.filter((lead) => lead.campaign_completed);
   } else if (campaignFilter === 'no_campaign') {
     // Unassigned only. Completed campaign leads must not fall into this bucket.
-    // Match the Campaigns > Assign Leads page: campaign management filters only cover assignable lead stages.
-    leads = leads.filter((lead) => ['new', 'contacted'].includes(lead.status) && !lead.campaign_id && !lead.campaign_completed);
+    // Campaign filters cover the full lead lifecycle, matching the Campaigns page.
+    leads = leads.filter((lead) => !lead.campaign_id && !lead.campaign_completed);
   } else if (campaignFilter === 'no_active') {
     // Backward compatibility for any old links/bookmarks.
-    leads = leads.filter((lead) => ['new', 'contacted'].includes(lead.status) && (!lead.campaign_id || lead.campaign_completed));
+    leads = leads.filter((lead) => !lead.campaign_id || lead.campaign_completed);
   }
 
   const leadIds = leads.map((lead) => lead.id);
