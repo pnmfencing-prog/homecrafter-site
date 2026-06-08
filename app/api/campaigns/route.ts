@@ -84,26 +84,42 @@ export async function GET(request: NextRequest) {
   let leads: any[] = [];
   if (includeLeads) {
     leads = await sql`
+      WITH default_angi_campaign AS (
+        SELECT id, name
+        FROM crm_campaigns
+        WHERE source = 'angi' AND is_default = true AND is_active = true
+        ORDER BY id ASC
+        LIMIT 1
+      ), lead_base AS (
+        SELECT
+          l.*,
+          CASE
+            WHEN l.campaign_id IS NOT NULL THEN l.campaign_id
+            WHEN l.source = 'angi' THEN (SELECT id FROM default_angi_campaign)
+            ELSE NULL
+          END AS effective_campaign_id
+        FROM crm_leads l
+      )
       SELECT
         l.id, l.lead_code, l.customer_name, l.customer_phone, l.customer_email, l.source, l.status,
-        l.campaign_id, l.outreach_count, l.email_outreach_count, l.customer_responded, l.outreach_paused, l.created_at,
+        l.effective_campaign_id AS campaign_id, l.outreach_count, l.email_outreach_count, l.customer_responded, l.outreach_paused, l.created_at,
         camp.name AS campaign_name,
         COALESCE(steps.sms_steps, 0)::int AS campaign_sms_steps,
         COALESCE(steps.email_steps, 0)::int AS campaign_email_steps,
         (
-          l.campaign_id IS NOT NULL
+          l.effective_campaign_id IS NOT NULL
           AND (COALESCE(steps.sms_steps, 0) > 0 OR COALESCE(steps.email_steps, 0) > 0)
           AND COALESCE(l.outreach_count, 0) >= COALESCE(steps.sms_steps, 0)
           AND COALESCE(l.email_outreach_count, 0) >= COALESCE(steps.email_steps, 0)
         ) AS campaign_completed
-      FROM crm_leads l
-      LEFT JOIN crm_campaigns camp ON camp.id = l.campaign_id
+      FROM lead_base l
+      LEFT JOIN crm_campaigns camp ON camp.id = l.effective_campaign_id
       LEFT JOIN LATERAL (
         SELECT
           COALESCE(MAX(step_number) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
           COALESCE(MAX(step_number) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
         FROM crm_campaign_messages
-        WHERE campaign_id = l.campaign_id AND is_active = true
+        WHERE campaign_id = l.effective_campaign_id AND is_active = true
       ) steps ON true
       WHERE l.status IN ('new','contacted')
       ORDER BY l.created_at DESC
