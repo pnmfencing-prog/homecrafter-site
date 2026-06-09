@@ -12,8 +12,10 @@ html { width: 100%; height: 100%; overflow: hidden; overscroll-behavior-x: none;
 body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--text); width: 100%; max-width: 100%; height: 100dvh; min-height: 100dvh; overflow: hidden; display: flex; flex-direction: column; touch-action: pan-y pinch-zoom; }
 
 .header { background: var(--midnight); padding: 1rem 1.25rem 1rem 4.25rem; display: flex; align-items: center; gap: 0.75rem; }
-.header-back { display:none; border:1px solid rgba(196,170,106,0.45); background:transparent; color:var(--gold); border-radius:999px; padding:0.38rem 0.7rem; font:700 0.68rem 'Montserrat',sans-serif; cursor:pointer; }
+.header-back { display:none; border:1px solid rgba(196,170,106,0.45); background:transparent; color:var(--gold); border-radius:999px; padding:0.38rem 0.7rem; font:700 0.68rem 'Montserrat',sans-serif; cursor:pointer; text-decoration:none; }
 .header-back.on { display:block; }
+.header-profile { display:none; border:1px solid rgba(196,170,106,0.45); background:rgba(255,255,255,0.06); color:var(--gold); border-radius:999px; padding:0.38rem 0.7rem; font:700 0.68rem 'Montserrat',sans-serif; cursor:pointer; text-decoration:none; white-space:nowrap; }
+.header-profile.on { display:inline-block; }
 .header-logo { font-size: 1rem; font-weight: 700; color: var(--gold); letter-spacing: 0.15em; }
 .header-info { font-size: 0.7rem; color: rgba(255,255,255,0.6); }
 .header-dot { width: 8px; height: 8px; border-radius: 50%; background: #2d8a4e; margin-left: auto; }
@@ -67,6 +69,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 
 <div class="header">
   <button type="button" class="header-back" id="backBtn" onclick="goBackToCrm()">← Back</button>
+  <a class="header-profile" id="profileBtn" href="/crm.html">Profile</a>
   <div>
     <div class="header-logo">PNM FENCING</div>
     <div class="header-info" id="headerInfo">Loading...</div>
@@ -198,6 +201,11 @@ function loadMessages() {
       document.getElementById('staffBanner').className = STAFF_MODE ? 'staff-banner on' : 'staff-banner';
       document.getElementById('staffTools').className = STAFF_MODE ? 'staff-tools on' : 'staff-tools';
       document.getElementById('backBtn').className = STAFF_MODE ? 'header-back on' : 'header-back';
+      var profileBtn = document.getElementById('profileBtn');
+      if (profileBtn) {
+        profileBtn.className = STAFF_MODE ? 'header-profile on' : 'header-profile';
+        profileBtn.href = '/crm.html?lead=' + encodeURIComponent(ACTIVE_LEAD_ID);
+      }
       updateUnreadButton();
       setChannel(CHANNEL);
       renderMessages(data);

@@ -126,6 +126,7 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('search');
   const id = searchParams.get('id');
   const campaignFilter = searchParams.get('campaign');
+  const flaggedOnly = searchParams.get('flagged') === '1';
 
   // Single lead with activity
   if (id) {
@@ -332,6 +333,10 @@ export async function GET(request: NextRequest) {
   }
 
   leads = await enrichCampaignStatus(leads);
+  if (flaggedOnly) {
+    leads = leads.filter((lead) => lead.flagged === true);
+  }
+
   if (campaignFilter === 'campaign_completed') {
     // Campaign filters cover the full lead lifecycle, matching the Campaigns page.
     leads = leads.filter((lead) => lead.campaign_completed);
@@ -450,6 +455,21 @@ export async function POST(request: NextRequest) {
     `;
     await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${result[0].id}, 'status_change', 'Lead created')`;
     return NextResponse.json({ success: true, lead: result[0] });
+  }
+
+  if (action === 'toggle_flag') {
+    const { id, flagged } = body;
+    const rows = await sql`
+      UPDATE crm_leads
+      SET flagged = ${Boolean(flagged)}, updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING id, flagged
+    `;
+    await sql`
+      INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+      VALUES (${id}, 'note', ${Boolean(flagged) ? '🚩 Project flagged' : 'Project unflagged'}, false, 'admin')
+    `;
+    return NextResponse.json({ success: true, lead: rows[0] });
   }
 
   if (action === 'update_status') {
