@@ -4,6 +4,8 @@ import sql from '@/lib/db';
 const DAN_PHONE = '9086924847';
 const DAN_PHONE_E164 = '+19086924847';
 const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
+const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
+const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
 const NEW_LEAD_REPLY = 'Hi, this is Scott with FenceCrafters. I was assigned as the estimator for your project.\n\nDid you by chance have a property survey or the total footage or section count?';
 const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
 const ANGRY_OPTOUT_RE = /\b(fuck off|f off|leave me alone|do not text|dont text|don't text|remove me|wrong number|not interested|no thanks?|no thank you|i'?m good|im good|i am good|all set|we'?re good|were good)\b/i;
@@ -32,6 +34,52 @@ function escapeXml(value: string): string {
 function isOptOutOrAngryReply(body: string): boolean {
   const normalized = body.trim();
   return HARD_OPTOUT_RE.test(normalized) || ANGRY_OPTOUT_RE.test(normalized);
+}
+
+function extensionFromMime(mimeType: string): string {
+  const clean = (mimeType || '').toLowerCase().split(';')[0].trim();
+  if (clean === 'image/jpeg' || clean === 'image/jpg') return 'jpg';
+  if (clean === 'image/png') return 'png';
+  if (clean === 'image/gif') return 'gif';
+  if (clean === 'image/webp') return 'webp';
+  if (clean === 'application/pdf') return 'pdf';
+  if (clean.includes('/')) return clean.split('/')[1].replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin';
+  return 'bin';
+}
+
+async function collectTwilioMedia(form: FormData): Promise<Array<{ fileName: string; mimeType: string; contentBase64: string; sizeBytes: number }>> {
+  const count = Math.min(Number(form.get('NumMedia') || 0) || 0, 10);
+  if (!count) return [];
+
+  const auth = TWILIO_SID && TWILIO_TOKEN ? Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64') : '';
+  const attachments = [];
+  for (let i = 0; i < count; i += 1) {
+    const mediaUrl = String(form.get(`MediaUrl${i}`) || '');
+    const mimeType = String(form.get(`MediaContentType${i}`) || 'application/octet-stream').slice(0, 120);
+    if (!mediaUrl) continue;
+
+    try {
+      const res = await fetch(mediaUrl, {
+        headers: auth ? { Authorization: `Basic ${auth}` } : undefined,
+      });
+      if (!res.ok) {
+        console.error(`Twilio media fetch failed (${res.status}) for ${mediaUrl}`);
+        continue;
+      }
+      const arrayBuffer = await res.arrayBuffer();
+      const buf = Buffer.from(arrayBuffer);
+      if (!buf.length) continue;
+      attachments.push({
+        fileName: `sms-attachment-${Date.now()}-${i + 1}.${extensionFromMime(mimeType)}`.slice(0, 180),
+        mimeType,
+        contentBase64: buf.toString('base64'),
+        sizeBytes: buf.length,
+      });
+    } catch (err) {
+      console.error('Twilio media fetch error', err);
+    }
+  }
+  return attachments;
 }
 
 async function findContractorByPhone(from: string): Promise<any | null> {
@@ -92,12 +140,13 @@ export async function POST(request: NextRequest) {
   const form = await request.formData();
   const from = String(form.get('From') || '');
   const body = String(form.get('Body') || '').trim();
+  const inboundAttachments = await collectTwilioMedia(form);
   let notificationText = '';
   let newLeadAutoReply = '';
   let suppressAnyReply = false;
   let lead: any = null;
 
-  if (from && body) {
+  if (from && (body || inboundAttachments.length)) {
     const contractor = await findContractorByPhone(from);
 
     if (contractor) {
@@ -109,8 +158,10 @@ export async function POST(request: NextRequest) {
     } else {
       const result = await findOrCreateLead(from);
       lead = result.lead;
-      const description = `📥 ${body}`;
-      suppressAnyReply = isOptOutOrAngryReply(body);
+      const attachmentSummary = inboundAttachments.length ? `📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : '';
+      const messageText = body || 'See attached.';
+      const description = `📥 ${messageText}${attachmentSummary ? `\n\n${attachmentSummary}` : ''}`;
+      suppressAnyReply = body ? isOptOutOrAngryReply(body) : false;
 
     // Avoid duplicate CRM entries if Twilio retries the webhook.
     const duplicate = await sql`
@@ -122,11 +173,30 @@ export async function POST(request: NextRequest) {
       LIMIT 1
     `;
 
-    if (!duplicate.length) {
-      await sql`
+    let activityId = duplicate[0]?.id;
+    if (!activityId) {
+      const inserted = await sql`
         INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
         VALUES (${lead.id}, 'sms', ${description}, true, 'customer_sms')
+        RETURNING id
       `;
+      activityId = inserted[0].id;
+    }
+
+    if (activityId && inboundAttachments.length) {
+      const existingAttachmentCount = await sql`
+        SELECT COUNT(*)::int AS count
+        FROM crm_attachments
+        WHERE crm_activity_id = ${activityId}
+      `;
+      if (Number(existingAttachmentCount[0]?.count || 0) === 0) {
+        for (const att of inboundAttachments) {
+          await sql`
+            INSERT INTO crm_attachments (crm_activity_id, crm_lead_id, file_name, mime_type, content_base64, size_bytes, direction)
+            VALUES (${activityId}, ${lead.id}, ${att.fileName}, ${att.mimeType}, ${att.contentBase64}, ${att.sizeBytes}, 'inbound')
+          `;
+        }
+      }
     }
 
     if (suppressAnyReply) {
@@ -158,7 +228,7 @@ export async function POST(request: NextRequest) {
     if (normalizePhone(from) !== DAN_PHONE) {
       const name = lead.customer_name || `Unknown texter ${formatPhone(from)}`;
       const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}`;
-      notificationText = `New PNM text from ${name} (${formatPhone(from)}): ${body}\n\nOpen thread: ${threadUrl}`;
+      notificationText = `New PNM text from ${name} (${formatPhone(from)}): ${body || '[attachment]'}${inboundAttachments.length ? `\n📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : ''}\n\nOpen thread: ${threadUrl}`;
 
       if (result.created && !suppressAnyReply) {
         newLeadAutoReply = NEW_LEAD_REPLY;
