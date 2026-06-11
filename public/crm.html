@@ -60,6 +60,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .rcvd-label { font-size: 0.58rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
 .rcvd-count { border: 1px solid #e0ddd6; background: #fff; color: var(--midnight); border-radius: 999px; padding: 0.24rem 0.5rem; font-size: 0.58rem; font-weight: 700; cursor: pointer; }
 .rcvd-count.has { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+.active-filter-pill { border: 1px solid #e0ddd6; background: #fff; color: var(--text-muted); border-radius: 999px; padding: 0.28rem 0.58rem; font-size: 0.58rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .search-box { flex: 1; min-width: 200px; padding: 0.6rem 1rem; border: 1px solid #e0ddd6; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; background: #fff; outline: none; }
 .search-box:focus { border-color: var(--gold); }
 .btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em; }
@@ -330,6 +331,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
     <button class="btn" data-mf="you" onclick="setMessageFilter('you')">Msg Sent</button>
     <button class="btn" data-mf="customer" onclick="setMessageFilter('customer')">Msg Rcvd</button>
   </div>
+  <button class="btn btn-outline" style="font-size:0.62rem;padding:0.38rem 0.65rem" onclick="resetCrmFilters()">Reset Filters</button>
+  <span class="active-filter-pill" id="activeFilterPill">Filters: All</span>
   <div class="rcvd-counts" id="rcvdCounts"></div>
 </div>
 <div class="tile-filter-bar" id="boardFilterBar">
@@ -672,6 +675,18 @@ function visibleLeadsForBoard() {
   return leads;
 }
 
+function renderActiveFilterPill() {
+  var el = document.getElementById('activeFilterPill');
+  if (!el) return;
+  var parts = [];
+  parts.push('Status: ' + (messageFilter !== 'all' ? 'All' : currentFilter));
+  parts.push('Read: ' + readFilter);
+  parts.push('Msgs: ' + (messageFilter === 'customer' ? 'Received' : messageFilter === 'you' ? 'Sent' : 'All'));
+  if (campaignFilter !== 'all') parts.push('Campaign: ' + campaignFilter.replace('_', ' '));
+  if (flaggedFilter) parts.push('Flagged');
+  el.textContent = 'Filters: ' + parts.join(' • ');
+}
+
 function renderStatsFromLeads(leads) {
   var s = { total: leads.length, pipeline_value: 0, total_revenue: 0 };
   COLUMNS.forEach(function(col) { s[col.key + '_count'] = 0; });
@@ -715,6 +730,7 @@ function renderRcvdCounts(visible) {
 }
 
 function renderBoard() {
+  renderActiveFilterPill();
   var html = '';
   var visible = visibleLeadsForBoard();
   renderStatsFromLeads(visible);
@@ -806,6 +822,22 @@ function setMessageFilter(filter) {
   }
   renderBoard();
   renderList();
+}
+
+function resetCrmFilters() {
+  currentFilter = 'all';
+  readFilter = 'all';
+  messageFilter = 'all';
+  campaignFilter = 'all';
+  flaggedFilter = false;
+  var searchEl = document.getElementById('searchBox');
+  if (searchEl) searchEl.value = '';
+  document.querySelectorAll('.message-filter .btn').forEach(function(b) { b.classList.toggle('active', b.dataset.mf === 'all'); });
+  document.querySelectorAll('.read-filter .btn').forEach(function(b) { b.classList.toggle('active', b.dataset.rf === 'all'); });
+  document.querySelectorAll('[data-cf]').forEach(function(b) { b.classList.remove('active'); });
+  var flaggedBtn = document.getElementById('flaggedFilterBtn');
+  if (flaggedBtn) flaggedBtn.classList.remove('active');
+  loadLeads();
 }
 
 function setColFilter(colKey, filter) {
