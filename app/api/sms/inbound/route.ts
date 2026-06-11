@@ -40,6 +40,40 @@ function isHardOptOutReply(body: string): boolean {
   return HARD_OPTOUT_RE.test(body.trim());
 }
 
+function classifyCustomerReply(body: string, attachmentCount = 0): 'promising_reply' | 'neutral_reply' {
+  const text = (body || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (attachmentCount > 0) return 'promising_reply';
+  if (!text) return 'neutral_reply';
+
+  const promisingPatterns = [
+    /\bsurvey\b/,
+    /\bfootage\b/,
+    /\bfeet\b/,
+    /\bft\b/,
+    /\bsections?\b/,
+    /\bgates?\b/,
+    /\bmeasure\b/,
+    /\bcome measure\b/,
+    /\bcall me\b/,
+    /\bgive me a call\b/,
+    /\bavailable\b/,
+    /\bappointment\b/,
+    /\breschedule\b/,
+    /\bquote\b/,
+    /\bpricing\b/,
+    /\bdamaged?\b/,
+    /\bpvc\b/,
+    /\bwood\b/,
+    /\bchain\s*link\b/,
+    /\baluminum\b/,
+    /\bvinyl\b/,
+    /\byes\b/,
+    /\b\d+\s*(sections?|gates?|feet|ft)\b/,
+  ];
+
+  return promisingPatterns.some((pattern) => pattern.test(text)) ? 'promising_reply' : 'neutral_reply';
+}
+
 function extensionFromMime(mimeType: string): string {
   const clean = (mimeType || '').toLowerCase().split(';')[0].trim();
   if (clean === 'image/jpeg' || clean === 'image/jpg') return 'jpg';
@@ -220,13 +254,18 @@ export async function POST(request: NextRequest) {
         WHERE id = ${lead.id}
       `;
     } else {
+      const replyStatus = classifyCustomerReply(body || '', inboundAttachments.length);
       await sql`
         UPDATE crm_leads
         SET customer_responded = true,
             is_read = false,
             last_message_by = 'customer',
             last_message_at = NOW(),
-            updated_at = NOW()
+            updated_at = NOW(),
+            status = CASE
+              WHEN status IN ('new', 'contacted', 'promising_reply', 'neutral_reply') THEN ${replyStatus}
+              ELSE status
+            END
         WHERE id = ${lead.id}
       `;
     }

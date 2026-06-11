@@ -27,13 +27,15 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .header-nav a:hover, .header-nav a.active { color: var(--gold); }
 
 /* Top stats */
-.stats-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem; padding: 1.25rem 1.25rem 0; max-width: 1400px; margin: 0 auto; }
+.stats-row { display: grid; grid-template-columns: repeat(9, 1fr); gap: 0.75rem; padding: 1.25rem 1.25rem 0; max-width: 1400px; margin: 0 auto; }
 .stat-pill { background: #fff; border-radius: 10px; padding: 1rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
 .stat-pill:hover { transform: translateY(-2px); }
 .stat-pill.active { border-color: var(--gold); }
 .stat-pill .num { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 700; line-height: 1; }
 .stat-pill .label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-top: 0.25rem; }
 .stat-pill.new .num { color: var(--blue); }
+.stat-pill.promising_reply .num { color: var(--green); }
+.stat-pill.neutral_reply .num { color: #64748b; }
 .stat-pill.contacted .num { color: var(--orange); }
 .stat-pill.quoted .num { color: #7c3aed; }
 .stat-pill.scheduled .num { color: var(--midnight); }
@@ -69,7 +71,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .btn-source.active { background: var(--midnight); color: var(--gold); }
 
 /* Kanban board */
-.board { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem; padding: 0 1.25rem 2rem; max-width: 1400px; margin: 0 auto; min-height: 60vh; }
+.board { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 0.75rem; padding: 0 1.25rem 2rem; max-width: 1800px; margin: 0 auto; min-height: 60vh; }
 .column { background: var(--cream-dark); border-radius: 12px; padding: 0.75rem; min-height: 300px; }
 .column-header { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); padding: 0.5rem 0.5rem 0.75rem; display: flex; justify-content: space-between; align-items: center; }
 .column-count { background: var(--midnight); color: var(--gold); font-size: 0.55rem; padding: 0.15rem 0.5rem; border-radius: 10px; }
@@ -144,6 +146,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .list-table tr:hover td { background: var(--cream); }
 .status-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 .status-badge.new { background: var(--blue-bg); color: var(--blue); }
+.status-badge.promising_reply { background: var(--green-bg); color: var(--green); }
+.status-badge.neutral_reply { background: #f1f5f9; color: #475569; }
 .status-badge.contacted { background: var(--orange-bg); color: var(--orange); }
 .status-badge.quoted { background: #f5f3ff; color: #7c3aed; }
 .status-badge.scheduled { background: #f0f0ff; color: var(--midnight); }
@@ -421,6 +425,8 @@ var CRM_REFRESH_MS = 30000; // light polling only while CRM tab is open
 
 var COLUMNS = [
   { key: 'new', label: 'New', color: '#2563eb' },
+  { key: 'promising_reply', label: 'Promising Replies', color: '#2d8a4e' },
+  { key: 'neutral_reply', label: 'Neutral Replies', color: '#64748b' },
   { key: 'contacted', label: 'Contacted', color: '#d97706' },
   { key: 'quoted', label: 'Quoted', color: '#7c3aed' },
   { key: 'scheduled', label: 'Scheduled', color: '#1e1845' },
@@ -1125,6 +1131,8 @@ function openLeadDetail(id, skipHistory) {
 function stagePickerHtml(id, currentStatus) {
   var stages = [
     { s: 'new', label: 'New' },
+    { s: 'promising_reply', label: 'Promising Replies' },
+    { s: 'neutral_reply', label: 'Neutral Replies' },
     { s: 'contacted', label: 'Contacted' },
     { s: 'quoted', label: 'Quoted' },
     { s: 'scheduled', label: 'Scheduled' },

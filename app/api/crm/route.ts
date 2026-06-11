@@ -395,6 +395,8 @@ export async function GET(request: NextRequest) {
   const stats = await sql`
     SELECT 
       count(*) FILTER (WHERE status = 'new')::int as new_count,
+      count(*) FILTER (WHERE status = 'promising_reply')::int as promising_reply_count,
+      count(*) FILTER (WHERE status = 'neutral_reply')::int as neutral_reply_count,
       count(*) FILTER (WHERE status = 'contacted')::int as contacted_count,
       count(*) FILTER (WHERE status = 'quoted')::int as quoted_count,
       count(*) FILTER (WHERE status = 'scheduled')::int as scheduled_count,
