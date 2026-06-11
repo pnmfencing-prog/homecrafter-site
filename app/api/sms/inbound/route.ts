@@ -36,6 +36,10 @@ function isOptOutOrAngryReply(body: string): boolean {
   return HARD_OPTOUT_RE.test(normalized) || ANGRY_OPTOUT_RE.test(normalized);
 }
 
+function isHardOptOutReply(body: string): boolean {
+  return HARD_OPTOUT_RE.test(body.trim());
+}
+
 function extensionFromMime(mimeType: string): string {
   const clean = (mimeType || '').toLowerCase().split(';')[0].trim();
   if (clean === 'image/jpeg' || clean === 'image/jpg') return 'jpg';
@@ -200,13 +204,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (suppressAnyReply) {
+      const hardOptOut = body ? isHardOptOutReply(body) : false;
       await sql`
         UPDATE crm_leads
         SET customer_responded = true,
             outreach_paused = true,
+            campaign_id = NULL,
             status = 'lost',
-            lost_reason = 'Opted out / negative SMS reply',
-            is_read = false,
+            lost_reason = ${hardOptOut ? 'SMS opt-out (STOP/END)' : 'Opted out / negative SMS reply'},
+            is_read = ${hardOptOut ? true : false},
             last_message_by = 'customer',
             last_message_at = NOW(),
             updated_at = NOW(),

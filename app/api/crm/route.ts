@@ -127,6 +127,7 @@ export async function GET(request: NextRequest) {
   const id = searchParams.get('id');
   const campaignFilter = searchParams.get('campaign');
   const flaggedOnly = searchParams.get('flagged') === '1';
+  const includeOptOuts = searchParams.get('include_optouts') === '1';
 
   // Single lead with activity
   if (id) {
@@ -333,6 +334,9 @@ export async function GET(request: NextRequest) {
   }
 
   leads = await enrichCampaignStatus(leads);
+  if (!includeOptOuts && !search) {
+    leads = leads.filter((lead) => lead.lost_reason !== 'SMS opt-out (STOP/END)');
+  }
   if (flaggedOnly) {
     leads = leads.filter((lead) => lead.flagged === true);
   }
