@@ -772,6 +772,7 @@ function setReadFilter(filter) {
     b.classList.toggle('active', b.dataset.rf === filter);
   });
   renderBoard();
+  renderList();
 }
 
 function setCampaignFilter(filter) {
@@ -795,6 +796,7 @@ function setMessageFilter(filter) {
     b.classList.toggle('active', b.dataset.mf === filter);
   });
   renderBoard();
+  renderList();
 }
 
 function setColFilter(colKey, filter) {
@@ -806,7 +808,7 @@ function renderList() {
   var html = '<table class="list-table"><thead><tr>' +
     '<th>Name</th><th>Phone</th><th>Service</th><th>Source</th><th>Status</th><th>Flag</th><th>Amount</th><th>Date</th>' +
     '</tr></thead><tbody>';
-  allLeads.forEach(function(l) {
+  visibleLeadsForBoard().forEach(function(l) {
     var amount = l.job_value ? '$' + Number(l.job_value).toLocaleString() : l.quoted_amount ? '$' + Number(l.quoted_amount).toLocaleString() : '—';
     var date = new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     html += '<tr onclick="openLeadDetail(' + l.id + ')" style="cursor:pointer">' +
