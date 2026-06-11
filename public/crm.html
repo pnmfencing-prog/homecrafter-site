@@ -125,8 +125,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .tile-template-select { width: 100%; border: 1px solid #e0ddd6; border-radius: 7px; background: #fff; color: var(--midnight); font-family: 'Montserrat', sans-serif; font-size: 0.62rem; font-weight: 650; padding: 0.34rem 0.42rem; outline: none; }
 .tile-template-select:focus, .tile-reply-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(196,170,106,0.12); }
 .tile-reply-row { display: flex; align-items: stretch; gap: 0.35rem; }
-.tile-reply-input { flex: 1; min-width: 0; resize: none; border: 1px solid #e0ddd6; border-radius: 8px; background: #fff; color: var(--midnight); font-family: 'Montserrat', sans-serif; font-size: 0.68rem; line-height: 1.35; padding: 0.38rem 0.45rem; min-height: 34px; max-height: 86px; outline: none; }
-.tile-send-btn { flex: 0 0 auto; border: 1px solid var(--midnight); border-radius: 8px; background: var(--midnight); color: var(--gold); font-family: 'Montserrat', sans-serif; font-size: 0.58rem; font-weight: 850; letter-spacing: 0.04em; text-transform: uppercase; padding: 0 0.55rem; cursor: pointer; }
+.tile-reply-input { flex: 1; width: 100%; min-width: 0; resize: none; border: 1px solid #e0ddd6; border-radius: 8px; background: #fff; color: var(--midnight); font-family: 'Montserrat', sans-serif; font-size: 0.68rem; line-height: 1.35; padding: 0.38rem 0.45rem; min-height: 34px; max-height: 86px; outline: none; }
+.tile-send-btn { flex: 0 0 auto; border: 1px solid var(--midnight); border-radius: 999px; background: var(--midnight); color: var(--gold); font-family: 'Montserrat', sans-serif; font-size: 0.55rem; font-weight: 850; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.16rem 0.5rem; cursor: pointer; white-space: nowrap; }
 .tile-send-btn:disabled { opacity: 0.55; cursor: wait; }
 .tile-reply-status { min-height: 0.75rem; font-size: 0.56rem; font-weight: 750; color: var(--text-muted); }
 .tile-reply-status.ok { color: var(--green); }
@@ -547,10 +547,13 @@ function tileQuickReplyHtml(l) {
     '</select>' +
     '<div class="tile-reply-row">' +
       '<textarea class="tile-reply-input" id="tile-reply-' + l.id + '" rows="1" placeholder="Reply…" oninput="autoGrowTextarea(this)" onkeydown="handleTileReplyKeydown(event,' + l.id + ')"></textarea>' +
-      '<button class="tile-send-btn" id="tile-send-' + l.id + '" onclick="sendTileQuickReply(event,' + l.id + ')">Send</button>' +
     '</div>' +
     '<div class="tile-reply-status" id="tile-reply-status-' + l.id + '"></div>' +
   '</div>';
+}
+function tileSendButtonHtml(l) {
+  if (!l.customer_phone || l.status === 'lost') return '';
+  return '<button class="tile-send-btn" id="tile-send-' + l.id + '" onclick="sendTileQuickReply(event,' + l.id + ')">Send</button>';
 }
 function messageAuthor(l) {
   if (l.latest_message_from_customer) return l.customer_name || 'Customer';
@@ -735,6 +738,7 @@ function renderBoard() {
         '<div class="message-preview">' + esc(msgPreview) + '</div>' : '';
       var calendarBadge = tileCalendarBadge(l);
       var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="openTileChat(event,' + l.id + ',\'' + escAttr(l.chat_token) + '\')" title="Open chat thread">💬 Chat</a>' : '';
+      var tileSendButton = tileSendButtonHtml(l);
       var campaignBadge = l.campaign_completed ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#ecfdf5;color:#047857;font-size:0.55rem;font-weight:900;letter-spacing:0.06em;text-transform:uppercase">Campaign Completed</div>' : (!l.campaign_id ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:0.55rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase">No Campaign Assigned</div>' : '');
       var quickReply = tileQuickReplyHtml(l);
       
@@ -748,7 +752,7 @@ function renderBoard() {
         amount +
         quickReply +
         '<div class="tile-footer"><div class="date">' + esc(activityDate) + ' · ' + esc(l.source || 'manual') + '</div>' +
-          '<div class="tile-actions">' + tileChatButton + '<button class="tile-note-btn' + (l.notes ? ' has-notes' : '') + '" onclick="editTileNotes(event,' + l.id + ')" title="Edit customer notes">📝 Notes</button></div></div>' +
+          '<div class="tile-actions">' + tileSendButton + tileChatButton + '<button class="tile-note-btn' + (l.notes ? ' has-notes' : '') + '" onclick="editTileNotes(event,' + l.id + ')" title="Edit customer notes">📝 Notes</button></div></div>' +
         '</div>';
     });
     html += '</div>';
