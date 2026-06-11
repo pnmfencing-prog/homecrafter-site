@@ -121,6 +121,16 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .tile-note-btn { border: 1px solid #e0ddd6; background: #fff; color: var(--midnight); border-radius: 999px; padding: 0.16rem 0.45rem; font-size: 0.55rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .tile-note-btn.has-notes { border-color: var(--gold); color: var(--midnight); background: rgba(196,170,106,0.12); }
 .tile-note-btn:hover { border-color: var(--gold); transform: translateY(-1px); }
+.tile-quick-reply { margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px solid #f0ede6; display: grid; gap: 0.35rem; cursor: default; }
+.tile-template-select { width: 100%; border: 1px solid #e0ddd6; border-radius: 7px; background: #fff; color: var(--midnight); font-family: 'Montserrat', sans-serif; font-size: 0.62rem; font-weight: 650; padding: 0.34rem 0.42rem; outline: none; }
+.tile-template-select:focus, .tile-reply-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(196,170,106,0.12); }
+.tile-reply-row { display: flex; align-items: stretch; gap: 0.35rem; }
+.tile-reply-input { flex: 1; min-width: 0; resize: none; border: 1px solid #e0ddd6; border-radius: 8px; background: #fff; color: var(--midnight); font-family: 'Montserrat', sans-serif; font-size: 0.68rem; line-height: 1.35; padding: 0.38rem 0.45rem; min-height: 34px; max-height: 86px; outline: none; }
+.tile-send-btn { flex: 0 0 auto; border: 1px solid var(--midnight); border-radius: 8px; background: var(--midnight); color: var(--gold); font-family: 'Montserrat', sans-serif; font-size: 0.58rem; font-weight: 850; letter-spacing: 0.04em; text-transform: uppercase; padding: 0 0.55rem; cursor: pointer; }
+.tile-send-btn:disabled { opacity: 0.55; cursor: wait; }
+.tile-reply-status { min-height: 0.75rem; font-size: 0.56rem; font-weight: 750; color: var(--text-muted); }
+.tile-reply-status.ok { color: var(--green); }
+.tile-reply-status.err { color: var(--red); }
 .tile-event-badge { display: inline-flex; align-items: center; gap: 0.25rem; margin-top: 0.35rem; padding: 0.22rem 0.5rem; max-width: 100%; border-radius: 999px; background: var(--blue-bg); color: var(--blue); font-size: 0.6rem; font-weight: 800; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-event-badge:hover { background: var(--midnight); color: var(--gold); }
 .tile-event-badge .event-text { overflow: hidden; text-overflow: ellipsis; }
@@ -419,6 +429,15 @@ var COLUMNS = [
   { key: 'lost', label: 'Lost', color: '#c0392b' },
 ];
 
+var TILE_REPLY_TEMPLATES = {
+  qualify: 'OK, no problem. What type of material were you looking for?\n\nDid you need any removal of existing wood or chain-link fencing?\n\nAlso, did you need any gates?',
+  survey: 'If you have a survey or rough footage/section count, feel free to send it over and I can take a look.',
+  call: 'No problem. What is a good day/time to quickly review the project over the phone?',
+  pricing: 'Thanks, I’ll review this and get back to you with pricing shortly.',
+  who: 'Hi, this is Scott with FenceCrafters. I was reaching out regarding your fence project.',
+  wrong: 'Sorry about that — I’ll remove this number from our follow-up list.'
+};
+
 function api(method, body) {
   var opts = { method: method || 'GET', headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } };
   if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
@@ -506,6 +525,32 @@ function tileActivityAt(l) {
 function tileActivityTime(l) {
   var d = new Date(tileActivityAt(l));
   return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
+function leadFullAddress(l) {
+  return [l.customer_address, l.customer_city, l.customer_state, l.customer_zip].filter(Boolean).join(', ');
+}
+
+function tileQuickReplyHtml(l) {
+  if (!l.customer_phone || l.status === 'lost') return '';
+  var hasAddress = !!leadFullAddress(l);
+  return '<div class="tile-quick-reply" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">' +
+    '<select class="tile-template-select" id="tile-template-' + l.id + '" onchange="applyTileTemplate(event,' + l.id + ')">' +
+      '<option value="">Template response…</option>' +
+      (hasAddress ? '<option value="address">Address from profile</option>' : '') +
+      '<option value="qualify">Ask material/removal/gates</option>' +
+      '<option value="survey">Ask for survey/footage</option>' +
+      '<option value="call">Ask best call time</option>' +
+      '<option value="pricing">Reviewing/pricing shortly</option>' +
+      '<option value="who">Who is this?</option>' +
+      '<option value="wrong">Remove/wrong number</option>' +
+    '</select>' +
+    '<div class="tile-reply-row">' +
+      '<textarea class="tile-reply-input" id="tile-reply-' + l.id + '" rows="1" placeholder="Reply…" oninput="autoGrowTextarea(this)" onkeydown="handleTileReplyKeydown(event,' + l.id + ')"></textarea>' +
+      '<button class="tile-send-btn" id="tile-send-' + l.id + '" onclick="sendTileQuickReply(event,' + l.id + ')">Send</button>' +
+    '</div>' +
+    '<div class="tile-reply-status" id="tile-reply-status-' + l.id + '"></div>' +
+  '</div>';
 }
 function messageAuthor(l) {
   if (l.latest_message_from_customer) return l.customer_name || 'Customer';
@@ -691,6 +736,7 @@ function renderBoard() {
       var calendarBadge = tileCalendarBadge(l);
       var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="openTileChat(event,' + l.id + ',\'' + escAttr(l.chat_token) + '\')" title="Open chat thread">💬 Chat</a>' : '';
       var campaignBadge = l.campaign_completed ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#ecfdf5;color:#047857;font-size:0.55rem;font-weight:900;letter-spacing:0.06em;text-transform:uppercase">Campaign Completed</div>' : (!l.campaign_id ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:0.55rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase">No Campaign Assigned</div>' : '');
+      var quickReply = tileQuickReplyHtml(l);
       
       html += '<div class="lead-card ' + sourceClass + unreadClass + flaggedClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="onLeadCardClick(event,' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" ontouchstart="onTouchDragStart(event)" ontouchmove="onTouchDragMove(event)" ontouchend="onTouchDragEnd(event)" ontouchcancel="onTouchDragEnd(event)">' +
         '<div class="name">' + flagBadge + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
@@ -700,6 +746,7 @@ function renderBoard() {
         '<div class="meta">' + (l.customer_phone ? '📞 ' + esc(l.customer_phone) : '') + '</div>' +
         calendarBadge +
         amount +
+        quickReply +
         '<div class="tile-footer"><div class="date">' + esc(activityDate) + ' · ' + esc(l.source || 'manual') + '</div>' +
           '<div class="tile-actions">' + tileChatButton + '<button class="tile-note-btn' + (l.notes ? ' has-notes' : '') + '" onclick="editTileNotes(event,' + l.id + ')" title="Edit customer notes">📝 Notes</button></div></div>' +
         '</div>';
@@ -1388,6 +1435,82 @@ function applyMessageTemplate(templateKey) {
   noteText.focus();
 }
 
+function tileTemplateText(lead, key) {
+  if (!key) return '';
+  if (key === 'address') {
+    var addr = leadFullAddress(lead);
+    return addr ? 'Hi, sorry for the confusion — this was for ' + addr + '.' : '';
+  }
+  return TILE_REPLY_TEMPLATES[key] || '';
+}
+
+function applyTileTemplate(event, id) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  var lead = allLeads.find(function(l) { return l.id === id; });
+  var sel = document.getElementById('tile-template-' + id);
+  var input = document.getElementById('tile-reply-' + id);
+  if (!lead || !sel || !input) return;
+  var text = tileTemplateText(lead, sel.value);
+  if (!text) return;
+  input.value = text;
+  sel.value = '';
+  autoGrowTextarea(input);
+  input.focus();
+}
+
+function signedSmsBody(text) {
+  var body = normalizeText(text || '').trim();
+  if (!body) return '';
+  if (!/FenceCrafters/i.test(body)) body += '\n\nScott\nFenceCrafters';
+  return body;
+}
+
+function setTileReplyStatus(id, message, kind) {
+  var el = document.getElementById('tile-reply-status-' + id);
+  if (!el) return;
+  el.className = 'tile-reply-status' + (kind ? ' ' + kind : '');
+  el.textContent = message || '';
+}
+
+function handleTileReplyKeydown(event, id) {
+  event.stopPropagation();
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendTileQuickReply(event, id);
+  }
+}
+
+function sendTileQuickReply(event, id) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  var input = document.getElementById('tile-reply-' + id);
+  var btn = document.getElementById('tile-send-' + id);
+  var body = signedSmsBody(input ? input.value : '');
+  if (!body) {
+    setTileReplyStatus(id, 'Type a reply first.', 'err');
+    if (input) input.focus();
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  setTileReplyStatus(id, 'Sending…', '');
+  fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: 'sms', description: '📤 ' + body }))
+    .then(function(r) { return r.json().then(function(d) { if (!r.ok || d.error) throw new Error(d.error || 'Could not send'); return d; }); })
+    .then(function() {
+      if (input) { input.value = ''; autoGrowTextarea(input); }
+      setTileReplyStatus(id, 'Sent ✓', 'ok');
+      loadLeads();
+    })
+    .catch(function(err) {
+      setTileReplyStatus(id, err.message || 'Could not send', 'err');
+      if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
+    });
+}
+
 function autoGrowTextarea(el) {
   if (!el) return;
   el.style.height = 'auto';
@@ -1546,10 +1669,17 @@ function onLeadCardClick(e, id) {
     suppressNextCardClick = false;
     return;
   }
+  if (e.target.closest('button, a, input, textarea, select, .tile-quick-reply')) {
+    return;
+  }
   openLeadDetail(id);
 }
 
 function onDragStart(e) {
+  if (e.target.closest('button, a, input, textarea, select, .tile-quick-reply')) {
+    e.preventDefault();
+    return;
+  }
   draggedId = e.target.dataset.id;
   draggedEl = e.target;
   e.target.classList.add('dragging');
