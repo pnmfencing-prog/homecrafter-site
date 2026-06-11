@@ -795,6 +795,14 @@ function setMessageFilter(filter) {
   document.querySelectorAll('.message-filter .btn').forEach(function(b) {
     b.classList.toggle('active', b.dataset.mf === filter);
   });
+  // Msg Rcvd / Msg Sent are cross-board workflow filters. If a status pill
+  // like New is active, it can hide Promising/Neutral and look like the filter
+  // is broken, so reset status filtering when switching message views.
+  if (filter !== 'all' && currentFilter !== 'all') {
+    currentFilter = 'all';
+    loadLeads();
+    return;
+  }
   renderBoard();
   renderList();
 }
