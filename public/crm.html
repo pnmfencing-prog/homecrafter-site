@@ -438,6 +438,14 @@ var COLUMNS = [
   { key: 'lost', label: 'Lost', color: '#c0392b' },
 ];
 
+function boardColumns() {
+  if (messageFilter !== 'customer') return COLUMNS;
+  var priority = { promising_reply: 0, neutral_reply: 1, quoted: 2, scheduled: 3, sold: 4, won: 5, contacted: 6, new: 7, lost: 8 };
+  return COLUMNS.slice().sort(function(a, b) {
+    return (priority[a.key] ?? 99) - (priority[b.key] ?? 99);
+  });
+}
+
 var TILE_REPLY_TEMPLATES = {
   qualify: 'OK, no problem. What type of material were you looking for?\n\nDid you need any removal of existing wood or chain-link fencing?\n\nAlso, did you need any gates?',
   survey: 'If you have a survey or rough footage/section count, feel free to send it over and I can take a look.',
@@ -722,7 +730,7 @@ function renderRcvdCounts(visible) {
   var label = messageFilter === 'customer' ? 'Rcvd by column' : messageFilter === 'you' ? 'Sent by column' : 'All by column';
   visible = visible || visibleLeadsForBoard();
   var html = '<span class="rcvd-label">' + label + '</span>';
-  COLUMNS.forEach(function(col) {
+  boardColumns().forEach(function(col) {
     var count = visible.filter(function(l) { return l.status === col.key; }).length;
     html += '<button class="rcvd-count' + (count ? ' has' : '') + '" onclick="scrollToStatus(\'' + col.key + '\')" title="Jump to ' + esc(col.label) + '">' + esc(col.label) + ': ' + count + '</button>';
   });
@@ -735,7 +743,7 @@ function renderBoard() {
   var visible = visibleLeadsForBoard();
   renderStatsFromLeads(visible);
   renderRcvdCounts(visible);
-  COLUMNS.forEach(function(col) {
+  boardColumns().forEach(function(col) {
     var leads = visible.filter(function(l) { return l.status === col.key; });
 
     // Keep the most recently active conversation at the top of each column.
@@ -781,6 +789,7 @@ function renderBoard() {
     html += '</div>';
   });
   document.getElementById('board').innerHTML = html;
+  initSwipeDots();
 }
 
 function setReadFilter(filter) {
@@ -1903,28 +1912,29 @@ document.getElementById('newLeadModal').addEventListener('click', function(e) { 
 function initSwipeDots() {
   var dotsEl = document.getElementById('swipeDots');
   if (!dotsEl || window.innerWidth > 768) { if (dotsEl) dotsEl.innerHTML = ''; return; }
-  dotsEl.innerHTML = COLUMNS.map(function(col, i) {
+  var cols = boardColumns();
+  dotsEl.innerHTML = cols.map(function(col, i) {
     return '<div class="swipe-dot' + (i === 0 ? ' active' : '') + '" data-idx="' + i + '" onclick="scrollToCol(' + i + ')">' + '</div>';
   }).join('');
   
   var board = document.getElementById('board');
-  board.addEventListener('scroll', function() {
-    var colWidth = board.scrollWidth / COLUMNS.length;
+  board.onscroll = function() {
+    var colWidth = board.scrollWidth / boardColumns().length;
     var activeIdx = Math.round(board.scrollLeft / colWidth);
     dotsEl.querySelectorAll('.swipe-dot').forEach(function(d, i) {
       d.classList.toggle('active', i === activeIdx);
     });
-  });
+  };
 }
 
 function scrollToCol(idx) {
   var board = document.getElementById('board');
-  var colWidth = board.scrollWidth / COLUMNS.length;
+  var colWidth = board.scrollWidth / boardColumns().length;
   board.scrollTo({ left: colWidth * idx, behavior: 'smooth' });
 }
 
 function scrollToStatus(status) {
-  var idx = COLUMNS.findIndex(function(col) { return col.key === status; });
+  var idx = boardColumns().findIndex(function(col) { return col.key === status; });
   if (idx >= 0) scrollToCol(idx);
 }
 
