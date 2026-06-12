@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { PNM_FENCING_EMAIL_SENDING_PAUSED, pnmFencingEmailPausedResponse } from '@/lib/email-policy';
 import { normalizeText, normalizeTrimmedText } from '@/lib/text';
 
 // GET — fetch messages for a chat token (customer-facing)
@@ -97,6 +98,9 @@ export async function POST(request: NextRequest) {
   const leadId = leads[0].id;
   if (channel === 'email' && !leads[0].customer_email) {
     return NextResponse.json({ error: 'Customer email missing' }, { status: 400 });
+  }
+  if (fromStaff && channel === 'email' && PNM_FENCING_EMAIL_SENDING_PAUSED) {
+    return NextResponse.json(pnmFencingEmailPausedResponse(), { status: 423 });
   }
 
   const desc = fromStaff && channel === 'email'

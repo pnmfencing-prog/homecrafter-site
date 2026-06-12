@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { PNM_FENCING_EMAIL_SENDING_PAUSED, pnmFencingEmailPausedResponse } from '@/lib/email-policy';
 
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
@@ -19,6 +20,9 @@ export async function POST(request: NextRequest) {
 
   const p = proposals[0];
   if (!p.client_email) return NextResponse.json({ error: 'No client email on this proposal' }, { status: 400 });
+  if (PNM_FENCING_EMAIL_SENDING_PAUSED) {
+    return NextResponse.json(pnmFencingEmailPausedResponse(), { status: 423 });
+  }
 
   const spot = Number(p.spot_holding_fee ?? 150);
   const gateText = p.gate_count > 0 ? `${p.gate_count} gate${p.gate_count > 1 ? 's' : ''}` : 'no gates';

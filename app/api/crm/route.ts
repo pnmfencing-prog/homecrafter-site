@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { PNM_FENCING_EMAIL_SENDING_PAUSED, pnmFencingEmailPausedResponse } from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
 
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
@@ -556,6 +557,10 @@ export async function POST(request: NextRequest) {
     const description = normalizeText(body.description || '');
     const attachments = Array.isArray(body.attachments) ? body.attachments : [];
     const isFromCustomer = description?.startsWith('📥') || false;
+
+    if (activity_type === 'email' && !isFromCustomer && PNM_FENCING_EMAIL_SENDING_PAUSED) {
+      return NextResponse.json(pnmFencingEmailPausedResponse(), { status: 423 });
+    }
 
     if (activity_type === 'sms' && !isFromCustomer) {
       const leads = await sql`SELECT customer_phone FROM crm_leads WHERE id = ${id} LIMIT 1`;

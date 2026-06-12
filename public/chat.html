@@ -111,6 +111,7 @@ var STAFF_MODE = params.get('staff') === '1';
 var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
 var pollTimer = null;
 var CHANNEL = 'sms';
+var PNM_EMAIL_SENDING_PAUSED = true;
 var ACTIVE_LEAD_ID = null;
 var ACTIVE_IS_READ = true;
 var MARK_READ_ON_NEXT_LOAD = STAFF_MODE;
@@ -155,9 +156,15 @@ function renderMessages(data) {
 }
 
 function setChannel(channel) {
+  if (channel === 'email' && PNM_EMAIL_SENDING_PAUSED) {
+    alert('PNM Fencing email sending is paused for now. Use SMS until Brevo-only email is approved.');
+    channel = 'sms';
+  }
   CHANNEL = channel === 'email' ? 'email' : 'sms';
   document.getElementById('modeText').className = CHANNEL === 'sms' ? 'active' : '';
   document.getElementById('modeEmail').className = CHANNEL === 'email' ? 'active' : '';
+  document.getElementById('modeEmail').disabled = PNM_EMAIL_SENDING_PAUSED;
+  if (PNM_EMAIL_SENDING_PAUSED) document.getElementById('modeEmail').title = 'PNM Fencing email sending is paused';
   document.getElementById('subjectRow').className = CHANNEL === 'email' ? 'subject-row on' : 'subject-row';
   document.getElementById('msgInput').placeholder = CHANNEL === 'email' ? 'Type email body...' : (STAFF_MODE ? 'Reply as PNM Fencing...' : 'Type a message...');
 }
