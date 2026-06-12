@@ -178,6 +178,7 @@ export async function POST(request: NextRequest) {
   const form = await request.formData();
   const from = String(form.get('From') || '');
   const body = String(form.get('Body') || '').trim();
+  const expectedMediaCount = Math.min(Number(form.get('NumMedia') || 0) || 0, 10);
   const inboundAttachments = await collectTwilioMedia(form);
   let notificationText = '';
   let newLeadAutoReply = '';
@@ -196,8 +197,10 @@ export async function POST(request: NextRequest) {
     } else {
       const result = await findOrCreateLead(from);
       lead = result.lead;
-      const attachmentSummary = inboundAttachments.length ? `📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : '';
-      const messageText = body || 'See attached.';
+      const attachmentSummary = inboundAttachments.length
+        ? `📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}`
+        : (expectedMediaCount ? `⚠️ Customer sent ${expectedMediaCount} media attachment${expectedMediaCount === 1 ? '' : 's'}, but the file${expectedMediaCount === 1 ? '' : 's'} could not be retrieved from Twilio.` : '');
+      const messageText = body || (expectedMediaCount ? 'Customer sent media.' : 'See attached.');
       const description = `📥 ${messageText}${attachmentSummary ? `\n\n${attachmentSummary}` : ''}`;
       suppressAnyReply = body ? isOptOutOrAngryReply(body) : false;
 
