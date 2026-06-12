@@ -128,6 +128,14 @@ export async function GET(request: NextRequest) {
   const campaignFilter = searchParams.get('campaign');
   const flaggedOnly = searchParams.get('flagged') === '1';
   const includeOptOuts = searchParams.get('include_optouts') === '1';
+  const maxPerStatusParam = parseInt(searchParams.get('max_per_status') || '', 10);
+  const maxPerStatus = Number.isFinite(maxPerStatusParam) && maxPerStatusParam > 0
+    ? Math.min(maxPerStatusParam, 500)
+    : null;
+  const limitParam = parseInt(searchParams.get('limit') || '', 10);
+  const resultLimit = Number.isFinite(limitParam) && limitParam > 0
+    ? Math.min(limitParam, 1000)
+    : null;
 
   // Single lead with activity
   if (id) {
@@ -317,6 +325,28 @@ export async function GET(request: NextRequest) {
             )
         )
       ORDER BY l.created_at DESC`;
+  } else if (maxPerStatus) {
+    leads = await sql`
+      WITH lead_rows AS (
+        SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+               latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
+               latest.activity_type AS latest_message_type,
+               ROW_NUMBER() OVER (
+                 PARTITION BY COALESCE(l.status, 'new')
+                 ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
+               ) AS status_rank
+        FROM crm_leads l
+        LEFT JOIN LATERAL (
+          SELECT description, created_at, is_from_customer, created_by, activity_type
+          FROM crm_activity
+          WHERE crm_lead_id = l.id AND activity_type IN ('sms', 'email')
+          ORDER BY created_at DESC
+          LIMIT 1
+        ) latest ON true
+      )
+      SELECT * FROM lead_rows
+      WHERE status_rank <= ${maxPerStatus}
+      ORDER BY created_at DESC`;
   } else {
     leads = await sql`
       SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
@@ -331,6 +361,10 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       ORDER BY l.created_at DESC`;
+  }
+
+  if (resultLimit && leads.length > resultLimit) {
+    leads = leads.slice(0, resultLimit);
   }
 
   leads = await enrichCampaignStatus(leads);
