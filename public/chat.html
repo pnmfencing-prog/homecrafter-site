@@ -30,8 +30,10 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .msg.out .bubble { background: var(--midnight); color: #fff; border-radius: 14px 14px 4px 14px; }
 .msg.in .bubble { background: #fff; color: var(--text); border-radius: 14px 14px 14px 4px; }
 .msg .time { font-size: 0.55rem; color: #aaa; margin-top: 0.2rem; }
-.attachments { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.5rem; }
-.attachment-img { display: block; max-width: min(220px, 100%); max-height: 240px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.08); object-fit: cover; }
+.attachments { display: flex; gap: 0.55rem; flex-wrap: wrap; margin-top: 0.65rem; }
+.attachment-card { display: block; max-width: min(240px, 100%); text-decoration: none; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.96); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.attachment-img { display: block; width: 100%; max-width: min(240px, 100%); max-height: 260px; object-fit: cover; background: #f5f3ee; }
+.attachment-caption { display: block; padding: 0.32rem 0.5rem; color: var(--midnight); font-size: 0.66rem; font-weight: 800; letter-spacing: 0.02em; }
 .attachment-link { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.55rem; border-radius: 8px; background: rgba(255,255,255,0.92); border: 1px solid #e0ddd6; color: var(--midnight); font-size: 0.72rem; text-decoration: none; font-weight: 600; }
 .msg.out .attachment-link { color: var(--gold); background: rgba(255,255,255,0.08); border-color: rgba(196,170,106,0.35); }
 
@@ -129,10 +131,10 @@ function esc(value) {
 function renderAttachments(attachments) {
   if (!attachments || !attachments.length) return '';
   return '<div class="attachments">' + attachments.map(function(att) {
-    var url = '/api/crm-attachments/' + encodeURIComponent(att.id);
+    var url = '/api/crm-attachments/' + encodeURIComponent(att.id) + '?v=' + encodeURIComponent(att.size_bytes || att.id);
     var name = esc(att.file_name || 'attachment');
     if ((att.mime_type || '').indexOf('image/') === 0) {
-      return '<a href="' + url + '" target="_blank" rel="noopener"><img class="attachment-img" src="' + url + '" alt="' + name + '"></a>';
+      return '<a class="attachment-card" href="' + url + '" target="_blank" rel="noopener"><img class="attachment-img" src="' + url + '" alt="' + name + '" loading="lazy"><span class="attachment-caption">📷 View image</span></a>';
     }
     return '<a class="attachment-link" href="' + url + '" target="_blank" rel="noopener">📎 ' + name + '</a>';
   }).join('') + '</div>';
