@@ -668,8 +668,9 @@ function loadLeads() {
   var searchEl = document.getElementById('searchBox');
   var search = searchEl ? searchEl.value : '';
   if (search) params += '&search=' + encodeURIComponent(search);
-  if (!search && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=150';
-  if (!search && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=500';
+  var hasClientSideWorkflowFilter = readFilter !== 'all' || messageFilter !== 'all';
+  if (!search && !hasClientSideWorkflowFilter && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=150';
+  if (!search && !hasClientSideWorkflowFilter && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=500';
 
   return fetch('/api/crm' + params, api('GET'))
     .then(function(r) { return r.json(); })
