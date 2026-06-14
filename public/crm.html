@@ -40,6 +40,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .stat-pill.quoted .num { color: #7c3aed; }
 .stat-pill.scheduled .num { color: var(--midnight); }
 .stat-pill.won .num { color: var(--green); }
+.stat-pill.sold .num { color: #16a34a; }
 .stat-pill.lost .num { color: var(--red); }
 
 /* Revenue bar */
@@ -153,6 +154,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .status-badge.quoted { background: #f5f3ff; color: #7c3aed; }
 .status-badge.scheduled { background: #f0f0ff; color: var(--midnight); }
 .status-badge.won { background: var(--green-bg); color: var(--green); }
+.status-badge.sold { background: #ecfdf5; color: #16a34a; }
 .status-badge.lost { background: var(--red-bg); color: var(--red); }
 
 /* Modal / detail page */
@@ -1200,6 +1202,7 @@ function stagePickerHtml(id, currentStatus) {
     { s: 'quoted', label: 'Quoted' },
     { s: 'scheduled', label: 'Scheduled' },
     { s: 'won', label: 'Won' },
+    { s: 'sold', label: 'Sold' },
     { s: 'lost', label: 'Lost' }
   ];
   return '<div class="stage-picker">' +

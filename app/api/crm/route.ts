@@ -436,9 +436,10 @@ export async function GET(request: NextRequest) {
       count(*) FILTER (WHERE status = 'quoted')::int as quoted_count,
       count(*) FILTER (WHERE status = 'scheduled')::int as scheduled_count,
       count(*) FILTER (WHERE status = 'won')::int as won_count,
+      count(*) FILTER (WHERE status = 'sold')::int as sold_count,
       count(*) FILTER (WHERE status = 'lost')::int as lost_count,
       count(*)::int as total,
-      coalesce(sum(job_value) FILTER (WHERE status = 'won'), 0)::numeric as total_revenue,
+      coalesce(sum(job_value) FILTER (WHERE status IN ('won', 'sold')), 0)::numeric as total_revenue,
       coalesce(sum(quoted_amount) FILTER (WHERE status IN ('quoted','scheduled')), 0)::numeric as pipeline_value
     FROM crm_leads
   `;
