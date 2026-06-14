@@ -444,11 +444,19 @@ var COLUMNS = [
   { key: 'sold', label: 'Sold', color: '#16a34a' },
   { key: 'lost', label: 'Lost', color: '#c0392b' },
 ];
+var FIXED_BOARD_COLUMN_KEYS = ['new', 'promising_reply', 'neutral_reply', 'contacted', 'quoted', 'scheduled', 'won', 'sold', 'lost'];
+
+function allBoardColumns() {
+  return FIXED_BOARD_COLUMN_KEYS.map(function(key) {
+    return COLUMNS.find(function(col) { return col.key === key; });
+  }).filter(Boolean);
+}
 
 function boardColumns() {
-  if (messageFilter !== 'customer') return COLUMNS;
+  var cols = allBoardColumns();
+  if (messageFilter !== 'customer') return cols;
   var priority = { promising_reply: 0, neutral_reply: 1, quoted: 2, scheduled: 3, sold: 4, won: 5, contacted: 6, new: 7, lost: 8 };
-  return COLUMNS.slice().sort(function(a, b) {
+  return cols.slice().sort(function(a, b) {
     return (priority[a.key] ?? 99) - (priority[b.key] ?? 99);
   });
 }
@@ -710,10 +718,10 @@ function renderActiveFilterPill() {
 
 function renderStatsFromLeads(leads) {
   var s = { total: leads.length, pipeline_value: 0, total_revenue: 0 };
-  COLUMNS.forEach(function(col) { s[col.key + '_count'] = 0; });
+  allBoardColumns().forEach(function(col) { s[col.key + '_count'] = 0; });
   leads.forEach(function(l) {
     s[(l.status || 'new') + '_count'] = (s[(l.status || 'new') + '_count'] || 0) + 1;
-    if (l.status === 'won') s.total_revenue += Number(l.job_value || 0);
+    if (l.status === 'won' || l.status === 'sold') s.total_revenue += Number(l.job_value || 0);
     if (l.status === 'quoted' || l.status === 'scheduled') s.pipeline_value += Number(l.quoted_amount || 0);
   });
   renderStats(s);
@@ -722,7 +730,7 @@ function renderStatsFromLeads(leads) {
 function renderStats(s) {
   if (!s) return;
   var html = '';
-  COLUMNS.forEach(function(col) {
+  allBoardColumns().forEach(function(col) {
     var count = s[col.key + '_count'] || 0;
     var isActive = currentFilter === col.key ? ' active' : '';
     html += '<div class="stat-pill ' + col.key + isActive + '" onclick="filterByStatus(\'' + col.key + '\')">' +
