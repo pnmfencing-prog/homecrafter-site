@@ -455,7 +455,9 @@ function allBoardColumns() {
 function boardColumns() {
   var cols = allBoardColumns();
   if (messageFilter !== 'customer') return cols;
-  var priority = { promising_reply: 0, neutral_reply: 1, quoted: 2, scheduled: 3, sold: 4, won: 5, contacted: 6, new: 7, lost: 8 };
+  // In Msg Rcvd mode, keep New first so fresh replies that have not been
+  // triaged yet do not appear to disappear off to the far right.
+  var priority = { new: 0, promising_reply: 1, neutral_reply: 2, contacted: 3, quoted: 4, scheduled: 5, sold: 6, won: 7, lost: 8 };
   return cols.slice().sort(function(a, b) {
     return (priority[a.key] ?? 99) - (priority[b.key] ?? 99);
   });
