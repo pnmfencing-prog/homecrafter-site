@@ -378,8 +378,10 @@ export async function GET(request: NextRequest) {
     leads = leads.filter((lead) => lead.last_message_by === 'you' || lead.last_message_by === 'company');
   }
 
-  if (resultLimit && leads.length > resultLimit) {
-    leads = leads.slice(0, resultLimit);
+  const workflowDefaultLimit = !resultLimit && !search && messageFilter === 'you' ? 500 : null;
+  const effectiveResultLimit = resultLimit || workflowDefaultLimit;
+  if (effectiveResultLimit && leads.length > effectiveResultLimit) {
+    leads = leads.slice(0, effectiveResultLimit);
   }
 
   leads = await enrichCampaignStatus(leads);
