@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const category = sp.get('category') || '';
     const county = sp.get('county') || '';
     const search = sp.get('search') || '';
+    const searchDigits = search.replace(/\D/g, '');
     const hasEmail = sp.get('hasEmail') || '';
     const hasPhone = sp.get('hasPhone') || '';
     const minRating = parseFloat(sp.get('minRating') || '0');
@@ -18,7 +19,15 @@ export async function GET(req: NextRequest) {
     const countResult = await sql`SELECT COUNT(*)::int as total FROM contractors
       WHERE (${category} = '' OR category = ${category})
         AND (${county} = '' OR county = ${county})
-        AND (${search} = '' OR name ILIKE ${'%' + search + '%'} OR email ILIKE ${'%' + search + '%'} OR phone ILIKE ${'%' + search + '%'})
+        AND (${search} = ''
+          OR name ILIKE ${'%' + search + '%'}
+          OR email ILIKE ${'%' + search + '%'}
+          OR phone ILIKE ${'%' + search + '%'}
+          OR website ILIKE ${'%' + search + '%'}
+          OR address ILIKE ${'%' + search + '%'}
+          OR zip ILIKE ${'%' + search + '%'}
+          OR (${searchDigits} != '' AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') LIKE ${'%' + searchDigits + '%'})
+        )
         AND (${hasEmail} = '' OR (${hasEmail} = 'yes' AND email IS NOT NULL AND email != '') OR (${hasEmail} = 'no' AND (email IS NULL OR email = '')))
         AND (${hasPhone} = '' OR (${hasPhone} = 'yes' AND phone IS NOT NULL AND phone != '') OR (${hasPhone} = 'no' AND (phone IS NULL OR phone = '')))
         AND rating >= ${minRating}`;
@@ -29,7 +38,15 @@ export async function GET(req: NextRequest) {
       FROM contractors
       WHERE (${category} = '' OR category = ${category})
         AND (${county} = '' OR county = ${county})
-        AND (${search} = '' OR name ILIKE ${'%' + search + '%'} OR email ILIKE ${'%' + search + '%'} OR phone ILIKE ${'%' + search + '%'})
+        AND (${search} = ''
+          OR name ILIKE ${'%' + search + '%'}
+          OR email ILIKE ${'%' + search + '%'}
+          OR phone ILIKE ${'%' + search + '%'}
+          OR website ILIKE ${'%' + search + '%'}
+          OR address ILIKE ${'%' + search + '%'}
+          OR zip ILIKE ${'%' + search + '%'}
+          OR (${searchDigits} != '' AND regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g') LIKE ${'%' + searchDigits + '%'})
+        )
         AND (${hasEmail} = '' OR (${hasEmail} = 'yes' AND email IS NOT NULL AND email != '') OR (${hasEmail} = 'no' AND (email IS NULL OR email = '')))
         AND (${hasPhone} = '' OR (${hasPhone} = 'yes' AND phone IS NOT NULL AND phone != '') OR (${hasPhone} = 'no' AND (phone IS NULL OR phone = '')))
         AND rating >= ${minRating}
