@@ -127,6 +127,8 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('search');
   const id = searchParams.get('id');
   const campaignFilter = searchParams.get('campaign');
+  const readFilter = searchParams.get('read');
+  const messageFilter = searchParams.get('message');
   const flaggedOnly = searchParams.get('flagged') === '1';
   const includeOptOuts = searchParams.get('include_optouts') === '1';
   const maxPerStatusParam = parseInt(searchParams.get('max_per_status') || '', 10);
@@ -362,6 +364,18 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       ORDER BY l.created_at DESC`;
+  }
+
+  if (readFilter === 'unread') {
+    leads = leads.filter((lead) => lead.is_read !== true);
+  } else if (readFilter === 'read') {
+    leads = leads.filter((lead) => lead.is_read === true);
+  }
+
+  if (messageFilter === 'customer') {
+    leads = leads.filter((lead) => lead.last_message_by === 'customer');
+  } else if (messageFilter === 'you') {
+    leads = leads.filter((lead) => lead.last_message_by === 'you' || lead.last_message_by === 'company');
   }
 
   if (resultLimit && leads.length > resultLimit) {

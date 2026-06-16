@@ -616,7 +616,7 @@ function openNewEvent(dateStr) {
   document.getElementById('proposalSection').style.display = 'none';
   
   // Load CRM leads for dropdown
-  fetch('/api/crm', api('GET')).then(function(r) { return r.json(); }).then(function(data) {
+  fetch('/api/crm?limit=500', api('GET')).then(function(r) { return r.json(); }).then(function(data) {
     crmLeads = data.leads || [];
     populateLeadDropdown('');
   });
@@ -742,7 +742,7 @@ function editEvent(id) {
   document.getElementById('ev-allday').checked = event.all_day || false;
   
   // Load CRM leads for dropdown
-  fetch('/api/crm', api('GET')).then(function(r) { return r.json(); }).then(function(data) {
+  fetch('/api/crm?limit=500', api('GET')).then(function(r) { return r.json(); }).then(function(data) {
     crmLeads = data.leads || [];
     populateLeadDropdown(event.crm_lead_id || '');
   });
