@@ -35,8 +35,26 @@ export async function GET(request: NextRequest) {
   // Generate PDF HTML for viewing in browser
   const spot = Number(p.spot_holding_fee ?? 150);
   const gateText = p.gate_count > 0 ? `${p.gate_count} GATE${p.gate_count > 1 ? 'S' : ''}` : 'NO GATES';
-  const removalIncluded = Number(p.removal_footage || 0) > 0 || /removal of existing|removal included|remove existing/i.test(p.description_override || '');
-  const standardTerms = `Disposal of packing materials included.
+  const descriptionText = normalizeText(p.description_override || `Supply and install up to approximately ${p.footage} linear feet of ${p.height} high ${(p.color || 'WHITE').toUpperCase()} ${p.material || 'vinyl'} solid privacy fencing ${gateText}
+7" heavy duty rails
+Standard post caps
+${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type || 'existing fence'} included.` : ''}`);
+  const isLaborOnly = /labor[-\s]?only|customer(?:s)?\s+(?:to\s+)?supply|customer(?:s)?\s+supplies|supply all materials/i.test(descriptionText)
+    || /labor/i.test(String(p.material || ''));
+  const removalIncluded = Number(p.removal_footage || 0) > 0 || /removal of existing|removal included|remove existing/i.test(descriptionText || '');
+  const standardTerms = isLaborOnly ? `Labor only. Customer to supply all materials, including posts, panels/sections, gates, hardware, concrete, and any miscellaneous materials required.
+No removal of existing fencing.
+No disposal included.
+No material delivery included.
+PNM Fencing to supply labor only for installation of up to 25 posts.
+
+Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete.
+Utility mark-out Included.
+
+PNM not responsible for unmarked sprinkler lines and miscellaneous pipes.
+
+Fence to follow grade of ground. Footing soil dispersed around posts/sections. PNM not responsible for earth settling.`
+    : `Disposal of packing materials included.
 ${removalIncluded ? 'Removal of old fencing included.' : 'No removal of old fencing.'}
 Delivery included.
 Concrete on all posts*
@@ -110,10 +128,7 @@ ${p.redacted ? `
 ` : `
 <div class="item-header"><span>Description</span><span>Amount</span></div>
 
-<div class="description">${normalizeText(p.description_override || `Supply and install up to approximately ${p.footage} linear feet of ${p.height} high ${(p.color || 'WHITE').toUpperCase()} ${p.material || 'vinyl'} solid privacy fencing ${gateText}
-7" heavy duty rails
-Standard post caps
-${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type || 'existing fence'} included.` : ''}`)}</div>
+<div class="description">${descriptionText}</div>
 
 <div class="description" style="margin-top:12px">${normalizeText(standardTerms)}</div>
 
@@ -130,11 +145,11 @@ ${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type
 
 <div class="notes">
   <h3>Notes</h3>
-  <p>Payment terms: deposit paid in advance: $${Number(p.deposit || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}${spot > 0 ? ` ($${Number(spot).toFixed(2)} spot holding fee supplied and applied to grand total)` : ''}</p>
+  <p>${isLaborOnly ? 'Payment terms: three equal installments. First installment due in advance:' : 'Payment terms: deposit paid in advance:'} $${Number(p.deposit || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}${spot > 0 ? ` ($${Number(spot).toFixed(2)} spot holding fee supplied and applied to grand total)` : ''}</p>
   <p>By supplying the initial deposit above, the customer understands and agrees to abide by all of the terms and conditions set forth in this agreement.</p>
-  <p>Second installment due upon material delivery to above referenced job site address in the amount of: $${Number(p.installment_2 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+  <p>${isLaborOnly ? 'Second installment due during installation in the amount of:' : 'Second installment due upon material delivery to above referenced job site address in the amount of:'} $${Number(p.installment_2 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
   <p>Remaining balance due upon day of installation completion in the amount of: $${Number(p.installment_3 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
-  <p>All materials remain property of PNM Fencing NJ LLC until final payment has been satisfied. If final payment is not satisfied upon install completion, PNM Fencing NJ LLC reserves the right to remove provided materials at customer's expense.</p>
+  ${isLaborOnly ? '' : '<p>All materials remain property of PNM Fencing NJ LLC until final payment has been satisfied. If final payment is not satisfied upon install completion, PNM Fencing NJ LLC reserves the right to remove provided materials at customer\'s expense.</p>'}
   <p>All past due balances will be assessed with a penalty interest rate of 28% APR.</p>
   <p style="margin-top:10px">Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete. Utility mark-out Included.</p>
   <p>PNM not responsible for unmarked sprinkler lines and miscellaneous pipes.</p>
