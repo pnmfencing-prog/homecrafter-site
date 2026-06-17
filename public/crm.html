@@ -682,7 +682,7 @@ function loadLeads() {
   if (search) params += '&search=' + encodeURIComponent(search);
   if (readFilter !== 'all') params += '&read=' + encodeURIComponent(readFilter);
   if (messageFilter !== 'all') params += '&message=' + encodeURIComponent(messageFilter);
-  var hasWorkflowFilter = readFilter !== 'all' || messageFilter !== 'all';
+  var hasWorkflowFilter = readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter;
   if (!search && !hasWorkflowFilter && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=150';
   if (!search && !hasWorkflowFilter && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=500';
   if (!search && hasWorkflowFilter && readFilter === 'read' && messageFilter === 'all') params += '&limit=500';
@@ -821,7 +821,7 @@ function renderBoard() {
 
 function setReadFilter(filter) {
   readFilter = filter;
-  document.querySelectorAll('.read-filter .btn').forEach(function(b) {
+  document.querySelectorAll('[data-rf]').forEach(function(b) {
     b.classList.toggle('active', b.dataset.rf === filter);
   });
   renderBoard();
