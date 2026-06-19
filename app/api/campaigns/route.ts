@@ -21,6 +21,9 @@ async function ensureSchema() {
       source TEXT,
       is_active BOOLEAN NOT NULL DEFAULT true,
       is_default BOOLEAN NOT NULL DEFAULT false,
+      sender_name TEXT,
+      sender_email TEXT,
+      reply_to_email TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -41,6 +44,9 @@ async function ensureSchema() {
       UNIQUE(campaign_id, step_number)
     )
   `;
+  await sql`ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS sender_name TEXT`;
+  await sql`ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS sender_email TEXT`;
+  await sql`ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS reply_to_email TEXT`;
   await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS campaign_id INTEGER REFERENCES crm_campaigns(id) ON DELETE SET NULL`;
 }
 
@@ -81,7 +87,7 @@ export async function GET(request: NextRequest) {
       `
     : [];
 
-  let leads: any[] = [];
+  let leads: Awaited<ReturnType<typeof sql>> = [];
   if (includeLeads) {
     leads = await sql`
       WITH default_angi_campaign AS (
@@ -126,7 +132,7 @@ export async function GET(request: NextRequest) {
     `;
   }
 
-  let nonresponders: any[] = [];
+  let nonresponders: Awaited<ReturnType<typeof sql>> = [];
   if (includeNonresponders) {
     nonresponders = await sql`
       SELECT lead_id, lead_code, customer_name, customer_phone, customer_email, customer_city, service_type,
@@ -158,8 +164,8 @@ export async function POST(request: NextRequest) {
     const name = cleanText(body.name);
     if (!name) return NextResponse.json({ error: 'Campaign name required' }, { status: 400 });
     const rows = await sql`
-      INSERT INTO crm_campaigns (name, description, source, is_active, is_default)
-      VALUES (${name}, ${cleanText(body.description)}, ${cleanText(body.source)}, ${body.is_active !== false}, ${body.is_default === true})
+      INSERT INTO crm_campaigns (name, description, source, is_active, is_default, sender_name, sender_email, reply_to_email)
+      VALUES (${name}, ${cleanText(body.description)}, ${cleanText(body.source)}, ${body.is_active !== false}, ${body.is_default === true}, ${cleanText(body.sender_name)}, ${cleanText(body.sender_email)}, ${cleanText(body.reply_to_email)})
       RETURNING *
     `;
     return NextResponse.json({ success: true, campaign: rows[0] });
@@ -171,7 +177,9 @@ export async function POST(request: NextRequest) {
     await sql`
       UPDATE crm_campaigns
       SET name = ${cleanText(body.name)}, description = ${cleanText(body.description)}, source = ${cleanText(body.source)},
-          is_active = ${body.is_active !== false}, is_default = ${body.is_default === true}, updated_at = NOW()
+          is_active = ${body.is_active !== false}, is_default = ${body.is_default === true},
+          sender_name = ${cleanText(body.sender_name)}, sender_email = ${cleanText(body.sender_email)},
+          reply_to_email = ${cleanText(body.reply_to_email)}, updated_at = NOW()
       WHERE id = ${id}
     `;
     if (body.is_default === true && cleanText(body.source)) {
