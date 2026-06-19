@@ -48,6 +48,7 @@ async function ensureSchema() {
   await sql`ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS sender_email TEXT`;
   await sql`ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS reply_to_email TEXT`;
   await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS campaign_id INTEGER REFERENCES crm_campaigns(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS campaign_started_at TIMESTAMPTZ`;
 }
 
 export async function GET(request: NextRequest) {
@@ -221,7 +222,8 @@ export async function POST(request: NextRequest) {
     if (!leadId) return NextResponse.json({ error: 'Lead id required' }, { status: 400 });
     await sql`
       UPDATE crm_leads
-      SET campaign_id = ${campaignId}, outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
+      SET campaign_id = ${campaignId}, campaign_started_at = CASE WHEN ${campaignId}::integer IS NULL THEN NULL ELSE NOW() END,
+          outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
       WHERE id = ${leadId}
     `;
     return NextResponse.json({ success: true });
@@ -233,7 +235,8 @@ export async function POST(request: NextRequest) {
     if (!leadIds.length) return NextResponse.json({ error: 'No leads selected' }, { status: 400 });
     await sql`
       UPDATE crm_leads
-      SET campaign_id = ${campaignId}, outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
+      SET campaign_id = ${campaignId}, campaign_started_at = CASE WHEN ${campaignId}::integer IS NULL THEN NULL ELSE NOW() END,
+          outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
       WHERE id = ANY(${leadIds})
     `;
     return NextResponse.json({ success: true, count: leadIds.length });
