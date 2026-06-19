@@ -1,5 +1,6 @@
 import sql from '@/lib/db';
 import { getZipCoords } from '@/lib/geo';
+import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
@@ -36,10 +37,7 @@ const SERVICE_TO_CATEGORY: Record<string, string[]> = {
 };
 
 function normalizePhone(phone: string): string {
-  const digits = (phone || '').replace(/\D/g, '');
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
-  return phone || '';
+  return normalizeSmsPhone(phone);
 }
 
 function firstService(services: string[]): string {
@@ -132,10 +130,7 @@ async function sendTwilioSms(to: string, body: string): Promise<void> {
     throw new Error('Twilio environment variables are not configured');
   }
 
-  const cleanTo = normalizePhone(to);
-  if (!cleanTo || !/^\+\d{10,15}$/.test(cleanTo)) {
-    throw new Error(`Invalid phone: ${to}`);
-  }
+  const cleanTo = await assertSmsCapable(to);
 
   const params = new URLSearchParams();
   params.append('From', TWILIO_FROM);

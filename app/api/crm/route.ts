@@ -2,27 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { PNM_FENCING_EMAIL_SENDING_PAUSED, pnmFencingEmailPausedResponse } from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
+import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
 
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
 const TWILIO_FROM = process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '';
 
 function normalizePhone(phone: string): string {
-  const digits = (phone || '').replace(/\D/g, '');
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
-  if ((phone || '').startsWith('+')) return phone;
-  return digits ? `+${digits}` : '';
+  return normalizeSmsPhone(phone);
 }
 
 async function sendTwilioSms(to: string, body: string): Promise<string | null> {
   if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
     throw new Error('Twilio environment variables are not configured');
   }
-  const cleanTo = normalizePhone(to);
-  if (!/^\+\d{10,15}$/.test(cleanTo)) {
-    throw new Error(`Invalid phone: ${to}`);
-  }
+  const cleanTo = await assertSmsCapable(to);
 
   const params = new URLSearchParams();
   params.append('From', TWILIO_FROM);
