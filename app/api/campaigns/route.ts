@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
         FROM crm_campaign_messages
         WHERE campaign_id = l.effective_campaign_id AND is_active = true
       ) steps ON true
-      ORDER BY l.created_at DESC
+      ORDER BY campaign_completed DESC, l.created_at DESC
       LIMIT 1000
     `;
   }
