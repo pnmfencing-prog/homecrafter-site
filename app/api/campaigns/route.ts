@@ -132,13 +132,13 @@ export async function GET(request: NextRequest) {
       SELECT lead_id, lead_code, customer_name, customer_phone, customer_email, customer_city, service_type,
              source, status, created_at, last_outreach_at, outreach_count, email_outreach_count,
              customer_responded, outreach_paused, campaign_id, campaign_name, campaign_sms_steps,
-             final_send_day, days_since_last_outreach
+             campaign_email_steps, final_send_day, days_since_last_outreach
       FROM crm_campaign_nonresponders
       WHERE campaign_id IS NOT NULL
         AND customer_responded = false
         AND outreach_paused = false
         AND outreach_count >= campaign_sms_steps
-        AND COALESCE(email_outreach_count, 0) >= campaign_sms_steps
+        AND COALESCE(email_outreach_count, 0) >= campaign_email_steps
         AND days_since_last_outreach >= 1
       ORDER BY last_outreach_at ASC NULLS LAST, created_at ASC
       LIMIT 1000
