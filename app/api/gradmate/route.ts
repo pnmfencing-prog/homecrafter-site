@@ -116,10 +116,22 @@ async function ensureSchema() {
       ('Brian McCarthy', 'Anyone going out after the game?'),
       ('Katie Sullivan', 'New profile pic finally.'),
       ('Matt DeLuca', 'If anyone has econ notes, tap me.'),
-      ('Tara Murphy', 'Beach day after finals?')
+      ('Tara Murphy', 'Beach day after finals?'),
+      ('Grace Donnelly', 'Formal tickets are impossible this year.'),
+      ('Patrick Shea', 'Who has the good dining hall guest swipes?'),
+      ('Nina Brooks', 'Coffee, psych paper, repeat.'),
+      ('Tommy Novak', 'Intramural game at 6. Need one more.'),
+      ('Lauren Fisher', 'Road trip playlist is officially elite.'),
+      ('Kevin Patel', 'Tap me if you are in Calc II.'),
+      ('Megan Reilly', 'Finals week survival mode.'),
+      ('Sam Goldberg', 'Just changed my profile. Be honest.'),
+      ('Victoria King', 'Library is somehow louder than the quad.')
     ) AS seed(name, body)
     JOIN fb04_students s ON s.name = seed.name
-    WHERE NOT EXISTS (SELECT 1 FROM fb04_wall_posts)
+    WHERE NOT EXISTS (
+      SELECT 1 FROM fb04_wall_posts p
+      WHERE p.student_id = s.id AND p.body = seed.body
+    )
   `;
 }
 
