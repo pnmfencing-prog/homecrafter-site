@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GradMate Student Search</title>
+<style>
+body{margin:0;background:#d8dfea;font-family:Tahoma,Verdana,Arial,sans-serif;font-size:11px;color:#000}.top{background:#334f8d;color:#fff;border-bottom:1px solid #1d2a5b}.top-inner{width:980px;max-width:calc(100% - 20px);margin:0 auto;display:flex;align-items:end;justify-content:space-between;padding:7px 0 5px}.brand{display:flex;align-items:center;gap:8px}.gm-mark{width:34px;height:34px;border:1px solid rgba(255,255,255,.9);background:#fff;color:#334f8d;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:bold;font-family:Georgia,serif;box-shadow:2px 2px 0 #1d2a5b}.gm-word{font-size:28px;font-weight:bold;letter-spacing:-1px}.tag{font-size:10px;color:#dbe4ff;margin-top:-3px}.top a{color:#fff;text-decoration:none;margin-left:14px;font-weight:bold}.wrap{width:980px;max-width:calc(100% - 20px);margin:8px auto;display:grid;grid-template-columns:230px 1fr;gap:8px}.box{background:#fff;border:1px solid #96a6c5}.box h3{margin:0;background:#6d84b4;color:#fff;font-size:11px;padding:4px 6px;border-bottom:1px solid #3b5998}.box .in{padding:8px}.field{margin-bottom:7px}label{display:block;font-weight:bold;color:#333;margin-bottom:2px}input,select{font-family:Tahoma,Verdana,Arial,sans-serif;font-size:11px;border:1px solid #777;padding:3px;width:100%;box-sizing:border-box}.btn{background:#334f8d;color:#fff;border:1px solid #1d2a5b;font-weight:bold;padding:3px 8px;cursor:pointer;font-size:11px}.btn.gray{background:#eee;color:#111;border-color:#999}.notice{background:#fff8cc;border:1px solid #e6d45a;padding:6px;margin-bottom:8px}.results{max-height:680px;overflow:auto}.student{display:grid;grid-template-columns:58px 1fr 135px;gap:8px;border-top:1px solid #ddd;padding:8px 0}.student:first-child{border-top:0}.avatar{width:52px;height:52px;background:#f0f0f0;border:1px solid #999;object-fit:cover;display:flex;align-items:center;justify-content:center;color:#999;font-size:9px}.name{color:#334f8d;font-weight:bold;font-size:12px}.small{font-size:10px;color:#555}.actions{text-align:right}.tap{display:inline-flex;align-items:center;gap:3px;color:#334f8d;text-decoration:underline;cursor:pointer;font-weight:bold;margin-bottom:4px}.tap-logo{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1px solid #334f8d;background:#eef2ff;border-radius:50%;font-size:11px;text-decoration:none}.pill{display:inline-block;background:#eef2ff;border:1px solid #b8c4e8;color:#334f8d;padding:1px 4px;font-size:9px;margin-left:4px}.friend-link{color:#334f8d;text-decoration:underline;cursor:pointer;font-size:10px}.leftlink{display:block;color:#334f8d;text-decoration:none;padding:3px 0;border-bottom:1px solid #eee}@media(max-width:760px){.wrap{grid-template-columns:1fr}.student{grid-template-columns:58px 1fr}.actions{text-align:left;grid-column:2}.gm-word{font-size:23px}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner"><div><div class="brand"><span class="gm-mark">GM</span><span class="gm-word">GradMate</span></div><div class="tag">search for a student</div></div><div><a href="/gradmate-profile.html">profile</a><a href="/gradmate.html">student search</a><a href="/crm.html">crm</a></div></div></div>
+<div class="wrap">
+  <aside>
+    <div class="box"><h3>GradMate</h3><div class="in"><a class="leftlink" href="/gradmate-profile.html">My Profile + Wall</a><a class="leftlink" href="/gradmate.html">Search for a Student</a></div></div>
+    <div class="box" style="margin-top:8px"><h3>Search for a Student</h3><div class="in">
+      <div class="field"><label>Name</label><input id="q" placeholder="Search name"></div>
+      <div class="field"><label>Graduating Year</label><select id="year"><option value="">Any year</option></select></div>
+      <div class="field"><label>Sex</label><select id="sex"><option value="">Any</option></select></div>
+      <div class="field"><label>Relationship Status</label><select id="single"><option value="">Any</option></select></div>
+      <div class="field"><label>University</label><select id="university"><option value="">Any university</option></select></div>
+      <button class="btn" onclick="load()">Search</button> <button class="btn gray" onclick="clearFilters()">Clear</button>
+    </div></div>
+  </aside>
+  <main>
+    <div class="notice" id="notice">Loading students…</div>
+    <div class="box"><h3>Student Directory</h3><div class="in"><div class="results" id="studentList"></div></div></div>
+  </main>
+</div>
+<script>
+var ADMIN_TOKEN=localStorage.getItem('hc_admin_token')||'hc-admin-2026';
+function api(method,body){var o={method:method||'GET',headers:{Authorization:'Bearer '+ADMIN_TOKEN}};if(body){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body)}return o}
+function esc(v){return String(v||'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function avatar(s){return s.photo_base64?'<img class="avatar" src="data:'+(s.photo_mime||'image/jpeg')+';base64,'+s.photo_base64+'">':'<div class="avatar">GM</div>'}
+function opt(sel,items){var el=document.getElementById(sel),cur=el.value,first=el.options[0].outerHTML;el.innerHTML=first+(items||[]).map(function(x){return '<option '+(String(x)===cur?'selected':'')+'>'+esc(x)+'</option>'}).join('')}
+function load(){var p=new URLSearchParams();if(q.value)p.set('search',q.value);if(year.value)p.set('graduating_year',year.value);if(sex.value)p.set('sex',sex.value);if(single.value)p.set('single_status',single.value);if(university.value)p.set('university',university.value);fetch('/api/gradmate?'+p.toString(),api('GET')).then(r=>r.json()).then(function(d){if(d.error){notice.textContent=d.error;return}renderOptions(d.options||{});renderStudents(d.students||[],d.me_id);notice.textContent='Showing '+(d.students||[]).length+' student(s). Tap someone, or add them as a mutual friend.'})}
+function renderOptions(o){opt('year',o.years);opt('sex',o.sexes);opt('single',o.statuses);opt('university',o.universities)}
+function renderStudents(list,meId){studentList.innerHTML=list.map(function(s){var me=Number(s.id)===Number(meId);return '<div class="student">'+avatar(s)+'<div><div class="name">'+esc(s.name)+(me?' <span class="pill">me</span>':'')+(s.tapped_me?' <span class="pill">tapped you</span>':'')+'</div><div class="small">'+esc(s.university||'')+'</div><div class="small">Class of '+esc(s.graduating_year||'')+' · '+esc(s.sex||'')+' · '+esc(s.single_status||'')+'</div></div><div class="actions">'+(me?'':'<div class="tap" onclick="tapStudent('+s.id+')"><span class="tap-logo">↯</span>'+(s.tapped_by_me?'Tapped':'Tap')+'</div><br><span class="friend-link" onclick="toggleFriend('+s.id+','+s.is_friend+')">'+(s.is_friend?'Remove friend':'Add friend')+'</span>')+'</div></div>'}).join('')||'<div class="small">No students found.</div>'}
+function tapStudent(id){fetch('/api/gradmate',api('POST',{action:'tap',student_id:id})).then(()=>load())}
+function toggleFriend(id,isFriend){fetch('/api/gradmate',api('POST',{action:isFriend?'unfriend':'friend',student_id:id})).then(()=>load())}
+function clearFilters(){q.value='';year.value='';sex.value='';single.value='';university.value='';load()}
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GradMate Profile</title>
+<style>
+body{margin:0;background:#d8dfea;font-family:Tahoma,Verdana,Arial,sans-serif;font-size:11px;color:#000}.top{background:#334f8d;color:#fff;border-bottom:1px solid #1d2a5b}.top-inner{width:980px;max-width:calc(100% - 20px);margin:0 auto;display:flex;align-items:end;justify-content:space-between;padding:7px 0 5px}.brand{display:flex;align-items:center;gap:8px}.gm-mark{width:34px;height:34px;border:1px solid rgba(255,255,255,.9);background:#fff;color:#334f8d;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:bold;font-family:Georgia,serif;box-shadow:2px 2px 0 #1d2a5b}.gm-word{font-size:28px;font-weight:bold;letter-spacing:-1px}.tag{font-size:10px;color:#dbe4ff;margin-top:-3px}.top a{color:#fff;text-decoration:none;margin-left:14px;font-weight:bold}.wrap{width:980px;max-width:calc(100% - 20px);margin:8px auto;display:grid;grid-template-columns:230px 1fr;gap:8px}.box{background:#fff;border:1px solid #96a6c5}.box h3{margin:0;background:#6d84b4;color:#fff;font-size:11px;padding:4px 6px;border-bottom:1px solid #3b5998}.box .in{padding:8px}.leftlink{display:block;color:#334f8d;text-decoration:none;padding:3px 0;border-bottom:1px solid #eee}.avatar{width:190px;height:190px;background:#f0f0f0;border:1px solid #999;object-fit:cover;display:flex;align-items:center;justify-content:center;color:#999}.story-avatar{width:42px;height:42px;background:#f0f0f0;border:1px solid #999;object-fit:cover;display:flex;align-items:center;justify-content:center;color:#999;font-size:9px}.name{font-size:18px;font-weight:bold;color:#334f8d;margin-bottom:3px}.row{border-top:1px solid #eee;padding:6px 0}.label{font-weight:bold;color:#555;display:inline-block;width:120px}.btn{display:inline-block;background:#334f8d;color:#fff;border:1px solid #1d2a5b;font-weight:bold;padding:4px 9px;text-decoration:none;font-size:11px;cursor:pointer}.small{font-size:10px;color:#555}.notice{background:#fff8cc;border:1px solid #e6d45a;padding:6px;margin-bottom:8px}.field{margin-bottom:7px}label{display:block;font-weight:bold;color:#333;margin-bottom:2px}textarea,input,select{font-family:Tahoma,Verdana,Arial,sans-serif;font-size:11px;border:1px solid #777;padding:3px;width:100%;box-sizing:border-box}textarea{height:54px}.counter{text-align:right;font-size:10px;color:#666}.story{display:grid;grid-template-columns:50px 1fr;gap:8px;border-top:1px solid #ddd;padding:9px 0}.story:first-child{border-top:0}.storybox{background:#f7f7f7;border:1px solid #ddd;padding:6px;min-height:24px}.story-media{max-width:100%;max-height:260px;border:1px solid #ccc;margin-top:6px;background:#000}.meta{color:#666;font-size:10px;margin-top:4px}.like{color:#334f8d;text-decoration:underline;cursor:pointer}.profile-card{display:grid;grid-template-columns:210px 1fr;gap:10px}.pill{display:inline-block;background:#eef2ff;border:1px solid #b8c4e8;color:#334f8d;padding:1px 4px;font-size:9px;margin-left:4px}@media(max-width:760px){.wrap,.profile-card{grid-template-columns:1fr}.gm-word{font-size:23px}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner"><div><div class="brand"><span class="gm-mark">GM</span><span class="gm-word">GradMate</span></div><div class="tag">profile + public wall</div></div><div><a href="/gradmate-profile.html">profile</a><a href="/gradmate.html">student search</a><a href="/crm.html">crm</a></div></div></div>
+<div class="wrap">
+  <aside><div class="box"><h3>GradMate</h3><div class="in"><a class="leftlink" href="/gradmate-profile.html">My Profile + Wall</a><a class="leftlink" href="/gradmate.html">Search for a Student</a></div></div></aside>
+  <main>
+    <div class="notice">2005 mode: profile on top, wall stories below. Stories are 140 characters with optional photo or short video.</div>
+    <div class="box"><h3>My Profile</h3><div class="in"><div class="profile-card"><div id="photoBox"><div class="avatar">loading</div></div><div id="profileInfo">Loading profile…</div></div></div></div>
+    <div class="box" style="margin-top:8px"><h3>Post a Wall Story</h3><div class="in">
+      <div class="field"><label>140 character note</label><textarea id="storyBody" maxlength="140" oninput="countChars()" placeholder="Write a quick wall story..."></textarea><div class="counter"><span id="charCount">0</span>/140</div></div>
+      <div class="field"><label>Photo or 15 sec video</label><input id="storyMedia" type="file" accept="image/*,video/*"><div class="small">Prototype note: browser upload accepts media; keep videos short.</div></div>
+      <button class="btn" onclick="createStory()">Post Story</button>
+    </div></div>
+    <div class="box" style="margin-top:8px"><h3>Public Wall</h3><div class="in" id="wallList">Loading wall…</div></div>
+  </main>
+</div>
+<script>
+var ADMIN_TOKEN=localStorage.getItem('hc_admin_token')||'hc-admin-2026';
+var meId=null;
+function api(method,body){var o={method:method||'GET',headers:{Authorization:'Bearer '+ADMIN_TOKEN}};if(body){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body)}return o}
+function esc(v){return String(v||'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function avatar(s,cls){return s&&s.photo_base64?'<img class="'+cls+'" src="data:'+(s.photo_mime||'image/jpeg')+';base64,'+s.photo_base64+'">':'<div class="'+cls+'">GM</div>'}
+function media(p){if(!p.image_base64)return '';var mime=p.image_mime||'';var src='data:'+mime+';base64,'+p.image_base64;if(mime.indexOf('video/')===0)return '<video class="story-media" controls src="'+src+'"></video>';return '<img class="story-media" src="'+src+'">'}
+function fileData(){return new Promise(function(resolve){var f=storyMedia.files[0];if(!f)return resolve({});var r=new FileReader();r.onload=function(){var s=String(r.result||''),parts=s.split(',');resolve({base64:parts[1]||'',mime:(s.match(/^data:([^;]+)/)||[])[1]||f.type})};r.readAsDataURL(f)})}
+function load(){fetch('/api/gradmate',api('GET')).then(r=>r.json()).then(function(d){meId=d.me_id;var me=(d.students||[]).find(s=>Number(s.id)===Number(meId))||(d.students||[])[0]||{};renderProfile(me);renderWall(d.stories||[])})}
+function renderProfile(me){photoBox.innerHTML=avatar(me,'avatar');profileInfo.innerHTML='<div class="name">'+esc(me.name||'GradMate User')+' <span class="pill">me</span></div><div class="row"><span class="label">University</span>'+esc(me.university||'')+'</div><div class="row"><span class="label">Grad Year</span>'+esc(me.graduating_year||'')+'</div><div class="row"><span class="label">Sex</span>'+esc(me.sex||'')+'</div><div class="row"><span class="label">Relationship</span>'+esc(me.single_status||'')+'</div><a class="btn" href="/gradmate.html">Go to Student Search</a>'}
+function renderWall(list){wallList.innerHTML=list.map(function(p){return '<div class="story">'+avatar(p,'story-avatar')+'<div><div><span class="name" style="font-size:12px">'+esc(p.student_name||p.author_name||'Student')+'</span> <span class="small">'+esc(p.university||'')+'</span></div><div class="storybox">'+esc(p.body||'')+media(p)+'</div><div class="meta">'+new Date(p.created_at).toLocaleString()+' · <span class="like" onclick="toggleLike('+p.id+','+p.liked_by_me+')">'+(p.liked_by_me?'Unlike':'Like')+'</span> · '+p.like_count+' like(s)</div></div></div>'}).join('')||'<div class="small">No wall stories yet.</div>'}
+function createStory(){fileData().then(function(f){return fetch('/api/gradmate',api('POST',{action:'story',body:storyBody.value,student_id:meId,media_base64:f.base64,media_mime:f.mime}))}).then(()=>{storyBody.value='';storyMedia.value='';countChars();load()})}
+function toggleLike(id,liked){fetch('/api/gradmate',api('POST',{action:liked?'unlike':'like',post_id:id,liker_name:'Dan'})).then(()=>load())}
+function countChars(){charCount.textContent=storyBody.value.length}
+load();
+</script>
+</body>
+</html>

@@ -57,15 +57,46 @@ async function ensureSchema() {
     )
   `;
   await sql`
+    CREATE TABLE IF NOT EXISTS fb04_taps (
+      id SERIAL PRIMARY KEY,
+      from_student_id INTEGER NOT NULL REFERENCES fb04_students(id) ON DELETE CASCADE,
+      to_student_id INTEGER NOT NULL REFERENCES fb04_students(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(from_student_id, to_student_id),
+      CHECK (from_student_id <> to_student_id)
+    )
+  `;
+  await sql`
     INSERT INTO fb04_students (name, graduating_year, sex, single_status, university)
     SELECT * FROM (VALUES
-      ('Dan Mahler', 2004, 'Male', 'Single', 'Monmouth University'),
-      ('Mark Zuckerberg', 2006, 'Male', 'Single', 'Harvard'),
-      ('Erica Albright', 2005, 'Female', 'It''s complicated', 'Boston University'),
-      ('Eduardo Saverin', 2006, 'Male', 'Single', 'Harvard'),
-      ('Christy Lee', 2007, 'Female', 'Single', 'Harvard')
+      ('Dan Mahler', 2005, 'Male', 'Single', 'Monmouth University'),
+      ('Alyssa Marino', 2005, 'Female', 'Single', 'Rutgers'),
+      ('Brian McCarthy', 2006, 'Male', 'Single', 'Monmouth University'),
+      ('Casey Bennett', 2005, 'Female', 'In a relationship', 'Princeton'),
+      ('Chris Romano', 2004, 'Male', 'It''s complicated', 'Seton Hall'),
+      ('Dana Klein', 2007, 'Female', 'Single', 'NYU'),
+      ('Eddie Walsh', 2005, 'Male', 'Single', 'Rutgers'),
+      ('Erin Callahan', 2006, 'Female', 'Single', 'Boston College'),
+      ('Frankie Russo', 2004, 'Male', 'In a relationship', 'Villanova'),
+      ('Grace Donnelly', 2005, 'Female', 'Single', 'Georgetown'),
+      ('Hannah Lee', 2007, 'Female', 'It''s complicated', 'Columbia'),
+      ('Jack O''Brien', 2006, 'Male', 'Single', 'Penn State'),
+      ('Jamie Torres', 2005, 'Other', 'Single', 'Temple'),
+      ('Katie Sullivan', 2004, 'Female', 'Single', 'Monmouth University'),
+      ('Kevin Patel', 2007, 'Male', 'Single', 'Rutgers'),
+      ('Lauren Fisher', 2006, 'Female', 'In a relationship', 'Syracuse'),
+      ('Matt DeLuca', 2005, 'Male', 'Single', 'Fordham'),
+      ('Megan Reilly', 2004, 'Female', 'Single', 'Providence'),
+      ('Mike Rosen', 2007, 'Male', 'It''s complicated', 'NYU'),
+      ('Nina Brooks', 2006, 'Female', 'Single', 'Boston University'),
+      ('Patrick Shea', 2005, 'Male', 'Single', 'Lehigh'),
+      ('Rachel Stein', 2004, 'Female', 'In a relationship', 'Cornell'),
+      ('Sam Goldberg', 2007, 'Male', 'Single', 'University of Delaware'),
+      ('Tara Murphy', 2005, 'Female', 'Single', 'Loyola Maryland'),
+      ('Tommy Novak', 2006, 'Male', 'Single', 'Drexel'),
+      ('Victoria King', 2004, 'Female', 'It''s complicated', 'Villanova')
     ) AS seed(name, graduating_year, sex, single_status, university)
-    WHERE NOT EXISTS (SELECT 1 FROM fb04_students)
+    WHERE NOT EXISTS (SELECT 1 FROM fb04_students WHERE fb04_students.name = seed.name)
   `;
   await sql`
     INSERT INTO fb04_friendships (student_a_id, student_b_id)
@@ -73,15 +104,22 @@ async function ensureSchema() {
     FROM fb04_students me
     JOIN fb04_students s ON s.id <> me.id
     WHERE me.name = 'Dan Mahler'
-      AND NOT EXISTS (SELECT 1 FROM fb04_friendships)
+      AND s.name IN ('Alyssa Marino', 'Brian McCarthy', 'Katie Sullivan', 'Matt DeLuca', 'Tara Murphy')
+    ON CONFLICT (student_a_id, student_b_id) DO NOTHING
   `;
   await sql`
     INSERT INTO fb04_wall_posts (student_id, author_name, body)
-    SELECT id, name, 'Just joined GradMate. Stories only. No permanent wall photos.'
-    FROM fb04_students
-    WHERE name = 'Dan Mahler'
-      AND NOT EXISTS (SELECT 1 FROM fb04_wall_posts)
-    LIMIT 1
+    SELECT s.id, s.name, seed.body
+    FROM (VALUES
+      ('Dan Mahler', 'GradMate feels like college internet again.'),
+      ('Alyssa Marino', 'Library until 8 then maybe the student center.'),
+      ('Brian McCarthy', 'Anyone going out after the game?'),
+      ('Katie Sullivan', 'New profile pic finally.'),
+      ('Matt DeLuca', 'If anyone has econ notes, tap me.'),
+      ('Tara Murphy', 'Beach day after finals?')
+    ) AS seed(name, body)
+    JOIN fb04_students s ON s.name = seed.name
+    WHERE NOT EXISTS (SELECT 1 FROM fb04_wall_posts)
   `;
 }
 
@@ -104,19 +142,29 @@ export async function GET(request: NextRequest) {
              SELECT 1 FROM fb04_friendships f
              WHERE f.student_a_id = LEAST(${meId}, s.id)
                AND f.student_b_id = GREATEST(${meId}, s.id)
-           ) AS is_friend
+           ) AS is_friend,
+           EXISTS (
+             SELECT 1 FROM fb04_taps t
+             WHERE t.from_student_id = ${meId}
+               AND t.to_student_id = s.id
+           ) AS tapped_by_me,
+           EXISTS (
+             SELECT 1 FROM fb04_taps t
+             WHERE t.from_student_id = s.id
+               AND t.to_student_id = ${meId}
+           ) AS tapped_me
     FROM fb04_students s
     WHERE (${search}::text IS NULL OR s.name ILIKE '%' || ${search} || '%')
       AND (${year || null}::text IS NULL OR s.graduating_year = (${year})::int)
       AND (${sex}::text IS NULL OR s.sex = ${sex})
       AND (${single}::text IS NULL OR s.single_status = ${single})
       AND (${university}::text IS NULL OR s.university ILIKE '%' || ${university} || '%')
-    ORDER BY s.name ASC
+    ORDER BY CASE WHEN s.id = ${meId} THEN 0 ELSE 1 END, s.name ASC
     LIMIT 200
   `;
 
   const stories = await sql`
-    SELECT p.*, s.name AS student_name, s.university, s.photo_base64, s.photo_mime,
+    SELECT p.*, s.name AS student_name, s.university, s.graduating_year, s.sex, s.single_status, s.photo_base64, s.photo_mime,
            COALESCE(l.like_count, 0)::int AS like_count,
            EXISTS(SELECT 1 FROM fb04_likes lx WHERE lx.post_id = p.id AND lx.liker_name = 'Dan') AS liked_by_me
     FROM fb04_wall_posts p
@@ -152,69 +200,63 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const action = body.action;
 
-  if (action === 'student') {
-    const name = clean(body.name, 160);
-    if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 });
-    const rows = await sql`
-      INSERT INTO fb04_students (name, graduating_year, sex, single_status, university, photo_base64, photo_mime)
-      VALUES (${name}, ${body.graduating_year ? Number(body.graduating_year) : null}, ${clean(body.sex, 40)}, ${clean(body.single_status, 60)}, ${clean(body.university, 120)}, ${clean(body.photo_base64, 2_000_000)}, ${clean(body.photo_mime, 80)})
-      RETURNING *
-    `;
-    return NextResponse.json({ success: true, student: rows[0] });
-  }
-
   if (action === 'post' || action === 'story') {
-    const text = clean(body.body, 2000);
+    const text = clean(body.body, 140);
+    const media = clean(body.media_base64, 6_000_000);
+    const mediaMime = clean(body.media_mime, 80);
     const studentId = body.student_id ? Number(body.student_id) : null;
-    if (!text) return NextResponse.json({ error: 'Story text required' }, { status: 400 });
+    if (!text && !media) return NextResponse.json({ error: 'Story text or media required' }, { status: 400 });
     const authorRows = studentId
-      ? await sql`SELECT name FROM fb04_students WHERE id = ${studentId} LIMIT 1`
+      ? await sql`SELECT id, name FROM fb04_students WHERE id = ${studentId} LIMIT 1`
       : await sql`SELECT id, name FROM fb04_students WHERE name = 'Dan Mahler' ORDER BY id LIMIT 1`;
     const finalStudentId = studentId || Number(authorRows[0]?.id || 0) || null;
     const authorName = clean(body.author_name, 120) || String(authorRows[0]?.name || 'Dan');
     const rows = await sql`
       INSERT INTO fb04_wall_posts (student_id, author_name, body, image_base64, image_mime)
-      VALUES (${finalStudentId}, ${authorName}, ${text}, NULL, NULL)
+      VALUES (${finalStudentId}, ${authorName}, ${text}, ${media}, ${mediaMime})
       RETURNING *
     `;
     return NextResponse.json({ success: true, story: rows[0], post: rows[0] });
   }
 
-  if (action === 'friend') {
+  if (action === 'friend' || action === 'unfriend' || action === 'tap') {
     const meRows = await sql`SELECT id FROM fb04_students WHERE name = 'Dan Mahler' ORDER BY id LIMIT 1`;
     const meId = Number(meRows[0]?.id || 0);
     const otherId = Number(body.student_id);
     if (!meId || !otherId || meId === otherId) return NextResponse.json({ error: 'Student required' }, { status: 400 });
+
+    if (action === 'friend') {
+      await sql`
+        INSERT INTO fb04_friendships (student_a_id, student_b_id)
+        VALUES (LEAST(${meId}, ${otherId}), GREATEST(${meId}, ${otherId}))
+        ON CONFLICT (student_a_id, student_b_id) DO NOTHING
+      `;
+      return NextResponse.json({ success: true });
+    }
+    if (action === 'unfriend') {
+      await sql`DELETE FROM fb04_friendships WHERE student_a_id = LEAST(${meId}, ${otherId}) AND student_b_id = GREATEST(${meId}, ${otherId})`;
+      return NextResponse.json({ success: true });
+    }
     await sql`
-      INSERT INTO fb04_friendships (student_a_id, student_b_id)
-      VALUES (LEAST(${meId}, ${otherId}), GREATEST(${meId}, ${otherId}))
-      ON CONFLICT (student_a_id, student_b_id) DO NOTHING
+      INSERT INTO fb04_taps (from_student_id, to_student_id)
+      VALUES (${meId}, ${otherId})
+      ON CONFLICT (from_student_id, to_student_id) DO UPDATE SET created_at = NOW()
     `;
     return NextResponse.json({ success: true });
   }
 
-  if (action === 'unfriend') {
-    const meRows = await sql`SELECT id FROM fb04_students WHERE name = 'Dan Mahler' ORDER BY id LIMIT 1`;
-    const meId = Number(meRows[0]?.id || 0);
-    const otherId = Number(body.student_id);
-    await sql`DELETE FROM fb04_friendships WHERE student_a_id = LEAST(${meId}, ${otherId}) AND student_b_id = GREATEST(${meId}, ${otherId})`;
-    return NextResponse.json({ success: true });
-  }
-
-  if (action === 'like') {
+  if (action === 'like' || action === 'unlike') {
     const postId = Number(body.post_id);
     if (!postId) return NextResponse.json({ error: 'Story required' }, { status: 400 });
-    await sql`
-      INSERT INTO fb04_likes (post_id, liker_name)
-      VALUES (${postId}, ${clean(body.liker_name, 120) || 'Dan'})
-      ON CONFLICT (post_id, liker_name) DO NOTHING
-    `;
-    return NextResponse.json({ success: true });
-  }
-
-  if (action === 'unlike') {
-    const postId = Number(body.post_id);
-    await sql`DELETE FROM fb04_likes WHERE post_id = ${postId} AND liker_name = ${clean(body.liker_name, 120) || 'Dan'}`;
+    if (action === 'like') {
+      await sql`
+        INSERT INTO fb04_likes (post_id, liker_name)
+        VALUES (${postId}, ${clean(body.liker_name, 120) || 'Dan'})
+        ON CONFLICT (post_id, liker_name) DO NOTHING
+      `;
+    } else {
+      await sql`DELETE FROM fb04_likes WHERE post_id = ${postId} AND liker_name = ${clean(body.liker_name, 120) || 'Dan'}`;
+    }
     return NextResponse.json({ success: true });
   }
 
