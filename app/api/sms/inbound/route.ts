@@ -67,11 +67,24 @@ function classifyCustomerReply(body: string, attachmentCount = 0): 'promising_re
     /\bchain\s*link\b/,
     /\baluminum\b/,
     /\bvinyl\b/,
+    /\blattice\b/,
+    /\b(i|we)\s+(need|want|would like|am looking for|are looking for)\s+(a\s+)?(new\s+)?(fence|gate|railing)\b/,
+    /\b(need|want|would like|looking for)\s+(a\s+)?(new\s+)?(fence|gate|railing)\b/,
+    /\b(send|have)\s+someone\s+(out|come|come out)\b/,
+    /\b(take|look)\s+(a\s+)?look\b/,
+    /\bcome\s+(by|out)\b/,
     /\byes\b/,
     /\b\d+\s*(sections?|gates?|feet|ft)\b/,
   ];
 
   return promisingPatterns.some((pattern) => pattern.test(text)) ? 'promising_reply' : 'neutral_reply';
+}
+
+function routeReplyStatus(baseStatus: 'promising_reply' | 'neutral_reply', lead: any): 'promising_reply' | 'neutral_reply' | 'real_estate_promising' | 'real_estate_neutral' {
+  const source = String(lead?.source || '').toLowerCase();
+  const isRealEstate = Boolean(lead?.import_batch_id) || ['county', 'homeowner', 'batchleads', 'real_estate', 'real estate'].some((token) => source.includes(token));
+  if (!isRealEstate) return baseStatus;
+  return baseStatus === 'promising_reply' ? 'real_estate_promising' : 'real_estate_neutral';
 }
 
 function extensionFromMime(mimeType: string): string {
@@ -257,7 +270,7 @@ export async function POST(request: NextRequest) {
         WHERE id = ${lead.id}
       `;
     } else {
-      const replyStatus = classifyCustomerReply(body || '', inboundAttachments.length);
+      const replyStatus = routeReplyStatus(classifyCustomerReply(body || '', inboundAttachments.length), lead);
       await sql`
         UPDATE crm_leads
         SET customer_responded = true,
@@ -266,7 +279,7 @@ export async function POST(request: NextRequest) {
             last_message_at = NOW(),
             updated_at = NOW(),
             status = CASE
-              WHEN status IN ('new', 'contacted', 'promising_reply', 'neutral_reply') THEN ${replyStatus}
+              WHEN status IN ('new', 'contacted', 'promising_reply', 'neutral_reply', 'real_estate_promising', 'real_estate_neutral') THEN ${replyStatus}
               ELSE status
             END
         WHERE id = ${lead.id}
