@@ -442,6 +442,7 @@ export async function GET(request: NextRequest) {
       count(*) FILTER (WHERE status = 'new')::int as new_count,
       count(*) FILTER (WHERE status = 'promising_reply')::int as promising_reply_count,
       count(*) FILTER (WHERE status = 'neutral_reply')::int as neutral_reply_count,
+      count(*) FILTER (WHERE status = 'real_estate_new')::int as real_estate_new_count,
       count(*) FILTER (WHERE status = 'real_estate_promising')::int as real_estate_promising_count,
       count(*) FILTER (WHERE status = 'real_estate_neutral')::int as real_estate_neutral_count,
       count(*) FILTER (WHERE status = 'contacted')::int as contacted_count,

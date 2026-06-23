@@ -27,7 +27,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .header-nav a:hover, .header-nav a.active { color: var(--gold); }
 
 /* Top stats */
-.stats-row { display: grid; grid-template-columns: repeat(11, 1fr); gap: 0.75rem; padding: 1.25rem 1.25rem 0; max-width: 1800px; margin: 0 auto; }
+.stats-row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; padding: 1.25rem 1.25rem 0; max-width: 1900px; margin: 0 auto; }
 .stat-pill { background: #fff; border-radius: 10px; padding: 1rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
 .stat-pill:hover { transform: translateY(-2px); }
 .stat-pill.active { border-color: var(--gold); }
@@ -36,6 +36,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .stat-pill.new .num { color: var(--blue); }
 .stat-pill.promising_reply .num { color: var(--green); }
 .stat-pill.neutral_reply .num { color: #64748b; }
+.stat-pill.real_estate_new .num { color: #0891b2; }
 .stat-pill.real_estate_promising .num { color: #0f766e; }
 .stat-pill.real_estate_neutral .num { color: #8b5cf6; }
 .stat-pill.contacted .num { color: var(--orange); }
@@ -75,7 +76,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .btn-source.active { background: var(--midnight); color: var(--gold); }
 
 /* Kanban board */
-.board { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 0.75rem; padding: 0 1.25rem 2rem; max-width: 2100px; margin: 0 auto; min-height: 60vh; }
+.board { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0.75rem; padding: 0 1.25rem 2rem; max-width: 2300px; margin: 0 auto; min-height: 60vh; }
 .column { background: var(--cream-dark); border-radius: 12px; padding: 0.75rem; min-height: 300px; }
 .column-header { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); padding: 0.5rem 0.5rem 0.75rem; display: flex; justify-content: space-between; align-items: center; }
 .column-count { background: var(--midnight); color: var(--gold); font-size: 0.55rem; padding: 0.15rem 0.5rem; border-radius: 10px; }
@@ -152,6 +153,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .status-badge.new { background: var(--blue-bg); color: var(--blue); }
 .status-badge.promising_reply { background: var(--green-bg); color: var(--green); }
 .status-badge.neutral_reply { background: #f1f5f9; color: #475569; }
+.status-badge.real_estate_new { background: #ecfeff; color: #0891b2; }
 .status-badge.real_estate_promising { background: #ecfdf5; color: #0f766e; }
 .status-badge.real_estate_neutral { background: #f5f3ff; color: #7c3aed; }
 .status-badge.contacted { background: var(--orange-bg); color: var(--orange); }
@@ -442,6 +444,7 @@ var COLUMNS = [
   { key: 'new', label: 'New', color: '#2563eb' },
   { key: 'promising_reply', label: 'Promising Replies', color: '#2d8a4e' },
   { key: 'neutral_reply', label: 'Neutral Replies', color: '#64748b' },
+  { key: 'real_estate_new', label: 'Real Estate New', color: '#0891b2' },
   { key: 'real_estate_promising', label: 'Real Estate Promising', color: '#0f766e' },
   { key: 'real_estate_neutral', label: 'Real Estate Neutral', color: '#7c3aed' },
   { key: 'contacted', label: 'Contacted', color: '#d97706' },
@@ -451,7 +454,7 @@ var COLUMNS = [
   { key: 'sold', label: 'Sold', color: '#16a34a' },
   { key: 'lost', label: 'Lost', color: '#c0392b' },
 ];
-var FIXED_BOARD_COLUMN_KEYS = ['new', 'promising_reply', 'neutral_reply', 'real_estate_promising', 'real_estate_neutral', 'contacted', 'quoted', 'scheduled', 'won', 'sold', 'lost'];
+var FIXED_BOARD_COLUMN_KEYS = ['new', 'promising_reply', 'neutral_reply', 'real_estate_new', 'real_estate_promising', 'real_estate_neutral', 'contacted', 'quoted', 'scheduled', 'won', 'sold', 'lost'];
 
 function allBoardColumns() {
   return FIXED_BOARD_COLUMN_KEYS.map(function(key) {
@@ -464,7 +467,7 @@ function boardColumns() {
   if (messageFilter !== 'customer') return cols;
   // In Msg Rcvd mode, keep New first so fresh replies that have not been
   // triaged yet do not appear to disappear off to the far right.
-  var priority = { new: 0, promising_reply: 1, neutral_reply: 2, real_estate_promising: 3, real_estate_neutral: 4, contacted: 5, quoted: 6, scheduled: 7, sold: 8, won: 9, lost: 10 };
+  var priority = { new: 0, promising_reply: 1, neutral_reply: 2, real_estate_new: 3, real_estate_promising: 4, real_estate_neutral: 5, contacted: 6, quoted: 7, scheduled: 8, sold: 9, won: 10, lost: 11 };
   return cols.slice().sort(function(a, b) {
     return (priority[a.key] ?? 99) - (priority[b.key] ?? 99);
   });
@@ -1219,6 +1222,7 @@ function stagePickerHtml(id, currentStatus) {
     { s: 'new', label: 'New' },
     { s: 'promising_reply', label: 'Promising Replies' },
     { s: 'neutral_reply', label: 'Neutral Replies' },
+    { s: 'real_estate_new', label: 'Real Estate New' },
     { s: 'real_estate_promising', label: 'Real Estate Promising' },
     { s: 'real_estate_neutral', label: 'Real Estate Neutral' },
     { s: 'contacted', label: 'Contacted' },

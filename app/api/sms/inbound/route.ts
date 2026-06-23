@@ -280,7 +280,7 @@ export async function POST(request: NextRequest) {
             last_message_at = NOW(),
             updated_at = NOW(),
             status = CASE
-              WHEN status IN ('new', 'contacted', 'promising_reply', 'neutral_reply', 'real_estate_promising', 'real_estate_neutral') THEN ${replyStatus}
+              WHEN status IN ('new', 'real_estate_new', 'contacted', 'promising_reply', 'neutral_reply', 'real_estate_promising', 'real_estate_neutral') THEN ${replyStatus}
               ELSE status
             END
         WHERE id = ${lead.id}
