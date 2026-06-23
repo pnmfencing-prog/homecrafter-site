@@ -695,8 +695,10 @@ function loadLeads() {
   var hasWorkflowFilter = readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter;
   if (!search && !hasWorkflowFilter && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=150';
   if (!search && !hasWorkflowFilter && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=500';
-  if (!search && hasWorkflowFilter && readFilter === 'read' && messageFilter === 'all') params += '&limit=500';
-  if (!search && hasWorkflowFilter && messageFilter === 'you') params += '&limit=500';
+  // Read/unread filters need a server reload without slicing, especially for large
+  // columns like Real Estate New. Otherwise the button only filters whatever
+  // capped subset was already loaded.
+  if (!search && hasWorkflowFilter && readFilter === 'all' && messageFilter === 'you') params += '&limit=500';
 
   return fetch('/api/crm' + params, api('GET'))
     .then(function(r) { return r.json(); })
@@ -834,8 +836,9 @@ function setReadFilter(filter) {
   document.querySelectorAll('[data-rf]').forEach(function(b) {
     b.classList.toggle('active', b.dataset.rf === filter);
   });
-  renderBoard();
-  renderList();
+  // Reload from the API so read/unread applies to the full column, not just the
+  // previously loaded/capped board slice. This matters most for Real Estate New.
+  loadLeads();
 }
 
 function setCampaignFilter(filter) {
