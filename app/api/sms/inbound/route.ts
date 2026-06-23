@@ -82,8 +82,9 @@ function classifyCustomerReply(body: string, attachmentCount = 0): 'promising_re
 
 function routeReplyStatus(baseStatus: 'promising_reply' | 'neutral_reply', lead: any): 'promising_reply' | 'neutral_reply' | 'real_estate_promising' | 'real_estate_neutral' {
   const source = String(lead?.source || '').toLowerCase();
-  const isRealEstate = Boolean(lead?.import_batch_id) || ['county', 'homeowner', 'batchleads', 'real_estate', 'real estate'].some((token) => source.includes(token));
-  if (!isRealEstate) return baseStatus;
+  // Real-estate reply columns are only for real-estate agent upload leads.
+  // County/homeowner imports should stay in the normal Promising/Neutral flow.
+  if (source !== 'batchleads_agents') return baseStatus;
   return baseStatus === 'promising_reply' ? 'real_estate_promising' : 'real_estate_neutral';
 }
 
