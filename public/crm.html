@@ -718,7 +718,7 @@ function visibleLeadsForBoard() {
   if (readFilter === 'unread') leads = leads.filter(function(l) { return !l.is_read; });
   if (readFilter === 'read') leads = leads.filter(function(l) { return l.is_read; });
   if (messageFilter === 'customer') leads = leads.filter(function(l) { return l.last_message_by === 'customer'; });
-  if (messageFilter === 'you') leads = leads.filter(function(l) { return l.last_message_by === 'you'; });
+  if (messageFilter === 'you') leads = leads.filter(function(l) { return l.last_message_by === 'you' || l.last_message_by === 'company'; });
   return leads;
 }
 

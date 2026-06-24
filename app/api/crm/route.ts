@@ -357,7 +357,7 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
-      ORDER BY l.created_at DESC`;
+      ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC`;
   }
 
   if (readFilter === 'unread') {
