@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Invoice INV-1203-2</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; color:#1f2933; margin:0; padding:38px; font-size:13px; }
+  .top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #1f2933; padding-bottom:18px; }
+  h1 { margin:0; font-size:34px; letter-spacing:1px; }
+  .company { font-size:13px; line-height:1.45; text-align:right; }
+  .muted { color:#667085; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:28px; }
+  .box-title { font-size:11px; text-transform:uppercase; color:#667085; font-weight:bold; letter-spacing:.8px; margin-bottom:8px; }
+  .details { width:100%; border-collapse:collapse; margin-top:4px; }
+  .details td { padding:5px 0; vertical-align:top; }
+  .details td:first-child { color:#667085; width:120px; }
+  .items { width:100%; border-collapse:collapse; margin-top:34px; }
+  .items th { background:#1f2933; color:white; text-align:left; padding:12px; font-size:12px; text-transform:uppercase; letter-spacing:.5px; }
+  .items td { border-bottom:1px solid #e5e7eb; padding:14px 12px; vertical-align:top; }
+  .amount { text-align:right; white-space:nowrap; }
+  .totals { margin-left:auto; width:320px; margin-top:24px; border-collapse:collapse; }
+  .totals td { padding:8px 0; border-bottom:1px solid #e5e7eb; }
+  .totals td:last-child { text-align:right; font-weight:bold; }
+  .total-row td { font-size:18px; border-bottom:3px solid #1f2933; padding-top:12px; }
+  .note { margin-top:34px; padding:16px 18px; background:#f8fafc; border-left:4px solid #1f2933; line-height:1.55; }
+  .footer { margin-top:48px; font-size:11px; color:#667085; border-top:1px solid #e5e7eb; padding-top:12px; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div>
+      <h1>INVOICE</h1>
+      <div class="muted">Second Installment</div>
+    </div>
+    <div class="company">
+      <strong>PNM Fencing NJ LLC</strong><br>
+      Phone: (908) 692-4847<br>
+      pnmfencing@gmail.com
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="box-title">Bill To</div>
+      <strong>Cherry Valley HOA c/o RCP Management</strong><br>
+      Attn: Kristen Wolfe<br>
+      2 Commerce Drive, Suite 101<br>
+      Cranbury, NJ 08512<br>
+      kwolfe@rcpmanagement.com<br>
+      +1 (609) 683-7980
+    </div>
+    <div>
+      <div class="box-title">Invoice Details</div>
+      <table class="details">
+        <tr><td>Invoice #</td><td><strong>INV-1203-2</strong></td></tr>
+        <tr><td>Proposal #</td><td>1203</td></tr>
+        <tr><td>Invoice Date</td><td>June 24, 2026</td></tr>
+        <tr><td>Due Date</td><td>Due upon receipt</td></tr>
+        <tr><td>Payment</td><td>Check</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th class="amount">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <strong>Second installment for Proposal #1203</strong><br>
+          Fencing project per signed proposal. Original job total: $4,350.00.
+        </td>
+        <td class="amount">$1,087.50</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table class="totals">
+    <tr><td>Subtotal</td><td>$1,087.50</td></tr>
+    <tr><td>Tax</td><td>$0.00</td></tr>
+    <tr class="total-row"><td>Total Due</td><td>$1,087.50</td></tr>
+  </table>
+
+  <div class="note">
+    <strong>Check payment instructions:</strong><br>
+    Please make check payable to <strong>PNM Fencing NJ LLC</strong>.<br><br>
+    Memo: <strong>Invoice INV-1203-2 / Proposal #1203</strong>
+  </div>
+
+  <div class="footer">
+    Thank you for your business.
+  </div>
+</body>
+</html>
