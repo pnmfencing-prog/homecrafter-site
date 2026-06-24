@@ -454,7 +454,7 @@ var COLUMNS = [
   { key: 'sold', label: 'Sold', color: '#16a34a' },
   { key: 'lost', label: 'Lost', color: '#c0392b' },
 ];
-var FIXED_BOARD_COLUMN_KEYS = ['new', 'promising_reply', 'neutral_reply', 'real_estate_new', 'real_estate_promising', 'real_estate_neutral', 'contacted', 'quoted', 'scheduled', 'won', 'sold', 'lost'];
+var FIXED_BOARD_COLUMN_KEYS = ['new', 'promising_reply', 'neutral_reply', 'contacted', 'quoted', 'scheduled', 'won', 'sold', 'real_estate_new', 'real_estate_promising', 'real_estate_neutral', 'lost'];
 
 function allBoardColumns() {
   return FIXED_BOARD_COLUMN_KEYS.map(function(key) {
@@ -467,7 +467,7 @@ function boardColumns() {
   if (messageFilter !== 'customer') return cols;
   // In Msg Rcvd mode, keep New first so fresh replies that have not been
   // triaged yet do not appear to disappear off to the far right.
-  var priority = { new: 0, promising_reply: 1, neutral_reply: 2, real_estate_new: 3, real_estate_promising: 4, real_estate_neutral: 5, contacted: 6, quoted: 7, scheduled: 8, sold: 9, won: 10, lost: 11 };
+  var priority = { new: 0, promising_reply: 1, neutral_reply: 2, contacted: 3, quoted: 4, scheduled: 5, won: 6, sold: 7, real_estate_new: 8, real_estate_promising: 9, real_estate_neutral: 10, lost: 11 };
   return cols.slice().sort(function(a, b) {
     return (priority[a.key] ?? 99) - (priority[b.key] ?? 99);
   });
@@ -698,7 +698,7 @@ function loadLeads() {
   // Read/unread filters need a server reload without slicing, especially for large
   // columns like Real Estate New. Otherwise the button only filters whatever
   // capped subset was already loaded.
-  if (!search && hasWorkflowFilter && readFilter === 'all' && messageFilter === 'you') params += '&limit=500';
+  if (!search && hasWorkflowFilter && readFilter === 'all' && messageFilter !== 'all') params += '&limit=500';
 
   return fetch('/api/crm' + params, api('GET'))
     .then(function(r) { return r.json(); })
