@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   const includeLeads = searchParams.get('includeLeads') === '1';
+  const countsOnly = searchParams.get('countsOnly') === '1';
   const includeNonresponders = searchParams.get('includeNonresponders') === '1';
 
   const campaigns = id
@@ -88,8 +89,65 @@ export async function GET(request: NextRequest) {
       `
     : [];
 
+  let leadCounts: Awaited<ReturnType<typeof sql>> = [];
   let leads: Awaited<ReturnType<typeof sql>> = [];
-  if (includeLeads) {
+  if (includeLeads || countsOnly) {
+    leadCounts = await sql`
+      WITH default_angi_campaign AS (
+        SELECT id, name
+        FROM crm_campaigns
+        WHERE source = 'angi' AND is_default = true AND is_active = true
+        ORDER BY id ASC
+        LIMIT 1
+      ), campaign_steps AS (
+        SELECT
+          campaign_id,
+          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
+          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
+        FROM crm_campaign_messages
+        WHERE is_active = true
+        GROUP BY campaign_id
+      ), lead_base AS (
+        SELECT
+          l.*,
+          CASE
+            WHEN l.campaign_id IS NOT NULL THEN l.campaign_id
+            WHEN l.source = 'angi' THEN (SELECT id FROM default_angi_campaign)
+            ELSE NULL
+          END AS effective_campaign_id
+        FROM crm_leads l
+      ), enriched AS (
+        SELECT
+          l.id,
+          l.status,
+          l.effective_campaign_id AS campaign_id,
+          (
+            l.effective_campaign_id IS NOT NULL
+            AND (COALESCE(steps.sms_steps, 0) > 0 OR COALESCE(steps.email_steps, 0) > 0)
+            AND COALESCE(l.outreach_count, 0) >= COALESCE(steps.sms_steps, 0)
+            AND COALESCE(l.email_outreach_count, 0) >= COALESCE(steps.email_steps, 0)
+          ) AS campaign_completed
+        FROM lead_base l
+        LEFT JOIN campaign_steps steps ON steps.campaign_id = l.effective_campaign_id
+      )
+      SELECT
+        SUM(status_count)::int AS total,
+        jsonb_object_agg(status, status_count) AS by_status,
+        jsonb_object_agg(status, campaign_completed_count) AS campaign_completed_by_status,
+        jsonb_object_agg(status, no_campaign_count) AS no_campaign_by_status,
+        SUM(campaign_completed_count)::int AS campaign_completed,
+        SUM(no_campaign_count)::int AS no_campaign
+      FROM (
+        SELECT
+          COALESCE(status, 'new') AS status,
+          COUNT(*)::int AS status_count,
+          COUNT(*) FILTER (WHERE campaign_completed AND COALESCE(status, 'new') <> 'lost')::int AS campaign_completed_count,
+          COUNT(*) FILTER (WHERE NOT campaign_completed AND campaign_id IS NULL)::int AS no_campaign_count
+        FROM enriched
+        GROUP BY COALESCE(status, 'new')
+      ) grouped
+    `;
+    if (!countsOnly) {
     leads = await sql`
       WITH default_angi_campaign AS (
         SELECT id, name
@@ -97,6 +155,14 @@ export async function GET(request: NextRequest) {
         WHERE source = 'angi' AND is_default = true AND is_active = true
         ORDER BY id ASC
         LIMIT 1
+      ), campaign_steps AS (
+        SELECT
+          campaign_id,
+          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
+          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
+        FROM crm_campaign_messages
+        WHERE is_active = true
+        GROUP BY campaign_id
       ), lead_base AS (
         SELECT
           l.*,
@@ -121,16 +187,11 @@ export async function GET(request: NextRequest) {
         ) AS campaign_completed
       FROM lead_base l
       LEFT JOIN crm_campaigns camp ON camp.id = l.effective_campaign_id
-      LEFT JOIN LATERAL (
-        SELECT
-          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
-          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
-        FROM crm_campaign_messages
-        WHERE campaign_id = l.effective_campaign_id AND is_active = true
-      ) steps ON true
+      LEFT JOIN campaign_steps steps ON steps.campaign_id = l.effective_campaign_id
       ORDER BY campaign_completed DESC, l.created_at DESC
       LIMIT 1000
     `;
+    }
   }
 
   let nonresponders: Awaited<ReturnType<typeof sql>> = [];
@@ -152,7 +213,7 @@ export async function GET(request: NextRequest) {
     `;
   }
 
-  return NextResponse.json({ campaigns, messages, leads, nonresponders });
+  return NextResponse.json({ campaigns, messages, leads, leadCounts: leadCounts[0] || null, nonresponders });
 }
 
 export async function POST(request: NextRequest) {
