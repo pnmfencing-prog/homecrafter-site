@@ -94,6 +94,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .lead-card.flagged:not(.unread) { border-left-color: #d97706; border-left-width: 4px; }
 .flag-badge { display:inline-flex;align-items:center;gap:0.18rem;margin-right:0.35rem;padding:0.12rem 0.38rem;border-radius:999px;background:#fffbeb;color:#b45309;font-size:0.55rem;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;border:1px solid #fde68a;vertical-align:middle; }
 .flag-toggle.active { background:#fffbeb !important;color:#b45309 !important;border-color:#f59e0b !important; }
+.unread-toggle.active { background:var(--red) !important;color:#fff !important;border-color:var(--red) !important;box-shadow:0 0 0 3px rgba(192,57,43,0.14); }
+.unread-toggle.active:hover { background:#a93226 !important;border-color:#a93226 !important; }
 .unread-dot { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--red); vertical-align: 1px; box-shadow: 0 0 0 3px rgba(176,58,46,0.12); }
 .unread-badge { float: right; margin-left: 0.35rem; font-size: 0.52rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.12rem 0.42rem; border-radius: 999px; background: var(--red); color: #fff; }
 .lead-card.source-angi:not(.unread) { border-left-color: #ff6b35; }
@@ -658,6 +660,25 @@ function refreshCampaignSelectVisual() {
   sel.style.color = assigned ? 'var(--green)' : 'var(--midnight)';
 }
 
+function unreadButtonHtml(l) {
+  var unread = !l.is_read;
+  return '<button id="lead-unread-toggle" class="btn btn-outline unread-toggle ' + (unread ? 'active' : '') + '" style="font-size:0.6rem;padding:0.25rem 0.5rem" onclick="toggleRead(' + l.id + ')">' + (unread ? 'Unread ✓' : 'Mark Unread') + '</button>';
+}
+
+function updateUnreadButtonVisual(isRead) {
+  var btn = document.getElementById('lead-unread-toggle');
+  if (!btn) return;
+  if (isRead) {
+    btn.classList.remove('active');
+    btn.textContent = 'Mark Unread';
+    btn.title = 'Click to mark this lead unread';
+  } else {
+    btn.classList.add('active');
+    btn.textContent = 'Unread ✓';
+    btn.title = 'This lead is marked unread. Click to mark read.';
+  }
+}
+
 function markLeadReadLocally(id, isRead) {
   var changed = false;
   allLeads.forEach(function(l) {
@@ -1038,6 +1059,8 @@ function openLeadDetail(id, skipHistory) {
       
       // Auto-mark as read when opening
       if (!l.is_read) {
+        l.is_read = true;
+        activeLeadDetail = l;
         markLeadReadLocally(l.id, true);
         try { localStorage.setItem('crm_read_lead_' + l.id, JSON.stringify({ id: l.id, is_read: true, at: Date.now() })); } catch (e) {}
         fetch('/api/crm', api('POST', { action: 'toggle_read', id: l.id, is_read: true }));
@@ -1087,7 +1110,7 @@ function openLeadDetail(id, skipHistory) {
           '<div style="display:flex;gap:0.5rem;align-items:center">' +
             (l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '" style="font-size:0.6rem">' + (l.last_message_by === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '') +
             '<button class="btn btn-outline flag-toggle ' + (l.flagged ? 'active' : '') + '" style="font-size:0.6rem;padding:0.25rem 0.5rem" onclick="toggleFlag(' + l.id + ',' + (l.flagged ? 'false' : 'true') + ')">' + (l.flagged ? '🚩 Flagged' : '🚩 Flag') + '</button>' +
-            '<button class="btn btn-outline" style="font-size:0.6rem;padding:0.25rem 0.5rem" onclick="toggleRead(' + l.id + ')">Mark Unread</button>' +
+            unreadButtonHtml(l) +
             '<span style="font-size:0.7rem;color:#bbb">' + (l.source || 'manual') + '</span>' +
           '</div>' +
         '</div>' +
@@ -1782,12 +1805,29 @@ function assignLeadCampaign(id) {
 }
 
 function toggleRead(id) {
-  var lead = allLeads.find(function(l) { return l.id === id; });
-  if (!lead) return;
-  var newRead = !lead.is_read;
-  lead.is_read = newRead;
+  var lead = allLeads.find(function(l) { return String(l.id) === String(id); });
+  var currentRead = lead ? lead.is_read : (activeLeadDetail ? activeLeadDetail.is_read : true);
+  var newRead = !currentRead;
+  if (lead) lead.is_read = newRead;
+  if (activeLeadDetail && String(activeLeadDetail.id) === String(id)) activeLeadDetail.is_read = newRead;
+  updateUnreadButtonVisual(newRead);
+  try { localStorage.setItem('crm_read_lead_' + id, JSON.stringify({ id: id, is_read: newRead, at: Date.now() })); } catch (e) {}
   fetch('/api/crm', api('POST', { action: 'toggle_read', id: id, is_read: newRead }))
-    .then(function() { closeModal(); renderBoard(); });
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error) throw new Error(d.error);
+      markLeadReadLocally(id, newRead);
+      renderBoard();
+      renderList();
+      updateUnreadButtonVisual(newRead);
+    })
+    .catch(function() {
+      var rollbackRead = !newRead;
+      if (lead) lead.is_read = rollbackRead;
+      if (activeLeadDetail && String(activeLeadDetail.id) === String(id)) activeLeadDetail.is_read = rollbackRead;
+      updateUnreadButtonVisual(rollbackRead);
+      alert('Could not update unread status. Please try again.');
+    });
 }
 
 function deleteLead(id) {
