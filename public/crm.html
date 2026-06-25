@@ -331,7 +331,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 
 <!-- Toolbar -->
 <div class="toolbar">
-  <input type="text" class="search-box" id="searchBox" placeholder="Search leads...">
+  <input type="text" class="search-box" id="searchBox" placeholder="Search name, phone, email, address, notes...">
   <div class="view-toggle">
     <button class="btn active" data-view="board" onclick="setView('board')">Board</button>
     <button class="btn" data-view="list" onclick="setView('list')">List</button>
@@ -727,15 +727,16 @@ function openTileChat(event, id, token) {
 
 function loadLeads() {
   consumeReadSignals();
-  var effectiveStatus = messageFilter !== 'all' ? 'all' : currentFilter;
-  var params = '?status=' + effectiveStatus + '&source=' + currentSource;
-  if (campaignFilter !== 'all') params += '&campaign=' + encodeURIComponent(campaignFilter);
-  if (flaggedFilter) params += '&flagged=1';
   var searchEl = document.getElementById('searchBox');
-  var search = searchEl ? searchEl.value : '';
+  var search = searchEl ? searchEl.value.trim() : '';
+  var effectiveStatus = search ? 'all' : (messageFilter !== 'all' ? 'all' : currentFilter);
+  var effectiveSource = search ? 'all' : currentSource;
+  var params = '?status=' + effectiveStatus + '&source=' + effectiveSource;
+  if (!search && campaignFilter !== 'all') params += '&campaign=' + encodeURIComponent(campaignFilter);
+  if (!search && flaggedFilter) params += '&flagged=1';
   if (search) params += '&search=' + encodeURIComponent(search);
-  if (readFilter !== 'all') params += '&read=' + encodeURIComponent(readFilter);
-  if (messageFilter !== 'all') params += '&message=' + encodeURIComponent(messageFilter);
+  if (!search && readFilter !== 'all') params += '&read=' + encodeURIComponent(readFilter);
+  if (!search && messageFilter !== 'all') params += '&message=' + encodeURIComponent(messageFilter);
   var hasWorkflowFilter = readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter;
   if (!search && !hasWorkflowFilter && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=150';
   if (!search && !hasWorkflowFilter && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=500';
