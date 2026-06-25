@@ -120,6 +120,8 @@ export async function GET(request: NextRequest) {
         SELECT
           l.id,
           l.status,
+          l.customer_responded,
+          l.outreach_paused,
           l.effective_campaign_id AS campaign_id,
           (
             l.effective_campaign_id IS NOT NULL
@@ -133,14 +135,17 @@ export async function GET(request: NextRequest) {
       SELECT
         SUM(status_count)::int AS total,
         jsonb_object_agg(status, status_count) AS by_status,
+        jsonb_object_agg(status, active_campaign_count) AS active_campaign_by_status,
         jsonb_object_agg(status, campaign_completed_count) AS campaign_completed_by_status,
         jsonb_object_agg(status, no_campaign_count) AS no_campaign_by_status,
+        SUM(active_campaign_count)::int AS active_campaign,
         SUM(campaign_completed_count)::int AS campaign_completed,
         SUM(no_campaign_count)::int AS no_campaign
       FROM (
         SELECT
           COALESCE(status, 'new') AS status,
           COUNT(*)::int AS status_count,
+          COUNT(*) FILTER (WHERE campaign_id IS NOT NULL AND NOT campaign_completed AND customer_responded = false AND outreach_paused = false)::int AS active_campaign_count,
           COUNT(*) FILTER (WHERE campaign_completed AND COALESCE(status, 'new') <> 'lost')::int AS campaign_completed_count,
           COUNT(*) FILTER (WHERE NOT campaign_completed AND campaign_id IS NULL)::int AS no_campaign_count
         FROM enriched
