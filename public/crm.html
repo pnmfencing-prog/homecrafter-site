@@ -738,7 +738,7 @@ function loadLeads() {
   if (!search && readFilter !== 'all') params += '&read=' + encodeURIComponent(readFilter);
   if (!search && messageFilter !== 'all') params += '&message=' + encodeURIComponent(messageFilter);
   var hasWorkflowFilter = readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter;
-  if (!search && !hasWorkflowFilter && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=150';
+  if (!search && !hasWorkflowFilter && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=50';
   if (!search && !hasWorkflowFilter && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=500';
   // Read/unread filters need a server reload without slicing, especially for large
   // columns like Real Estate New. Otherwise the button only filters whatever
