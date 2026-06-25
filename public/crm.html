@@ -740,10 +740,9 @@ function loadLeads() {
   var hasWorkflowFilter = readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter;
   if (!search && !hasWorkflowFilter && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=50';
   if (!search && !hasWorkflowFilter && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=500';
-  // Read/unread filters need a server reload without slicing, especially for large
-  // columns like Real Estate New. Otherwise the button only filters whatever
-  // capped subset was already loaded.
-  if (!search && hasWorkflowFilter && readFilter === 'all' && messageFilter !== 'all') params += '&limit=500';
+  // Workflow filters need a server reload with a larger slice, otherwise columns
+  // can show filtered counts while their older matching cards were never loaded.
+  if (!search && hasWorkflowFilter) params += '&limit=1000';
 
   return fetch('/api/crm' + params, api('GET'))
     .then(function(r) { return r.json(); })
