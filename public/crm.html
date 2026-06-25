@@ -780,8 +780,12 @@ function renderActiveFilterPill() {
   el.textContent = 'Filters: ' + parts.join(' • ');
 }
 
+function hasActiveWorkflowFilter() {
+  return readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter;
+}
+
 function renderStatsFromLeads(leads) {
-  if (exactBoardStats) {
+  if (exactBoardStats && !hasActiveWorkflowFilter()) {
     renderStats(exactBoardStats);
     return;
   }
@@ -814,6 +818,9 @@ function renderStats(s) {
 }
 
 function exactCountForStatus(statusKey, fallback) {
+  // When workflow filters are active, show the visible filtered count so the
+  // badge does not claim there are replies hidden by Msg Sent/Read/etc.
+  if (hasActiveWorkflowFilter()) return fallback;
   if (!exactBoardStats) return fallback;
   return Number(exactBoardStats[statusKey + '_count'] || 0);
 }
