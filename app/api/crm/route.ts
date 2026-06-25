@@ -374,7 +374,18 @@ export async function GET(request: NextRequest) {
       LIMIT ${workflowLimit}`;
   } else if (maxPerStatus) {
     leads = await sql`
-      WITH lead_rows AS (
+      WITH latest_by_lead AS (
+        SELECT DISTINCT ON (crm_lead_id)
+          crm_lead_id,
+          description,
+          created_at,
+          is_from_customer,
+          created_by,
+          activity_type
+        FROM crm_activity
+        WHERE activity_type IN ('sms', 'email')
+        ORDER BY crm_lead_id, created_at DESC
+      ), lead_rows AS (
         SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
                latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
                latest.activity_type AS latest_message_type,
@@ -383,13 +394,7 @@ export async function GET(request: NextRequest) {
                  ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
                ) AS status_rank
         FROM crm_leads l
-        LEFT JOIN LATERAL (
-          SELECT description, created_at, is_from_customer, created_by, activity_type
-          FROM crm_activity
-          WHERE crm_lead_id = l.id AND activity_type IN ('sms', 'email')
-          ORDER BY created_at DESC
-          LIMIT 1
-        ) latest ON true
+        LEFT JOIN latest_by_lead latest ON latest.crm_lead_id = l.id
       )
       SELECT * FROM lead_rows
       WHERE status_rank <= ${maxPerStatus}
