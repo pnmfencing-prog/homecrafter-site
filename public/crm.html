@@ -426,6 +426,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
 var allLeads = [];
 var campaigns = [];
+var campaignsLoaded = false;
+var campaignsLoadPromise = null;
 var currentView = 'board';
 var currentFilter = 'all';
 var currentSource = 'all';
@@ -606,15 +608,35 @@ function messageAuthor(l) {
 }
 
 function loadCampaigns() {
-  return fetch('/api/campaigns', api('GET'))
+  if (campaignsLoadPromise) return campaignsLoadPromise;
+  campaignsLoadPromise = fetch('/api/campaigns', api('GET'))
     .then(function(r) { return r.json(); })
-    .then(function(data) { campaigns = data.campaigns || []; })
-    .catch(function() { campaigns = []; });
+    .then(function(data) { campaigns = data.campaigns || []; campaignsLoaded = true; campaignsLoadPromise = null; return campaigns; })
+    .catch(function() { campaigns = []; campaignsLoaded = true; campaignsLoadPromise = null; return campaigns; });
+  return campaignsLoadPromise;
 }
 
 function campaignName(id) {
   var c = campaigns.find(function(x) { return String(x.id) === String(id || ''); });
   return c ? c.name : '';
+}
+
+function campaignStatusLabel(l) {
+  if (!l || !l.campaign_id) return 'None assigned';
+  if (l.campaign_completed) return 'Completed';
+  if (l.customer_responded) return 'Paused — customer replied';
+  if (l.outreach_paused) return 'Paused';
+  if (l.campaign_active_now) return 'Active';
+  if (l.campaign_is_active === false) return 'Campaign inactive';
+  return 'No active campaign';
+}
+
+function campaignStatusColor(l) {
+  var label = campaignStatusLabel(l).toLowerCase();
+  if (label.indexOf('completed') >= 0) return '#047857';
+  if (label.indexOf('active') >= 0 && label.indexOf('inactive') < 0 && label.indexOf('no active') < 0) return 'var(--green)';
+  if (label.indexOf('paused') >= 0) return '#d97706';
+  return 'var(--text-muted)';
 }
 
 function campaignOptions(selectedId) {
@@ -992,6 +1014,10 @@ function restoreOpenThreadScrollState(state) {
 }
 
 function openLeadDetail(id, skipHistory) {
+  if (!campaignsLoaded) {
+    loadCampaigns().then(function() { openLeadDetail(id, skipHistory); });
+    return;
+  }
   var modalAlreadyOpen = document.getElementById('leadModal').classList.contains('show');
   var refreshingSameLead = modalAlreadyOpen && String(activeLeadId) === String(id);
   var scrollState = refreshingSameLead ? getOpenThreadScrollState() : null;
@@ -1018,8 +1044,25 @@ function openLeadDetail(id, skipHistory) {
       }
 
       var statusBtns = stagePickerHtml(l.id, l.status);
-      var campaignStatusText = l.campaign_completed ? '<strong style="color:#047857">COMPLETED</strong>' : l.campaign_active_now ? '<strong style="color:var(--green)">ACTIVE</strong>' : '<strong style="color:var(--text-muted)">NO ACTIVE CAMPAIGN</strong>';
+      var campaignStatus = campaignStatusLabel(l);
+      var campaignStatusText = '<strong style="color:' + campaignStatusColor(l) + '">' + esc(campaignStatus.toUpperCase()) + '</strong>';
       var campaignProgressText = l.campaign_id ? 'SMS ' + Number(l.campaign_sms_sent || 0) + '/' + Number(l.campaign_sms_steps || 0) + ' · Email ' + Number(l.campaign_email_sent || 0) + '/' + Number(l.campaign_email_steps || 0) : '';
+      var campaignStartedText = l.campaign_started_at ? new Date(l.campaign_started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+      var campaignSummaryHtml = l.campaign_id
+        ? '<div style="width:100%;margin-top:0.1rem;padding:0.6rem 0.7rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:8px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.35rem 0.8rem;font-size:0.68rem">' +
+            '<div><span style="color:var(--text-muted);font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Assigned</span><br><strong style="color:var(--midnight)">' + esc(l.campaign_name || campaignName(l.campaign_id) || ('Campaign #' + l.campaign_id)) + '</strong></div>' +
+            '<div><span style="color:var(--text-muted);font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Status</span><br>' + campaignStatusText + '</div>' +
+            '<div><span style="color:var(--text-muted);font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Progress</span><br><strong>' + esc(campaignProgressText || 'Not started') + '</strong></div>' +
+            '<div><span style="color:var(--text-muted);font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Started</span><br><strong>' + esc(campaignStartedText || 'Not started') + '</strong></div>' +
+          '</div>'
+        : (l.previous_campaign_name
+          ? '<div style="width:100%;margin-top:0.1rem;padding:0.6rem 0.7rem;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.35rem 0.8rem;font-size:0.68rem">' +
+              '<div><span style="color:#9a3412;font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Previous Campaign</span><br><strong style="color:var(--midnight)">' + esc(l.previous_campaign_name) + '</strong></div>' +
+              '<div><span style="color:#9a3412;font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Current Status</span><br><strong style="color:#d97706">REMOVED / PAUSED</strong></div>' +
+              '<div><span style="color:#9a3412;font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Progress Before Removal</span><br><strong>SMS ' + Number(l.outreach_count || 0) + ' · Email ' + Number(l.email_outreach_count || 0) + '</strong></div>' +
+              '<div><span style="color:#9a3412;font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Reason</span><br><strong>' + esc(l.lost_reason || (l.customer_responded ? 'Customer replied' : 'No active campaign')) + '</strong></div>' +
+            '</div>'
+          : '<div style="width:100%;margin-top:0.1rem;padding:0.55rem 0.7rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:8px;font-size:0.68rem;color:var(--text-muted);font-weight:800">No campaign assigned to this lead.</div>');
       activeLeadEmail = (l.customer_email || '').trim();
       var hasValidEmail = isValidEmail(activeLeadEmail);
       var lastInbound = act.slice().reverse().find(function(a) {
@@ -1059,7 +1102,8 @@ function openLeadDetail(id, skipHistory) {
           '<span style="font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--midnight)">Campaign</span>' +
           '<select id="lead-campaign-select" onchange="refreshCampaignSelectVisual()" style="flex:1;min-width:210px;border:1px solid ' + (l.campaign_id ? 'var(--green)' : '#e0ddd6') + ';background:' + (l.campaign_id ? 'var(--green-bg)' : '#fff') + ';color:' + (l.campaign_id ? 'var(--green)' : 'var(--midnight)') + ';border-radius:8px;padding:0.45rem 0.6rem;font-family:Montserrat,sans-serif;font-size:0.75rem;font-weight:700">' + campaignOptions(l.campaign_id) + '</select>' +
           '<button id="campaign-assign-btn" class="btn btn-primary" style="font-size:0.65rem;padding:0.45rem 0.75rem" onclick="assignLeadCampaign(' + l.id + ')">Assign</button>' +
-          '<span id="campaign-assign-feedback" style="font-size:0.68rem;font-weight:800;color:' + (l.campaign_id ? 'var(--green)' : 'var(--text-muted)') + ';width:100%">' + (l.campaign_id ? '✓ Currently assigned to ' + esc(campaignName(l.campaign_id)) + ' — ' + campaignStatusText + (campaignProgressText ? ' <span style="font-weight:700;color:var(--text-muted)">(' + esc(campaignProgressText) + ')</span>' : '') : 'None assigned yet — ' + campaignStatusText) + '</span>' +
+          '<span id="campaign-assign-feedback" style="font-size:0.68rem;font-weight:800;color:' + (l.campaign_id ? campaignStatusColor(l) : 'var(--text-muted)') + ';width:100%">' + (l.campaign_id ? '✓ Campaign assignment saved — ' + campaignStatusText : 'None assigned yet') + '</span>' +
+          campaignSummaryHtml +
         '</div>' +
 
         '<details style="margin-bottom:1rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:10px;padding:0.75rem">' +
@@ -1714,15 +1758,23 @@ function assignLeadCampaign(id) {
         return;
       }
       var lead = allLeads.find(function(l) { return l.id === id; });
-      if (lead) lead.campaign_id = campaignId;
+      if (lead) {
+        lead.campaign_id = campaignId;
+        lead.campaign_name = campaignId ? campaignName(campaignId) : null;
+        lead.campaign_completed = false;
+        lead.campaign_active_now = !!campaignId;
+        lead.campaign_sms_sent = 0;
+        lead.campaign_email_sent = 0;
+      }
       if (feedback) {
         feedback.style.color = campaignId ? 'var(--green)' : 'var(--text-muted)';
-        feedback.textContent = campaignId ? '✓ Assigned to ' + campaignName(campaignId) : '✓ Campaign removed — None assigned';
+        feedback.textContent = campaignId ? '✓ Assigned to ' + campaignName(campaignId) + ' — refreshing status…' : '✓ Campaign removed — refreshing status…';
       }
       sel.innerHTML = campaignOptions(campaignId);
       refreshCampaignSelectVisual();
-      if (btn) { btn.textContent = 'Assigned ✓'; setTimeout(function() { btn.disabled = false; btn.textContent = 'Assign'; }, 1400); }
-      loadCampaigns().then(loadLeads);
+      if (btn) { btn.textContent = 'Assigned ✓'; }
+      campaignsLoaded = false;
+      loadCampaigns().then(function() { return loadLeads(); }).then(function() { openLeadDetail(id, true); });
     }).catch(function() {
       if (btn) { btn.disabled = false; btn.textContent = 'Assign'; }
       if (feedback) { feedback.style.color = 'var(--red)'; feedback.textContent = 'Could not assign campaign. Try again.'; }

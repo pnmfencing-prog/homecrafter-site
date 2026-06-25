@@ -173,7 +173,23 @@ export async function GET(request: NextRequest) {
       WHERE rn = 1
     `;
     const enrichedLead = (await enrichCampaignStatus([leads[0]]))[0];
-    const lead = { ...enrichedLead, ...(activeEvents[0] || {}) };
+    const previousCampaignRows = await sql`
+      SELECT description, created_at
+      FROM crm_activity
+      WHERE crm_lead_id = ${leadId}
+        AND activity_type = 'status_change'
+        AND description ILIKE 'Assigned to campaign:%'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+    const previousCampaignDescription = previousCampaignRows[0]?.description || '';
+    const previousCampaignName = previousCampaignDescription.replace(/^Assigned to campaign:\s*/i, '').trim() || null;
+    const lead = {
+      ...enrichedLead,
+      ...(activeEvents[0] || {}),
+      previous_campaign_name: previousCampaignName,
+      previous_campaign_assigned_at: previousCampaignRows[0]?.created_at || null,
+    };
     const activity = await sql`SELECT * FROM crm_activity WHERE crm_lead_id = ${leadId} ORDER BY created_at DESC LIMIT 50`;
     const activityIds = activity.map((a) => a.id);
     const attachments = activityIds.length

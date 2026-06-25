@@ -220,26 +220,40 @@ export async function POST(request: NextRequest) {
     const leadId = Number(body.lead_id);
     const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
     if (!leadId) return NextResponse.json({ error: 'Lead id required' }, { status: 400 });
+    const campaignRows = campaignId ? await sql`SELECT name FROM crm_campaigns WHERE id = ${campaignId} LIMIT 1` : [];
+    const campaignName = campaignRows[0]?.name || null;
     await sql`
       UPDATE crm_leads
       SET campaign_id = ${campaignId}, campaign_started_at = CASE WHEN ${campaignId}::integer IS NULL THEN NULL ELSE NOW() END,
           outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
       WHERE id = ${leadId}
     `;
-    return NextResponse.json({ success: true });
+    await sql`
+      INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+      VALUES (${leadId}, 'status_change', ${campaignId ? `Assigned to campaign: ${campaignName || `Campaign #${campaignId}`}` : 'Campaign assignment removed'}, false, 'campaign_system')
+    `;
+    return NextResponse.json({ success: true, campaign_name: campaignName });
   }
 
   if (action === 'bulk_assign') {
     const leadIds = Array.isArray(body.lead_ids) ? body.lead_ids.map(Number).filter(Boolean) : [];
     const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
     if (!leadIds.length) return NextResponse.json({ error: 'No leads selected' }, { status: 400 });
+    const campaignRows = campaignId ? await sql`SELECT name FROM crm_campaigns WHERE id = ${campaignId} LIMIT 1` : [];
+    const campaignName = campaignRows[0]?.name || null;
     await sql`
       UPDATE crm_leads
       SET campaign_id = ${campaignId}, campaign_started_at = CASE WHEN ${campaignId}::integer IS NULL THEN NULL ELSE NOW() END,
           outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
       WHERE id = ANY(${leadIds})
     `;
-    return NextResponse.json({ success: true, count: leadIds.length });
+    await sql`
+      INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+      SELECT id, 'status_change', ${campaignId ? `Assigned to campaign: ${campaignName || `Campaign #${campaignId}`}` : 'Campaign assignment removed'}, false, 'campaign_system'
+      FROM crm_leads
+      WHERE id = ANY(${leadIds})
+    `;
+    return NextResponse.json({ success: true, count: leadIds.length, campaign_name: campaignName });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
