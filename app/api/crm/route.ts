@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
     : null;
   const limitParam = parseInt(searchParams.get('limit') || '', 10);
   const resultLimit = Number.isFinite(limitParam) && limitParam > 0
-    ? Math.min(limitParam, 1000)
+    ? Math.min(limitParam, 5000)
     : null;
 
   // Single lead with activity
@@ -339,7 +339,7 @@ export async function GET(request: NextRequest) {
         )
       ORDER BY l.created_at DESC`;
   } else if (messageFilter === 'you') {
-    const workflowLimit = resultLimit || 500;
+    const workflowLimit = resultLimit || 5000;
     leads = await sql`
       SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
@@ -356,7 +356,7 @@ export async function GET(request: NextRequest) {
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${workflowLimit}`;
   } else if (messageFilter === 'customer') {
-    const workflowLimit = resultLimit || 500;
+    const workflowLimit = resultLimit || 5000;
     leads = await sql`
       SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
@@ -427,7 +427,7 @@ export async function GET(request: NextRequest) {
     leads = leads.filter((lead) => lead.last_message_by === 'you' || lead.last_message_by === 'company');
   }
 
-  const workflowDefaultLimit = !resultLimit && !search && messageFilter !== 'all' ? 500 : null;
+  const workflowDefaultLimit = !resultLimit && !search && messageFilter !== 'all' ? 5000 : null;
   const effectiveResultLimit = resultLimit || workflowDefaultLimit;
   if (effectiveResultLimit && leads.length > effectiveResultLimit) {
     leads = leads.slice(0, effectiveResultLimit);
