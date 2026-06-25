@@ -135,9 +135,17 @@ export async function POST(request: NextRequest) {
   const maxCode = await sql`SELECT COALESCE(MAX(CAST(lead_code AS INTEGER)), 99) + 1 as next_code FROM crm_leads WHERE lead_code ~ '^[0-9]+$'`;
   const leadCode = String(maxCode[0].next_code);
 
+  const defaultCampaign = await sql`
+    SELECT id FROM crm_campaigns
+    WHERE source = 'angi' AND is_default = true AND is_active = true
+    ORDER BY id ASC
+    LIMIT 1
+  `;
+  const campaignId = defaultCampaign[0]?.id || null;
+
   const result = await sql`
-    INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, status, chat_token, lead_code, is_read)
-    VALUES (${name}, ${phone}, ${email}, ${address}, ${city}, ${state}, ${zip}, ${service}, ${notes || null}, 'angi', 'new', ${chatToken}, ${leadCode}, false)
+    INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, status, chat_token, lead_code, is_read, campaign_id, campaign_started_at)
+    VALUES (${name}, ${phone}, ${email}, ${address}, ${city}, ${state}, ${zip}, ${service}, ${notes || null}, 'angi', 'new', ${chatToken}, ${leadCode}, false, ${campaignId}, NOW())
     RETURNING *
   `;
 
