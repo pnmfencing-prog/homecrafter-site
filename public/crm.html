@@ -346,6 +346,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
     <button class="btn" data-mf="you" onclick="setMessageFilter('you')">Msg Sent</button>
     <button class="btn" data-mf="customer" onclick="setMessageFilter('customer')">Msg Rcvd</button>
   </div>
+  <label class="active-filter-pill" style="display:inline-flex;align-items:center;gap:0.35rem">Since <input type="date" id="lastMessageSince" onchange="setLastMessageSince(this.value)" style="border:0;background:transparent;color:inherit;font:inherit;max-width:8.2rem"></label>
   <button class="btn btn-outline" style="font-size:0.62rem;padding:0.38rem 0.65rem" onclick="resetCrmFilters()">Reset Filters</button>
   <span class="active-filter-pill" id="activeFilterPill">Filters: All</span>
   <div class="rcvd-counts" id="rcvdCounts"></div>
@@ -438,6 +439,7 @@ var readFilter = 'all';
 var messageFilter = 'all'; // global: 'all', 'you' (msg sent), 'customer' (msg rcvd)
 var campaignFilter = 'all'; // 'all', 'campaign_completed', or 'no_campaign'
 var flaggedFilter = false;
+var lastMessageSince = ''; // yyyy-mm-dd; filters by latest message/activity date
 var colMsgFilters = {}; // per-column: 'all', 'you' (msg sent), 'customer' (msg rcvd)
 var activeLeadId = null;
 var activeLeadDetail = null;
@@ -737,12 +739,13 @@ function loadLeads() {
   if (search) params += '&search=' + encodeURIComponent(search);
   if (!search && readFilter !== 'all') params += '&read=' + encodeURIComponent(readFilter);
   if (!search && messageFilter !== 'all') params += '&message=' + encodeURIComponent(messageFilter);
-  var hasWorkflowFilter = readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter;
+  if (!search && lastMessageSince) params += '&since=' + encodeURIComponent(lastMessageSince);
+  var hasWorkflowFilter = readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter || !!lastMessageSince;
   if (!search && !hasWorkflowFilter && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=50';
   if (!search && !hasWorkflowFilter && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=500';
   // Workflow filters need a server reload with a larger slice, otherwise columns
   // can show filtered counts while their older matching cards were never loaded.
-  if (!search && hasWorkflowFilter) params += '&limit=1000';
+  if (!search && hasWorkflowFilter) params += '&limit=5000';
 
   return fetch('/api/crm' + params, api('GET'))
     .then(function(r) { return r.json(); })
@@ -774,13 +777,14 @@ function renderActiveFilterPill() {
   parts.push('Status: ' + (messageFilter !== 'all' ? 'All' : currentFilter));
   parts.push('Read: ' + readFilter);
   parts.push('Msgs: ' + (messageFilter === 'customer' ? 'Received' : messageFilter === 'you' ? 'Sent' : 'All'));
+  if (lastMessageSince) parts.push('Since: ' + lastMessageSince);
   if (campaignFilter !== 'all') parts.push('Campaign: ' + campaignFilter.replace('_', ' '));
   if (flaggedFilter) parts.push('Flagged');
   el.textContent = 'Filters: ' + parts.join(' • ');
 }
 
 function hasActiveWorkflowFilter() {
-  return readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter;
+  return readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter || !!lastMessageSince;
 }
 
 function renderStatsFromLeads(leads) {
@@ -918,6 +922,11 @@ function setFlaggedFilter() {
   loadLeads();
 }
 
+function setLastMessageSince(value) {
+  lastMessageSince = value || '';
+  loadLeads();
+}
+
 function setMessageFilter(filter) {
   messageFilter = filter;
   document.querySelectorAll('.message-filter .btn').forEach(function(b) {
@@ -941,6 +950,9 @@ function resetCrmFilters() {
   messageFilter = 'all';
   campaignFilter = 'all';
   flaggedFilter = false;
+  lastMessageSince = '';
+  var sinceEl = document.getElementById('lastMessageSince');
+  if (sinceEl) sinceEl.value = '';
   var searchEl = document.getElementById('searchBox');
   if (searchEl) searchEl.value = '';
   document.querySelectorAll('.message-filter .btn').forEach(function(b) { b.classList.toggle('active', b.dataset.mf === 'all'); });

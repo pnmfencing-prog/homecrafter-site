@@ -125,6 +125,7 @@ export async function GET(request: NextRequest) {
   const messageFilter = searchParams.get('message');
   const flaggedOnly = searchParams.get('flagged') === '1';
   const includeOptOuts = searchParams.get('include_optouts') === '1';
+  const sinceFilter = searchParams.get('since') || '';
   const maxPerStatusParam = parseInt(searchParams.get('max_per_status') || '', 10);
   const maxPerStatus = Number.isFinite(maxPerStatusParam) && maxPerStatusParam > 0
     ? Math.min(maxPerStatusParam, 500)
@@ -427,7 +428,16 @@ export async function GET(request: NextRequest) {
     leads = leads.filter((lead) => lead.last_message_by === 'you' || lead.last_message_by === 'company');
   }
 
-  const workflowDefaultLimit = !resultLimit && !search && messageFilter !== 'all' ? 5000 : null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(sinceFilter)) {
+    const sinceTime = new Date(`${sinceFilter}T00:00:00-04:00`).getTime();
+    leads = leads.filter((lead) => {
+      const value = lead.latest_message_at || lead.last_message_at || lead.updated_at || lead.created_at;
+      const t = value ? new Date(value).getTime() : 0;
+      return Number.isFinite(t) && t >= sinceTime;
+    });
+  }
+
+  const workflowDefaultLimit = !resultLimit && !search && (messageFilter !== 'all' || readFilter !== 'all' || sinceFilter) ? 5000 : null;
   const effectiveResultLimit = resultLimit || workflowDefaultLimit;
   if (effectiveResultLimit && leads.length > effectiveResultLimit) {
     leads = leads.slice(0, effectiveResultLimit);
