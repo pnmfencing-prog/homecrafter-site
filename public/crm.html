@@ -427,6 +427,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 <script>
 var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
 var allLeads = [];
+var exactBoardStats = null;
 var campaigns = [];
 var campaignsLoaded = false;
 var campaignsLoadPromise = null;
@@ -747,6 +748,7 @@ function loadLeads() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       allLeads = data.leads || [];
+      exactBoardStats = data.exactStats || null;
       if (data.stats && data.stats.total && allLeads.length < data.stats.total) {
         console.info('CRM loaded a capped board slice:', allLeads.length, 'of', data.stats.total, 'leads. Use search or a status filter for specific records.');
       }
@@ -778,6 +780,10 @@ function renderActiveFilterPill() {
 }
 
 function renderStatsFromLeads(leads) {
+  if (exactBoardStats) {
+    renderStats(exactBoardStats);
+    return;
+  }
   var s = { total: leads.length, pipeline_value: 0, total_revenue: 0 };
   allBoardColumns().forEach(function(col) { s[col.key + '_count'] = 0; });
   leads.forEach(function(l) {
@@ -806,6 +812,11 @@ function renderStats(s) {
     '<div class="revenue-item">Total Leads: <strong>' + s.total + '</strong></div>';
 }
 
+function exactCountForStatus(statusKey, fallback) {
+  if (!exactBoardStats) return fallback;
+  return Number(exactBoardStats[statusKey + '_count'] || 0);
+}
+
 function renderRcvdCounts(visible) {
   var el = document.getElementById('rcvdCounts');
   if (!el) return;
@@ -813,7 +824,8 @@ function renderRcvdCounts(visible) {
   visible = visible || visibleLeadsForBoard();
   var html = '<span class="rcvd-label">' + label + '</span>';
   boardColumns().forEach(function(col) {
-    var count = visible.filter(function(l) { return l.status === col.key; }).length;
+    var visibleCount = visible.filter(function(l) { return l.status === col.key; }).length;
+    var count = exactCountForStatus(col.key, visibleCount);
     html += '<button class="rcvd-count' + (count ? ' has' : '') + '" onclick="scrollToStatus(\'' + col.key + '\')" title="Jump to ' + esc(col.label) + '">' + esc(col.label) + ': ' + count + '</button>';
   });
   el.innerHTML = html;
@@ -832,7 +844,7 @@ function renderBoard() {
     leads = leads.slice().sort(function(a, b) { return tileActivityTime(b) - tileActivityTime(a); });
     
     html += '<div class="column" data-status="' + col.key + '" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">' +
-      '<div class="column-header">' + col.label + ' <span class="column-count">' + leads.length + '</span></div>';
+      '<div class="column-header">' + col.label + ' <span class="column-count">' + exactCountForStatus(col.key, leads.length) + '</span></div>';
     leads.forEach(function(l) {
       var sourceClass = 'source-' + (l.source || 'manual');
       var unreadClass = !l.is_read ? ' unread' : '';

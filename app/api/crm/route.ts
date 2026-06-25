@@ -507,7 +507,35 @@ export async function GET(request: NextRequest) {
     FROM crm_leads
   `;
 
-  return NextResponse.json({ leads, stats: stats[0] });
+  const exactStats = !search && (campaignFilter || 'all') === 'all'
+    ? await sql`
+        SELECT
+          count(*) FILTER (WHERE status = 'new')::int as new_count,
+          count(*) FILTER (WHERE status = 'promising_reply')::int as promising_reply_count,
+          count(*) FILTER (WHERE status = 'neutral_reply')::int as neutral_reply_count,
+          count(*) FILTER (WHERE status = 'real_estate_new')::int as real_estate_new_count,
+          count(*) FILTER (WHERE status = 'real_estate_promising')::int as real_estate_promising_count,
+          count(*) FILTER (WHERE status = 'real_estate_neutral')::int as real_estate_neutral_count,
+          count(*) FILTER (WHERE status = 'contacted')::int as contacted_count,
+          count(*) FILTER (WHERE status = 'quoted')::int as quoted_count,
+          count(*) FILTER (WHERE status = 'scheduled')::int as scheduled_count,
+          count(*) FILTER (WHERE status = 'won')::int as won_count,
+          count(*) FILTER (WHERE status = 'sold')::int as sold_count,
+          count(*) FILTER (WHERE status = 'lost')::int as lost_count,
+          count(*)::int as total,
+          coalesce(sum(job_value) FILTER (WHERE status IN ('won', 'sold')), 0)::numeric as total_revenue,
+          coalesce(sum(quoted_amount) FILTER (WHERE status IN ('quoted','scheduled')), 0)::numeric as pipeline_value
+        FROM crm_leads
+        WHERE (${status || 'all'} = 'all' OR status = ${status || 'all'})
+          AND (${source || 'all'} = 'all' OR source = ${source || 'all'})
+          AND (${readFilter || 'all'} = 'all' OR (${readFilter || 'all'} = 'unread' AND is_read IS NOT TRUE) OR (${readFilter || 'all'} = 'read' AND is_read IS TRUE))
+          AND (${messageFilter || 'all'} = 'all' OR (${messageFilter || 'all'} = 'you' AND last_message_by IN ('you', 'company')) OR (${messageFilter || 'all'} = 'customer' AND last_message_by = 'customer'))
+          AND (${flaggedOnly} = false OR flagged IS TRUE)
+          AND (${includeOptOuts} = true OR lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
+      `
+    : [];
+
+  return NextResponse.json({ leads, stats: stats[0], exactStats: exactStats[0] || null });
 }
 
 export async function POST(request: NextRequest) {
