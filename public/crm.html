@@ -124,7 +124,9 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .lead-card .date { font-size: 0.6rem; color: #bbb; margin-top: 0.3rem; }
 .tile-footer { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-top: 0.3rem; }
 .tile-actions { display: inline-flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
-.tile-chat-btn, .tile-note-btn { border: 1px solid #e0ddd6; background: #fff; color: var(--midnight); border-radius: 999px; padding: 0.16rem 0.45rem; font-size: 0.55rem; font-weight: 700; cursor: pointer; white-space: nowrap; text-decoration: none; }
+.tile-chat-btn, .tile-note-btn, .tile-flag-btn { border: 1px solid #e0ddd6; background: #fff; color: var(--midnight); border-radius: 999px; padding: 0.16rem 0.45rem; font-size: 0.55rem; font-weight: 700; cursor: pointer; white-space: nowrap; text-decoration: none; }
+.tile-flag-btn.active { border-color:#f59e0b; color:#b45309; background:#fffbeb; }
+.tile-flag-btn:hover { border-color:#f59e0b; transform: translateY(-1px); }
 .tile-chat-btn { border-color: #bfdbfe; color: var(--blue); background: var(--blue-bg); }
 .tile-chat-btn:hover { border-color: var(--blue); transform: translateY(-1px); }
 .tile-note-btn { border: 1px solid #e0ddd6; background: #fff; color: var(--midnight); border-radius: 999px; padding: 0.16rem 0.45rem; font-size: 0.55rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
@@ -885,7 +887,7 @@ function renderBoard() {
         amount +
         quickReply +
         '<div class="tile-footer"><div class="date">' + esc(activityDate) + ' · ' + esc(l.source || 'manual') + '</div>' +
-          '<div class="tile-actions">' + tileSendButton + tileChatButton + '<button class="tile-note-btn' + (l.notes ? ' has-notes' : '') + '" onclick="editTileNotes(event,' + l.id + ')" title="Edit customer notes">📝 Notes</button></div></div>' +
+          '<div class="tile-actions">' + tileSendButton + '<button class="tile-flag-btn' + (l.flagged ? ' active' : '') + '" onclick="toggleFlag(event,' + l.id + ',' + (l.flagged ? 'false' : 'true') + ',true)" title="' + (l.flagged ? 'Remove flag' : 'Flag lead') + '">' + (l.flagged ? '🚩 Flagged' : '🚩 Flag') + '</button>' + tileChatButton + '<button class="tile-note-btn' + (l.notes ? ' has-notes' : '') + '" onclick="editTileNotes(event,' + l.id + ')" title="Edit customer notes">📝 Notes</button></div></div>' +
         '</div>';
     });
     html += '</div>';
@@ -1137,7 +1139,7 @@ function openLeadDetail(id, skipHistory) {
           '<span class="status-badge ' + l.status + '" style="font-size:0.7rem">' + l.status.toUpperCase() + '</span>' +
           '<div style="display:flex;gap:0.5rem;align-items:center">' +
             (l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '" style="font-size:0.6rem">' + (l.last_message_by === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '') +
-            '<button class="btn btn-outline flag-toggle ' + (l.flagged ? 'active' : '') + '" style="font-size:0.6rem;padding:0.25rem 0.5rem" onclick="toggleFlag(' + l.id + ',' + (l.flagged ? 'false' : 'true') + ')">' + (l.flagged ? '🚩 Flagged' : '🚩 Flag') + '</button>' +
+            '<button class="btn btn-outline flag-toggle ' + (l.flagged ? 'active' : '') + '" style="font-size:0.6rem;padding:0.25rem 0.5rem" onclick="toggleFlag(event,' + l.id + ',' + (l.flagged ? 'false' : 'true') + ')">' + (l.flagged ? '🚩 Flagged' : '🚩 Flag') + '</button>' +
             unreadButtonHtml(l) +
             '<span style="font-size:0.7rem;color:#bbb">' + (l.source || 'manual') + '</span>' +
           '</div>' +
@@ -1356,12 +1358,21 @@ function selectStage(e, id, status) {
   updateStatus(id, status);
 }
 
-function toggleFlag(id, flagged) {
+function toggleFlag(e, id, flagged, fromTile) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
   fetch('/api/crm', api('POST', { action: 'toggle_flag', id: id, flagged: flagged }))
     .then(function() {
       allLeads.forEach(function(l) { if (String(l.id) === String(id)) l.flagged = flagged; });
-      openLeadDetail(id, true);
-      loadLeads();
+      if (fromTile) {
+        renderBoard();
+        renderList();
+      } else {
+        openLeadDetail(id, true);
+        loadLeads();
+      }
     });
 }
 
