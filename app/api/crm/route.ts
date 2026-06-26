@@ -4,6 +4,9 @@ import { PNM_FENCING_EMAIL_SENDING_PAUSED, pnmFencingEmailPausedResponse } from 
 import { normalizeText } from '@/lib/text';
 import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
 const TWILIO_FROM = process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '';
