@@ -134,6 +134,13 @@ export async function GET(request: NextRequest) {
   const resultLimit = Number.isFinite(limitParam) && limitParam > 0
     ? Math.min(limitParam, 5000)
     : null;
+  const validSinceFilter = /^\d{4}-\d{2}-\d{2}$/.test(sinceFilter);
+  const hasWorkflowRequest = !search && (
+    readFilter === 'read' || readFilter === 'unread' ||
+    messageFilter === 'you' || messageFilter === 'customer' ||
+    campaignFilter === 'campaign_completed' || campaignFilter === 'no_campaign' || campaignFilter === 'no_active' ||
+    flaggedOnly || validSinceFilter
+  );
 
   // Single lead with activity
   if (id) {
@@ -215,7 +222,79 @@ export async function GET(request: NextRequest) {
   // Build filtered query using tagged templates.
   // Include latest SMS/email preview so customer cards show the message at a glance.
   let leads;
-  if (status && status !== 'all' && search) {
+  if (hasWorkflowRequest) {
+    const perStatusLimit = resultLimit || (validSinceFilter ? 250 : 100);
+    leads = await sql`
+      WITH latest_by_lead AS (
+        SELECT DISTINCT ON (crm_lead_id)
+          crm_lead_id,
+          description,
+          created_at,
+          is_from_customer,
+          created_by,
+          activity_type
+        FROM crm_activity
+        WHERE activity_type IN ('sms', 'email')
+        ORDER BY crm_lead_id, created_at DESC
+      ), filtered AS (
+        SELECT
+          l.*,
+          latest.description AS latest_message_preview,
+          latest.created_at AS latest_message_at,
+          latest.is_from_customer AS latest_message_from_customer,
+          latest.created_by AS latest_message_created_by,
+          latest.activity_type AS latest_message_type,
+          COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) AS workflow_activity_at
+        FROM crm_leads l
+        LEFT JOIN latest_by_lead latest ON latest.crm_lead_id = l.id
+        LEFT JOIN LATERAL (
+          SELECT CASE
+            WHEN l.campaign_id IS NOT NULL THEN l.campaign_id
+            WHEN l.source = 'angi' THEN (
+              SELECT id FROM crm_campaigns
+              WHERE source = 'angi' AND is_default = true AND is_active = true
+              ORDER BY id ASC
+              LIMIT 1
+            )
+            ELSE NULL
+          END AS effective_campaign_id
+        ) ec ON true
+        LEFT JOIN LATERAL (
+          SELECT
+            COALESCE(MAX(step_number) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
+            COALESCE(MAX(step_number) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
+          FROM crm_campaign_messages
+          WHERE campaign_id = ec.effective_campaign_id
+        ) cm ON true
+        WHERE (${status || 'all'} = 'all' OR l.status = ${status || 'all'})
+          AND (${source || 'all'} = 'all' OR l.source = ${source || 'all'})
+          AND (${readFilter || 'all'} = 'all'
+            OR (${readFilter || 'all'} = 'read' AND l.is_read IS TRUE)
+            OR (${readFilter || 'all'} = 'unread' AND l.is_read IS NOT TRUE))
+          AND (${messageFilter || 'all'} = 'all'
+            OR (${messageFilter || 'all'} = 'you' AND l.last_message_by IN ('you', 'company'))
+            OR (${messageFilter || 'all'} = 'customer' AND l.last_message_by = 'customer'))
+          AND (${flaggedOnly} = false OR l.flagged IS TRUE)
+          AND (${includeOptOuts} = true OR l.lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
+          AND (${validSinceFilter} = false OR COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
+          AND (${campaignFilter || 'all'} = 'all'
+            OR (${campaignFilter || 'all'} = 'campaign_completed'
+              AND ec.effective_campaign_id IS NOT NULL
+              AND (COALESCE(cm.sms_steps, 0) > 0 OR COALESCE(cm.email_steps, 0) > 0)
+              AND COALESCE(l.outreach_count, 0) >= COALESCE(cm.sms_steps, 0)
+              AND COALESCE(l.email_outreach_count, 0) >= COALESCE(cm.email_steps, 0))
+            OR (${campaignFilter || 'all'} IN ('no_campaign', 'no_active') AND ec.effective_campaign_id IS NULL))
+      ), ranked AS (
+        SELECT *, ROW_NUMBER() OVER (
+          PARTITION BY COALESCE(status, 'new')
+          ORDER BY workflow_activity_at DESC, created_at DESC, id DESC
+        ) AS status_rank
+        FROM filtered
+      )
+      SELECT * FROM ranked
+      WHERE status_rank <= ${perStatusLimit}
+      ORDER BY workflow_activity_at DESC, created_at DESC, id DESC`;
+  } else if (status && status !== 'all' && search) {
     const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
     const searchPat = `%${normalizedSearch}%`;
     leads = await sql`
@@ -547,6 +626,7 @@ export async function GET(request: NextRequest) {
           AND (${messageFilter || 'all'} = 'all' OR (${messageFilter || 'all'} = 'you' AND last_message_by IN ('you', 'company')) OR (${messageFilter || 'all'} = 'customer' AND last_message_by = 'customer'))
           AND (${flaggedOnly} = false OR flagged IS TRUE)
           AND (${includeOptOuts} = true OR lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
+          AND (${validSinceFilter} = false OR COALESCE(last_message_at, updated_at, created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
       `
     : [];
 

@@ -745,7 +745,7 @@ function loadLeads() {
   if (!search && !hasWorkflowFilter && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=500';
   // Keep mobile usable: filtered counts come from exactStats, but rendering too
   // many cards freezes the board. Use a bigger slice only when a Since date narrows it.
-  if (!search && hasWorkflowFilter) params += '&limit=' + (lastMessageSince ? '1000' : '250');
+  if (!search && hasWorkflowFilter) params += '&limit=' + (lastMessageSince ? '250' : '100');
 
   return fetch('/api/crm' + params, api('GET'))
     .then(function(r) { return r.json(); })
@@ -788,7 +788,7 @@ function hasActiveWorkflowFilter() {
 }
 
 function renderStatsFromLeads(leads) {
-  if (exactBoardStats && !hasActiveWorkflowFilter()) {
+  if (exactBoardStats) {
     renderStats(exactBoardStats);
     return;
   }
@@ -821,9 +821,6 @@ function renderStats(s) {
 }
 
 function exactCountForStatus(statusKey, fallback) {
-  // When workflow filters are active, show the visible filtered count so the
-  // badge does not claim there are replies hidden by Msg Sent/Read/etc.
-  if (hasActiveWorkflowFilter()) return fallback;
   if (!exactBoardStats) return fallback;
   return Number(exactBoardStats[statusKey + '_count'] || 0);
 }
