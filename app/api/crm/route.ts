@@ -519,8 +519,10 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const workflowDefaultLimit = !resultLimit && !search && (messageFilter !== 'all' || readFilter !== 'all' || sinceFilter) ? (sinceFilter ? 1000 : 250) : null;
-  const effectiveResultLimit = resultLimit || workflowDefaultLimit;
+  const workflowDefaultLimit = !resultLimit && !search && !hasWorkflowRequest && (messageFilter !== 'all' || readFilter !== 'all' || sinceFilter) ? (sinceFilter ? 1000 : 250) : null;
+  // Workflow requests are already capped per status column in SQL. Do not apply
+  // a second global slice here, or active columns later in the sort disappear.
+  const effectiveResultLimit = hasWorkflowRequest ? null : (resultLimit || workflowDefaultLimit);
   if (effectiveResultLimit && leads.length > effectiveResultLimit) {
     leads = leads.slice(0, effectiveResultLimit);
   }
