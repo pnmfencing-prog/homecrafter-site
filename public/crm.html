@@ -743,9 +743,9 @@ function loadLeads() {
   var hasWorkflowFilter = readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter || !!lastMessageSince;
   if (!search && !hasWorkflowFilter && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=50';
   if (!search && !hasWorkflowFilter && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=500';
-  // Workflow filters need a server reload with a larger slice, otherwise columns
-  // can show filtered counts while their older matching cards were never loaded.
-  if (!search && hasWorkflowFilter) params += '&limit=5000';
+  // Keep mobile usable: filtered counts come from exactStats, but rendering too
+  // many cards freezes the board. Use a bigger slice only when a Since date narrows it.
+  if (!search && hasWorkflowFilter) params += '&limit=' + (lastMessageSince ? '1000' : '250');
 
   return fetch('/api/crm' + params, api('GET'))
     .then(function(r) { return r.json(); })

@@ -340,7 +340,7 @@ export async function GET(request: NextRequest) {
         )
       ORDER BY l.created_at DESC`;
   } else if (messageFilter === 'you') {
-    const workflowLimit = resultLimit || 5000;
+    const workflowLimit = resultLimit || 250;
     leads = await sql`
       SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
@@ -357,7 +357,7 @@ export async function GET(request: NextRequest) {
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${workflowLimit}`;
   } else if (messageFilter === 'customer') {
-    const workflowLimit = resultLimit || 5000;
+    const workflowLimit = resultLimit || 250;
     leads = await sql`
       SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
@@ -437,7 +437,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const workflowDefaultLimit = !resultLimit && !search && (messageFilter !== 'all' || readFilter !== 'all' || sinceFilter) ? 5000 : null;
+  const workflowDefaultLimit = !resultLimit && !search && (messageFilter !== 'all' || readFilter !== 'all' || sinceFilter) ? (sinceFilter ? 1000 : 250) : null;
   const effectiveResultLimit = resultLimit || workflowDefaultLimit;
   if (effectiveResultLimit && leads.length > effectiveResultLimit) {
     leads = leads.slice(0, effectiveResultLimit);
