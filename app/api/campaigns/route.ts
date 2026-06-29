@@ -64,18 +64,28 @@ export async function GET(request: NextRequest) {
   const campaigns = id
     ? await sql`
         SELECT c.*,
-          COUNT(DISTINCT l.id)::int AS assigned_count
+          COUNT(DISTINCT l.id)::int AS assigned_count,
+          COUNT(DISTINCT l.id) FILTER (
+            WHERE l.customer_responded = false
+              AND l.outreach_paused = false
+              AND COALESCE(l.status, 'new') <> 'lost'
+          )::int AS active_assigned_count
         FROM crm_campaigns c
-        LEFT JOIN crm_leads l ON l.campaign_id = c.id AND l.customer_responded = false AND l.outreach_paused = false AND l.status = 'new'
+        LEFT JOIN crm_leads l ON l.campaign_id = c.id
         WHERE c.id = ${Number(id)}
         GROUP BY c.id
         ORDER BY c.created_at DESC
       `
     : await sql`
         SELECT c.*,
-          COUNT(DISTINCT l.id)::int AS assigned_count
+          COUNT(DISTINCT l.id)::int AS assigned_count,
+          COUNT(DISTINCT l.id) FILTER (
+            WHERE l.customer_responded = false
+              AND l.outreach_paused = false
+              AND COALESCE(l.status, 'new') <> 'lost'
+          )::int AS active_assigned_count
         FROM crm_campaigns c
-        LEFT JOIN crm_leads l ON l.campaign_id = c.id AND l.customer_responded = false AND l.outreach_paused = false AND l.status = 'new'
+        LEFT JOIN crm_leads l ON l.campaign_id = c.id
         GROUP BY c.id
         ORDER BY c.is_default DESC, c.created_at DESC
       `;
@@ -193,7 +203,10 @@ export async function GET(request: NextRequest) {
       FROM lead_base l
       LEFT JOIN crm_campaigns camp ON camp.id = l.effective_campaign_id
       LEFT JOIN campaign_steps steps ON steps.campaign_id = l.effective_campaign_id
-      ORDER BY campaign_completed DESC, l.created_at DESC
+      ORDER BY
+        (l.campaign_id = ANY(${campaignIds})) DESC,
+        campaign_completed DESC,
+        l.created_at DESC
       LIMIT 1000
     `;
     }
