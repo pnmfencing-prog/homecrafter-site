@@ -12,6 +12,6 @@ export async function GET() {
 }
 
 export async function POST() {
-  const message = 'Thanks for calling FenceCrafters. This number is text only, so calls are not monitored here. Please send us a text message at this number, or call our office at 908-503-5473. Thank you.';
+  const message = 'Thanks for calling FenceCrafters. This number is text only, so calls are not monitored here. Please send us a text message at this number, or call our office at 908-692-4847. Thank you.';
   return twiml(`<Say voice="alice">${message}</Say><Hangup/>`);
 }
