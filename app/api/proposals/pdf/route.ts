@@ -39,6 +39,9 @@ export async function GET(request: NextRequest) {
 7" heavy duty rails
 Standard post caps
 ${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type || 'existing fence'} included.` : ''}`);
+  const pricingBreakdownMatch = descriptionText.match(/Subtotal:\s*\$?([\d,]+(?:\.\d{2})?)[\s\S]*?(?:Plus|Additional):\s*\$?([\d,]+(?:\.\d{2})?)/i);
+  const subtotalAmount = pricingBreakdownMatch ? Number(pricingBreakdownMatch[1].replace(/,/g, '')) : Number(p.total);
+  const plusAmount = pricingBreakdownMatch ? Number(pricingBreakdownMatch[2].replace(/,/g, '')) : null;
   const isLaborOnly = /labor[-\s]?only|customer(?:s)?\s+(?:to\s+)?supply|customer(?:s)?\s+supplies|supply all materials/i.test(descriptionText)
     || /labor/i.test(String(p.material || ''));
   const removalIncluded = Number(p.removal_footage || 0) > 0 || /removal of existing|removal included|remove existing/i.test(descriptionText || '');
@@ -82,7 +85,6 @@ Fence to follow grade of ground. Footing soil dispersed around posts/sections. P
   .item-header { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 5px; font-weight: bold; font-size: 10pt; margin-bottom: 10px; }
   .description { font-size: 10pt; color: #333; line-height: 1.7; white-space: pre-line; }
   .amount { font-size: 13pt; font-weight: bold; text-align: right; margin-top: 10px; }
-  .footnote { font-size: 9pt; color: #666; font-style: italic; margin-top: 8px; }
   .totals { margin-left: auto; width: 250px; margin-top: 15px; }
   .totals .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 10pt; }
   .totals .total-row { font-weight: bold; font-size: 12pt; border-top: 2px solid #333; padding-top: 6px; }
@@ -132,15 +134,14 @@ ${p.redacted ? `
 
 <div class="description" style="margin-top:12px">${normalizeText(standardTerms)}</div>
 
-<div class="amount">$${Number(p.total).toLocaleString('en-US', {minimumFractionDigits: 2})}*</div>
-
-<div class="footnote">*Indicates non-taxable item</div>
+<div class="amount">$${Number(p.total).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
 
 <div class="divider"></div>
 
 <div class="totals">
-  <div class="row"><span>Subtotal</span><span>$${Number(p.total).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
-  <div class="row total-row"><span>Total</span><span>$${Number(p.total).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+  <div class="row"><span>Subtotal</span><span>$${subtotalAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+  ${plusAmount !== null ? `<div class="row"><span>Plus</span><span>$${plusAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>` : ''}
+  <div class="row total-row"><span>Grand Total</span><span>$${Number(p.total).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
 </div>
 
 <div class="notes">
