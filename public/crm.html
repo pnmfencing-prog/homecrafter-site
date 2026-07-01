@@ -646,6 +646,25 @@ function campaignStatusColor(l) {
   return 'var(--text-muted)';
 }
 
+function campaignTileBadge(l) {
+  var active = !!(l && l.campaign_active_now);
+  var label = active ? 'Active Campaign' : 'No Active Campaign';
+  var bg = active ? '#ecfdf5' : '#f3f4f6';
+  var color = active ? '#047857' : '#6b7280';
+  var detail = '';
+  if (active && (l.campaign_name || l.campaign_id)) detail = l.campaign_name || ('Campaign #' + l.campaign_id);
+  if (!active && l) {
+    if (l.campaign_completed) detail = 'Completed';
+    else if (l.customer_responded) detail = 'Customer replied';
+    else if (l.outreach_paused) detail = 'Paused';
+    else if (l.campaign_id && l.campaign_is_active === false) detail = 'Campaign inactive';
+    else if (l.campaign_id) detail = campaignStatusLabel(l);
+    else detail = 'None assigned';
+  }
+  var title = detail ? label + ' — ' + detail : label;
+  return '<div title="' + escAttr(title) + '" style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:' + bg + ';color:' + color + ';font-size:0.55rem;font-weight:900;letter-spacing:0.06em;text-transform:uppercase">' + label + '</div>';
+}
+
 function campaignOptions(selectedId) {
   var html = '<option value="">None</option>';
   campaigns.forEach(function(c) {
@@ -874,7 +893,7 @@ function renderBoard() {
       var calendarBadge = tileCalendarBadge(l);
       var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="openTileChat(event,' + l.id + ',\'' + escAttr(l.chat_token) + '\')" title="Open chat thread">💬 Chat</a>' : '';
       var tileSendButton = tileSendButtonHtml(l);
-      var campaignBadge = l.campaign_completed ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#ecfdf5;color:#047857;font-size:0.55rem;font-weight:900;letter-spacing:0.06em;text-transform:uppercase">Campaign Completed</div>' : (!l.campaign_id ? '<div style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:0.55rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase">No Campaign Assigned</div>' : '');
+      var campaignBadge = campaignTileBadge(l);
       var quickReply = tileQuickReplyHtml(l);
       
       html += '<div class="lead-card ' + sourceClass + unreadClass + flaggedClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="onLeadCardClick(event,' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" ontouchstart="onTouchDragStart(event)" ontouchmove="onTouchDragMove(event)" ontouchend="onTouchDragEnd(event)" ontouchcancel="onTouchDragEnd(event)">' +
