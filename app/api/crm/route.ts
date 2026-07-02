@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { PNM_FENCING_EMAIL_SENDING_PAUSED, pnmFencingEmailPausedResponse } from '@/lib/email-policy';
+import {
+  FENCECRAFTERS_THREAD_DEFAULT_SUBJECT,
+  FENCECRAFTERS_THREAD_REPLY_TO_EMAIL,
+  FENCECRAFTERS_THREAD_SENDER_EMAIL,
+  FENCECRAFTERS_THREAD_SENDER_NAME,
+  PNM_FENCING_EMAIL_SENDING_PAUSED,
+  pnmFencingEmailPausedResponse,
+} from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
 import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
 
@@ -786,14 +793,15 @@ export async function POST(request: NextRequest) {
     if (activity_type === 'email' && !isFromCustomer) {
       const leads = await sql`SELECT customer_name, customer_email FROM crm_leads WHERE id = ${id} LIMIT 1`;
       const to = leads[0]?.customer_email;
-      const cleanSubject = (subject || 'Following up from PNM Fencing').trim();
+      const cleanSubject = (subject || FENCECRAFTERS_THREAD_DEFAULT_SUBJECT).trim();
       const bodyText = normalizeText(description || '').replace(/^(📤|📥)\s*/, '').replace(/^Subject:\s*[^\n]+\n\n/, '');
       if (to && process.env.BREVO_API_KEY) {
         const res = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
           headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sender: { name: 'PNM Fencing', email: 'trent@homecrafter.ai' },
+            sender: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_SENDER_EMAIL },
+            replyTo: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_REPLY_TO_EMAIL },
             to: [{ email: to, name: leads[0]?.customer_name || undefined }],
             subject: cleanSubject,
             textContent: bodyText,

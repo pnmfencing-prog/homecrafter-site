@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { PNM_FENCING_EMAIL_SENDING_PAUSED, pnmFencingEmailPausedResponse } from '@/lib/email-policy';
+import {
+  FENCECRAFTERS_THREAD_DEFAULT_SUBJECT,
+  FENCECRAFTERS_THREAD_REPLY_TO_EMAIL,
+  FENCECRAFTERS_THREAD_SENDER_EMAIL,
+  FENCECRAFTERS_THREAD_SENDER_NAME,
+  PNM_FENCING_EMAIL_SENDING_PAUSED,
+  pnmFencingEmailPausedResponse,
+} from '@/lib/email-policy';
 import { normalizeText, normalizeTrimmedText } from '@/lib/text';
 
 // GET — fetch messages for a chat token (customer-facing)
@@ -79,7 +86,7 @@ export async function POST(request: NextRequest) {
   const text = normalizeTrimmedText(body.message || '');
   const fromStaff = body.fromStaff === true;
   const channel = fromStaff && body.channel === 'email' ? 'email' : 'sms';
-  const subject = String(body.subject || 'Following up from PNM Fencing').trim();
+  const subject = String(body.subject || FENCECRAFTERS_THREAD_DEFAULT_SUBJECT).trim();
 
   if (!token || !text || text.length > 2000) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
@@ -117,7 +124,8 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sender: { name: 'PNM Fencing', email: 'trent@homecrafter.ai' },
+        sender: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_SENDER_EMAIL },
+        replyTo: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_REPLY_TO_EMAIL },
         to: [{ email: leads[0].customer_email, name: leads[0].customer_name || undefined }],
         subject,
         textContent: text,

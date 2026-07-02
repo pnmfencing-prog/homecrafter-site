@@ -47,12 +47,14 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .staff-tools.on { display:flex; }
 .staff-tools button, .staff-tools select { flex:0 0 auto; padding:0.35rem 0.75rem; border-radius:999px; border:1px solid #e0ddd6; background:#fff; color:var(--midnight); font:600 0.72rem 'Montserrat',sans-serif; }
 .staff-tools button.active { background:var(--midnight); color:var(--gold); border-color:var(--midnight); }
+.staff-tools button small { display:block; margin-top:0.08rem; font-size:0.5rem; font-weight:700; letter-spacing:0; opacity:0.78; text-transform:none; }
 .staff-tools select { max-width: 145px; cursor: pointer; }
 .staff-tools .mark-unread { margin-left:auto; color:#c0392b; border-color:#f1c4bd; }
 .staff-tools .mark-unread:hover { background:#fef2f2; }
 .subject-row { display:none; padding:0.45rem 1rem 0; background:#fff; }
 .subject-row.on { display:block; }
 .subject-row input { width:100%; padding:0.55rem 0.8rem; border:1px solid #e0ddd6; border-radius:12px; font-family:'Montserrat',sans-serif; font-size:16px; outline:none; }
+.sender-note { margin-top:0.25rem; font-size:0.62rem; color:#8a7f68; font-weight:700; text-align:right; }
 
 .loading { text-align: center; padding: 3rem; color: #999; font-size: 0.85rem; }
 .error { text-align: center; padding: 3rem; color: #c0392b; font-size: 0.85rem; }
@@ -80,11 +82,11 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <div class="header-status">Online</div>
 </div>
 
-<div class="staff-banner" id="staffBanner">Staff Reply Mode — messages you send here will show as PNM Fencing.</div>
+<div class="staff-banner" id="staffBanner">Staff Reply Mode — messages you send here will show as FenceCrafters.</div>
 
 <div class="staff-tools" id="staffTools">
   <button type="button" id="modeText" class="active" onclick="setChannel('sms')">💬 Text</button>
-  <button type="button" id="modeEmail" onclick="setChannel('email')">✉️ Email</button>
+  <button type="button" id="modeEmail" onclick="setChannel('email')">✉️ Email <small id="emailSenderChip">fencecrafters@homecrafter.ai</small></button>
   <select id="templateSelect" onchange="applyMessageTemplate(this.value)" title="Insert template">
     <option value="">Templates</option>
     <option value="qualify">Material / removal / gates</option>
@@ -94,7 +96,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <button type="button" id="markUnreadBtn" class="mark-unread" onclick="markUnread()">Mark Unread</button>
 </div>
 <div class="subject-row" id="subjectRow">
-  <input type="text" id="emailSubject" value="Following up from PNM Fencing" placeholder="Email subject...">
+  <input type="text" id="emailSubject" value="Following up from FenceCrafters" placeholder="Email subject...">
+  <div class="sender-note" id="senderNote">From: fencecrafters@homecrafter.ai</div>
 </div>
 
 <div class="messages" id="messages">
@@ -113,7 +116,9 @@ var STAFF_MODE = params.get('staff') === '1';
 var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
 var pollTimer = null;
 var CHANNEL = 'sms';
-var PNM_EMAIL_SENDING_PAUSED = true;
+var PNM_EMAIL_SENDING_PAUSED = false;
+var THREAD_EMAIL_SENDER = 'fencecrafters@homecrafter.ai';
+var THREAD_EMAIL_SUBJECT = 'Following up from FenceCrafters';
 var ACTIVE_LEAD_ID = null;
 var ACTIVE_IS_READ = true;
 var MARK_READ_ON_NEXT_LOAD = STAFF_MODE;
@@ -159,16 +164,18 @@ function renderMessages(data) {
 
 function setChannel(channel) {
   if (channel === 'email' && PNM_EMAIL_SENDING_PAUSED) {
-    alert('PNM Fencing email sending is paused for now. Use SMS until Brevo-only email is approved.');
+    alert('Email sending is paused for now. Use SMS until Brevo-only email is approved.');
     channel = 'sms';
   }
   CHANNEL = channel === 'email' ? 'email' : 'sms';
   document.getElementById('modeText').className = CHANNEL === 'sms' ? 'active' : '';
   document.getElementById('modeEmail').className = CHANNEL === 'email' ? 'active' : '';
   document.getElementById('modeEmail').disabled = PNM_EMAIL_SENDING_PAUSED;
-  if (PNM_EMAIL_SENDING_PAUSED) document.getElementById('modeEmail').title = 'PNM Fencing email sending is paused';
+  if (PNM_EMAIL_SENDING_PAUSED) document.getElementById('modeEmail').title = 'Email sending is paused';
   document.getElementById('subjectRow').className = CHANNEL === 'email' ? 'subject-row on' : 'subject-row';
-  document.getElementById('msgInput').placeholder = CHANNEL === 'email' ? 'Type email body...' : (STAFF_MODE ? 'Reply as PNM Fencing...' : 'Type a message...');
+  var senderNote = document.getElementById('senderNote');
+  if (senderNote) senderNote.textContent = 'From: ' + THREAD_EMAIL_SENDER;
+  document.getElementById('msgInput').placeholder = CHANNEL === 'email' ? 'Type email body...' : (STAFF_MODE ? 'Reply as FenceCrafters...' : 'Type a message...');
 }
 
 function notifyLeadRead(id, isRead) {
@@ -265,7 +272,7 @@ function sendMsg() {
   fetch('/api/chat', {
     method: 'POST',
     headers: STAFF_MODE ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN } : { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: TOKEN, message: text, fromStaff: STAFF_MODE, channel: CHANNEL, subject: document.getElementById('emailSubject')?.value || 'Following up from PNM Fencing' })
+    body: JSON.stringify({ token: TOKEN, message: text, fromStaff: STAFF_MODE, channel: CHANNEL, subject: document.getElementById('emailSubject')?.value || THREAD_EMAIL_SUBJECT })
   }).then(function(r) {
     document.getElementById('sendBtn').disabled = false;
     if (!r.ok) alert('Could not send message. Please open the thread from the CRM.');

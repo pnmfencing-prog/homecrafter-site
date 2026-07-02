@@ -447,7 +447,9 @@ var activeLeadId = null;
 var activeLeadDetail = null;
 var activeLeadEmail = '';
 var CRM_REFRESH_MS = 30000; // light polling only while CRM tab is open
-var PNM_EMAIL_SENDING_PAUSED = true;
+var PNM_EMAIL_SENDING_PAUSED = false;
+var THREAD_EMAIL_SENDER = 'fencecrafters@homecrafter.ai';
+var THREAD_EMAIL_SUBJECT = 'Following up from FenceCrafters';
 
 var COLUMNS = [
   { key: 'new', label: 'New', color: '#2563eb' },
@@ -1142,6 +1144,7 @@ function openLeadDetail(id, skipHistory) {
         return (a.activity_type === 'sms' || a.activity_type === 'email') && (a.is_from_customer === true || desc.startsWith('📥'));
       });
       var defaultReplyChannel = lastInbound && lastInbound.activity_type === 'email' && hasValidEmail && !PNM_EMAIL_SENDING_PAUSED ? 'email' : 'sms';
+      var emailSenderNote = '<span id="email-sender-note" style="font-size:0.62rem;color:var(--text-muted);font-weight:700;display:' + (defaultReplyChannel === 'email' ? 'inline' : 'none') + '">From: ' + THREAD_EMAIL_SENDER + '</span>'; 
 
       var activityHtml = '';
       act.forEach(function(a) {
@@ -1307,7 +1310,8 @@ function openLeadDetail(id, skipHistory) {
             '<input type="hidden" id="note-type" value="' + defaultReplyChannel + '">' +
             '<div class="channel-toggle">' +
               '<button type="button" id="channel-sms" class="btn btn-outline ' + (defaultReplyChannel === 'sms' ? 'active' : '') + '" onclick="setMessageChannel(\'sms\',' + l.id + ')">💬 Text</button>' +
-              '<button type="button" id="channel-email" class="btn btn-outline ' + (defaultReplyChannel === 'email' ? 'active' : '') + '" ' + ((!hasValidEmail || PNM_EMAIL_SENDING_PAUSED) ? 'disabled title="PNM Fencing email sending is paused"' : '') + ' onclick="setMessageChannel(\'email\',' + l.id + ')">✉️ Email' + (PNM_EMAIL_SENDING_PAUSED ? ' Paused' : '') + '</button>' +
+              '<button type="button" id="channel-email" class="btn btn-outline ' + (defaultReplyChannel === 'email' ? 'active' : '') + '" ' + ((!hasValidEmail || PNM_EMAIL_SENDING_PAUSED) ? 'disabled title="Email sending is paused"' : 'title="Sends from ' + THREAD_EMAIL_SENDER + '"') + ' onclick="setMessageChannel(\'email\',' + l.id + ')">✉️ Email <span style="display:block;font-size:0.52rem;line-height:1.1;opacity:0.78">' + THREAD_EMAIL_SENDER + '</span>' + (PNM_EMAIL_SENDING_PAUSED ? ' Paused' : '') + '</button>' +
+              emailSenderNote +
             '</div>' +
             '<div id="email-subject-row" class="email-subject-row"><input type="text" id="email-subject" placeholder="Email subject..." style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.8rem"></div>' +
             '<select id="message-template" style="width:95px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem" onchange="applyMessageTemplate(this.value)">' +
@@ -1582,7 +1586,7 @@ function setMessageChannel(channel, id) {
   var type = document.getElementById('note-type');
   if (!type) return;
   if (channel === 'email' && PNM_EMAIL_SENDING_PAUSED) {
-    alert('PNM Fencing email sending is paused for now. Use SMS until Brevo-only email is approved.');
+    alert('Email sending is paused for now. Use SMS until Brevo-only email is approved.');
     channel = 'sms';
   }
   if (channel === 'email' && !isValidEmail(activeLeadEmail)) {
@@ -1596,9 +1600,11 @@ function setMessageChannel(channel, id) {
   document.getElementById('channel-email')?.classList.toggle('active', channel === 'email');
   document.getElementById('email-subject-row')?.classList.toggle('show', channel === 'email');
   document.getElementById('note-text').placeholder = channel === 'email' ? 'Type email body...' : 'Type a message...';
+  var senderNote = document.getElementById('email-sender-note');
+  if (senderNote) senderNote.style.display = channel === 'email' ? 'inline' : 'none';
   if (channel === 'email') {
     var subject = document.getElementById('email-subject');
-    if (subject && !subject.value) subject.value = 'Following up from PNM Fencing';
+    if (subject && !subject.value) subject.value = THREAD_EMAIL_SUBJECT;
   }
 }
 
@@ -1788,7 +1794,7 @@ function addNote(id) {
   var subject = (document.getElementById('email-subject')?.value || '').trim();
   if (type === 'email') {
     if (PNM_EMAIL_SENDING_PAUSED) {
-      alert('PNM Fencing email sending is paused for now. Use SMS until Brevo-only email is approved.');
+      alert('Email sending is paused for now. Use SMS until Brevo-only email is approved.');
       return;
     }
     if (!isValidEmail(activeLeadEmail)) {
