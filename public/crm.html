@@ -175,6 +175,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .modal-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lead-modal-title { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
 .lead-code-badge { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 2.85rem; padding: 0.15rem 0.45rem; border: 1px solid rgba(196,170,106,0.4); border-radius: 999px; font-family: 'Montserrat', sans-serif; font-size: 0.72rem; line-height: 1; }
+.lead-title-link { color: inherit; text-decoration: none; }
+.lead-title-link:hover { color: #f1d892; text-decoration: underline; text-underline-offset: 3px; }
 .lead-title-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modal-close { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.5rem; cursor: pointer; }
 .modal-body { padding: 1.5rem; }
@@ -183,6 +185,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 #leadModal .modal-header { position: sticky; top: 0; z-index: 5; border-radius: 0; }
 #leadModal .modal-body { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
 #leadModal .modal-close { font-size: 0.8rem; color: var(--gold); border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; padding: 0.45rem 0.9rem; }
+body.lead-modal-open > .portal-home { display: none; }
 .modal-actions { display: flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
 .modal-home { width: 34px; height: 34px; flex: 0 0 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: var(--gold); text-decoration: none; font-size: 1rem; background: rgba(255,255,255,0.06); }
 #leadModal .modal-close::before { content: '← Back'; }
@@ -557,11 +560,19 @@ function renderAttachments(attachments) {
   if (!attachments || !attachments.length) return '';
   return '<div style="display:flex;gap:0.55rem;flex-wrap:wrap;margin-top:0.65rem">' + attachments.map(function(att) {
     var url = '/api/crm-attachments/' + encodeURIComponent(att.id) + '?v=' + encodeURIComponent(att.size_bytes || att.id);
+    var downloadUrl = url + '&download=1';
     var name = esc(att.file_name || 'attachment');
     if ((att.mime_type || '').startsWith('image/')) {
-      return '<a href="' + url + '" target="_blank" rel="noopener" style="display:block;max-width:min(240px,100%);text-decoration:none;border-radius:12px;overflow:hidden;border:1px solid rgba(0,0,0,0.08);background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.08)"><img src="' + url + '" alt="' + name + '" loading="lazy" style="display:block;width:100%;max-width:min(240px,100%);max-height:260px;object-fit:cover;background:#f5f3ee"><span style="display:block;padding:0.32rem 0.5rem;color:var(--midnight);font-size:0.66rem;font-weight:800;letter-spacing:0.02em">📷 View image</span></a>';
+      return '<div style="display:block;max-width:min(280px,100%);border-radius:12px;overflow:hidden;border:1px solid rgba(0,0,0,0.08);background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.08)">' +
+        '<a href="' + url + '" target="_blank" rel="noopener" style="display:block;text-decoration:none"><img src="' + url + '" alt="' + name + '" loading="lazy" style="display:block;width:100%;max-width:min(280px,100%);max-height:320px;object-fit:contain;background:#f5f3ee"></a>' +
+        '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center;padding:0.38rem 0.5rem;color:var(--midnight);font-size:0.66rem;font-weight:800;letter-spacing:0.02em">' +
+          '<a href="' + url + '" target="_blank" rel="noopener" style="color:var(--midnight);text-decoration:none;border-bottom:1px solid rgba(26,20,51,0.25)">📷 Open full size</a>' +
+          '<span style="color:var(--text-muted)">·</span>' +
+          '<a href="' + downloadUrl + '" target="_blank" rel="noopener" style="color:var(--midnight);text-decoration:none;border-bottom:1px solid rgba(26,20,51,0.25)">Download</a>' +
+        '</div>' +
+      '</div>';
     }
-    return '<a href="' + url + '" target="_blank" style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.35rem 0.55rem;border-radius:8px;background:#fff;border:1px solid #e0ddd6;color:var(--midnight);font-size:0.7rem;text-decoration:none">📎 ' + name + '</a>';
+    return '<span style="display:inline-flex;align-items:center;gap:0.45rem;flex-wrap:wrap;padding:0.35rem 0.55rem;border-radius:8px;background:#fff;border:1px solid #e0ddd6;color:var(--midnight);font-size:0.7rem;text-decoration:none">📎 ' + name + ' <a href="' + url + '" target="_blank" rel="noopener">Open</a> <a href="' + downloadUrl + '" target="_blank" rel="noopener">Download</a></span>';
   }).join('') + '</div>';
 }
 
@@ -1036,6 +1047,7 @@ function goBackFromLead() {
 function closeModal() {
   activeLeadId = null;
   document.getElementById('leadModal').classList.remove('show');
+  document.body.classList.remove('lead-modal-open');
   if (window.location.search.match(/[?&](lead|id)=/)) {
     history.replaceState(null, '', '/crm.html');
   }
@@ -1095,6 +1107,7 @@ function openLeadDetail(id, skipHistory) {
   var scrollState = refreshingSameLead ? getOpenThreadScrollState() : null;
   var keepScrollPosition = isReadingOlderThreadContent(scrollState);
   activeLeadId = id;
+  document.body.classList.add('lead-modal-open');
   if (!skipHistory) {
     var currentLeadParam = new URLSearchParams(window.location.search).get('lead');
     if (String(currentLeadParam) !== String(id)) history.pushState(null, '', '/crm.html?lead=' + id);
@@ -1106,7 +1119,8 @@ function openLeadDetail(id, skipHistory) {
       activeLeadDetail = l;
       var act = (data.activity || []).sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); });
 
-      document.getElementById('modalTitle').innerHTML = '<span class="lead-modal-title">' + (l.flagged ? '<span class="flag-badge">🚩 Flagged</span>' : '') + '<span class="lead-code-badge">#' + esc(l.lead_code || l.id) + '</span><span class="lead-title-name">' + esc(l.customer_name || 'Lead') + '</span></span>';
+      var crmProfileHref = '/crm.html?lead=' + encodeURIComponent(l.id);
+      document.getElementById('modalTitle').innerHTML = '<span class="lead-modal-title">' + (l.flagged ? '<span class="flag-badge">🚩 Flagged</span>' : '') + '<a class="lead-code-badge lead-title-link" href="' + crmProfileHref + '" title="Open CRM profile">#' + esc(l.lead_code || l.id) + '</a><a class="lead-title-name lead-title-link" href="' + crmProfileHref + '" title="Open CRM profile">' + esc(l.customer_name || 'Lead') + '</a></span>';
       
       // Auto-mark as read when opening
       if (!l.is_read) {
@@ -2161,7 +2175,10 @@ window.addEventListener('popstate', function() {
   var params = new URLSearchParams(window.location.search);
   var leadId = params.get('lead') || params.get('id');
   if (leadId && !isNaN(parseInt(leadId))) openLeadDetail(parseInt(leadId), true);
-  else document.getElementById('leadModal').classList.remove('show');
+  else {
+    document.getElementById('leadModal').classList.remove('show');
+    document.body.classList.remove('lead-modal-open');
+  }
 });
 
 function refreshCrmQuietly() {
