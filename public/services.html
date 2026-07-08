@@ -548,13 +548,23 @@ body {
 
 .portal-home { position: fixed; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: #c4aa6a; text-decoration: none; font-size: 1rem; background: rgba(30,24,69,0.72); transition: all 0.2s; z-index: 9999; backdrop-filter: blur(6px); }
 .portal-home:hover { background: rgba(196,170,106,0.18); transform: translateY(-1px); }
-@media (max-width: 640px) { .portal-home { top: 0.7rem; left: 0.7rem; width: 30px; height: 30px; font-size: 0.9rem; } }
+.surfboard-mark {
+  position: absolute; top: 18px; left: 58px; width: 46px; height: 13px;
+  border-radius: 999px 999px 999px 999px / 70% 70% 70% 70%;
+  background: linear-gradient(90deg, #f8efe0 0%, #f8efe0 28%, #76c7d9 29%, #76c7d9 42%, #f8efe0 43%, #f8efe0 62%, #d36f5d 63%, #d36f5d 74%, #f8efe0 75%);
+  border: 1px solid rgba(212,195,148,0.68); box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  transform: rotate(-18deg); z-index: 4; opacity: 0.92; pointer-events: none;
+}
+.surfboard-mark::before { content: ''; position: absolute; left: 50%; top: 1px; bottom: 1px; width: 1px; background: rgba(30,24,69,0.22); transform: translateX(-50%); }
+.surfboard-mark::after { content: ''; position: absolute; right: 8px; bottom: -5px; width: 8px; height: 7px; background: #c4aa6a; clip-path: polygon(50% 0, 100% 100%, 0 100%); opacity: 0.9; }
+@media (max-width: 640px) { .portal-home { top: 0.7rem; left: 0.7rem; width: 30px; height: 30px; font-size: 0.9rem; } .surfboard-mark { top: 15px; left: 48px; width: 38px; height: 11px; } }
 </style>
 </head>
 <body>
 <a class="portal-home" href="/services.html" title="Home" aria-label="Home">&#8962;</a>
 
 <div class="hero">
+  <div class="surfboard-mark" aria-hidden="true"></div>
   <!-- Pro nav hidden from homeowner flow -->
   <div class="pro-nav" style="display:none">
     <a href="/leads-dashboard.html">For Pros →</a>
