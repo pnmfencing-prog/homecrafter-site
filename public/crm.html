@@ -239,6 +239,10 @@ body.lead-modal-open > .portal-home { display: none; }
 .channel-toggle .active { background: var(--midnight); color: var(--gold); border-color: var(--midnight); }
 .email-subject-row { display: none; width: 100%; }
 .email-subject-row.show { display: block; }
+.send-later-row { display:none; width:100%; align-items:center; gap:0.45rem; flex-wrap:wrap; padding:0.45rem 0.55rem; border:1px solid #ead89b; border-radius:10px; background:#fff7df; color:#6f560c; font-size:0.68rem; font-weight:800; }
+.send-later-row.show { display:flex; }
+.send-later-row input { flex:0 1 220px !important; padding:0.42rem 0.55rem; border:1px solid #e0ddd6; border-radius:8px; background:#fff; font:700 0.72rem 'Montserrat',sans-serif; }
+.send-later-row button { flex:0 0 auto !important; min-height:0 !important; padding:0.38rem 0.65rem; border:1px solid #e0ddd6; border-radius:999px; background:#fff; color:var(--midnight); font:800 0.65rem 'Montserrat',sans-serif; cursor:pointer; }
 
 /* Responsive */
 @media (max-width: 1200px) {
@@ -454,6 +458,8 @@ var PNM_EMAIL_SENDING_PAUSED = false;
 var THREAD_EMAIL_SENDER = 'fencecrafters@homecrafter.ai';
 var THREAD_EMAIL_SUBJECT = 'Following up from FenceCrafters';
 var CRM_FILTER_STATE_KEY = 'crm_dashboard_filter_state_v2';
+var PROFILE_SEND_HOLD_TIMER = null;
+var PROFILE_SEND_HOLD_OPENED = false;
 
 function saveCrmFilterState() {
   try {
@@ -1386,7 +1392,8 @@ function openLeadDetail(id, skipHistory) {
             '</select>' +
             '<input id="message-attachments" type="file" multiple accept="image/*,.pdf" style="font-size:0.7rem;max-width:145px">' +
             '<textarea id="note-text" rows="1" placeholder="Type a message..." style="flex:1;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-family:Montserrat,sans-serif;font-size:0.8rem;line-height:1.35" oninput="autoGrowTextarea(this)" onkeydown="handleMessageKeydown(event,' + l.id + ')"></textarea>' +
-            '<button class="btn btn-primary" onclick="addNote(' + l.id + ')">Send</button>' +
+            '<button class="btn btn-primary" id="profile-send-btn" onclick="addNote(' + l.id + ')" onmousedown="startProfileSendHold(event)" onmouseup="cancelProfileSendHold()" onmouseleave="cancelProfileSendHold()" ontouchstart="startProfileSendHold(event)" ontouchend="cancelProfileSendHold()" title="Tap to send now. Hold for send later.">Send</button>' +
+            '<div id="profile-send-later-row" class="send-later-row"><span>🕒 Send later</span><input id="profile-scheduled-for" type="datetime-local"><button type="button" onclick="setProfileTomorrowMorning()">Tomorrow AM</button><button type="button" onclick="clearProfileSchedule()">Clear</button></div>' +
           '</div>' +
         '</div>' +
 
@@ -1852,7 +1859,53 @@ function selectedAttachments() {
   return Promise.all(files.map(fileToAttachment));
 }
 
+function localDateTimeValue(date) {
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+}
+
+function showProfileSendLater() {
+  var row = document.getElementById('profile-send-later-row');
+  if (row) row.classList.add('show');
+  var input = document.getElementById('profile-scheduled-for');
+  if (input) input.focus();
+}
+
+function startProfileSendHold(event) {
+  cancelProfileSendHold();
+  PROFILE_SEND_HOLD_TIMER = setTimeout(function() {
+    PROFILE_SEND_HOLD_TIMER = null;
+    PROFILE_SEND_HOLD_OPENED = true;
+    if (event && event.cancelable) event.preventDefault();
+    showProfileSendLater();
+  }, 550);
+}
+
+function cancelProfileSendHold() {
+  if (PROFILE_SEND_HOLD_TIMER) {
+    clearTimeout(PROFILE_SEND_HOLD_TIMER);
+    PROFILE_SEND_HOLD_TIMER = null;
+  }
+}
+
+function setProfileTomorrowMorning() {
+  var d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+  var input = document.getElementById('profile-scheduled-for');
+  if (input) input.value = localDateTimeValue(d);
+}
+
+function clearProfileSchedule() {
+  var input = document.getElementById('profile-scheduled-for');
+  if (input) input.value = '';
+}
+
 function addNote(id) {
+  if (PROFILE_SEND_HOLD_OPENED) {
+    PROFILE_SEND_HOLD_OPENED = false;
+    return;
+  }
   var type = document.getElementById('note-type').value;
   var text = normalizeText(document.getElementById('note-text').value).trim();
   var fileInput = document.getElementById('message-attachments');
@@ -1883,12 +1936,38 @@ function addNote(id) {
   if (type === 'email' && !text.startsWith('📤') && !text.startsWith('📥')) {
     desc = '📤 Subject: ' + subject + '\n\n' + (text || 'See attached.');
   }
+  var scheduledFor = '';
+  var sched = document.getElementById('profile-scheduled-for');
+  if (sched && sched.value) {
+    if (type !== 'sms') {
+      alert('Scheduled send is currently available for texts only.');
+      return;
+    }
+    if (hasFiles) {
+      alert('Scheduled texts cannot include attachments yet.');
+      return;
+    }
+    var scheduledDate = new Date(sched.value);
+    if (isNaN(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now() + 30000) {
+      alert('Please choose a future date/time.');
+      sched.focus();
+      return;
+    }
+    scheduledFor = scheduledDate.toISOString();
+  }
   selectedAttachments().then(function(attachments) {
-    return fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: desc, subject: subject, attachments: attachments }));
-  }).then(function() {
+    return fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: desc, subject: subject, attachments: attachments, scheduled_for: scheduledFor }));
+  }).then(function(r) {
+    return r.json().catch(function() { return {}; }).then(function(d) { return { ok: r.ok, data: d }; });
+  }).then(function(result) {
+    if (!result.ok) {
+      alert(result.data.error || 'Could not send message.');
+      return;
+    }
     document.getElementById('note-text').value = '';
     var att = document.getElementById('message-attachments');
     if (att) att.value = '';
+    clearProfileSchedule();
     autoGrowTextarea(document.getElementById('note-text'));
     var subj = document.getElementById('email-subject');
     if (subj && type === 'email') subj.value = subject;

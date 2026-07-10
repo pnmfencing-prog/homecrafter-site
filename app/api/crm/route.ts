@@ -755,10 +755,39 @@ export async function POST(request: NextRequest) {
     const { id, activity_type, subject } = body;
     const description = normalizeText(body.description || '');
     const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+    const scheduledForRaw = String(body.scheduled_for || body.scheduledFor || '').trim();
     const isFromCustomer = description?.startsWith('📥') || false;
 
     if (activity_type === 'email' && !isFromCustomer && PNM_FENCING_EMAIL_SENDING_PAUSED) {
       return NextResponse.json(pnmFencingEmailPausedResponse(), { status: 423 });
+    }
+
+    if (scheduledForRaw && activity_type === 'sms' && !isFromCustomer) {
+      if (attachments.length) return NextResponse.json({ error: 'Scheduled texts cannot include attachments yet' }, { status: 400 });
+      const leads = await sql`SELECT customer_phone FROM crm_leads WHERE id = ${id} LIMIT 1`;
+      const to = leads[0]?.customer_phone;
+      const smsBody = normalizeText(description || '').replace(/^(📤|📥)\s*/, '');
+      if (!to) return NextResponse.json({ error: 'Customer phone is missing' }, { status: 400 });
+      if (!smsBody) return NextResponse.json({ error: 'SMS body is missing' }, { status: 400 });
+      const scheduledAt = new Date(scheduledForRaw);
+      if (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now() + 30_000) {
+        return NextResponse.json({ error: 'Choose a future date/time' }, { status: 400 });
+      }
+      const queued = await sql`
+        INSERT INTO scheduled_sms (to_phone, message, scheduled_for, crm_lead_id)
+        VALUES (${normalizeSmsPhone(to)}, ${smsBody}, ${scheduledAt.toISOString()}, ${id})
+        RETURNING id
+      `;
+      await sql`
+        INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+        VALUES (${id}, 'note', ${`🕒 Scheduled SMS #${queued[0].id} for ${scheduledAt.toLocaleString('en-US', { timeZone: 'America/New_York' })}: ${smsBody}`}, false, 'Dan')
+      `;
+      await sql`UPDATE crm_leads SET updated_at = NOW(), is_read = true WHERE id = ${id}`;
+      return NextResponse.json({ success: true, scheduled: true, id: queued[0].id });
+    }
+
+    if (scheduledForRaw && activity_type !== 'sms') {
+      return NextResponse.json({ error: 'Scheduled send is currently available for text messages only' }, { status: 400 });
     }
 
     if (activity_type === 'sms' && !isFromCustomer) {

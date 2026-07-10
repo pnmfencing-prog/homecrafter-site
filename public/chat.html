@@ -46,6 +46,8 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .compose button { background: var(--midnight); color: var(--gold); border: none; border-radius: 50%; min-width: 44px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .compose-extra { display:none; gap:0.45rem; align-items:center; flex-wrap:wrap; padding:0.45rem 1rem 0; background:#fff; border-top:1px solid #eee; }
 .compose-extra.on { display:flex; }
+.compose-extra.flash { animation: schedulerFlash 0.45s ease; }
+@keyframes schedulerFlash { 0% { background:#fff7df; } 100% { background:#fff; } }
 .compose-extra label { display:inline-flex; align-items:center; gap:0.32rem; border:1px solid #e0ddd6; border-radius:999px; padding:0.35rem 0.65rem; color:var(--midnight); font:700 0.66rem 'Montserrat',sans-serif; background:#fff; cursor:pointer; }
 .compose-extra input[type="file"] { display:none; }
 .compose-extra input[type="datetime-local"] { border:1px solid #e0ddd6; border-radius:999px; padding:0.35rem 0.6rem; color:var(--midnight); font:700 0.66rem 'Montserrat',sans-serif; background:#fff; }
@@ -120,12 +122,13 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <span class="compose-hint" id="attachmentHint">No attachments</span>
   <span class="compose-hint">Send later:</span>
   <input id="scheduledFor" type="datetime-local" title="Optional future send time">
+  <button type="button" onclick="setTomorrowMorningSchedule()">Tomorrow AM</button>
   <button type="button" onclick="clearSchedule()">Clear</button>
 </div>
 
 <div class="compose">
   <textarea id="msgInput" rows="1" placeholder="Type a message..." autocomplete="off"></textarea>
-  <button onclick="sendMsg()" id="sendBtn">➤</button>
+  <button onclick="sendMsg()" id="sendBtn" onmousedown="startSendHold(event)" onmouseup="cancelSendHold()" onmouseleave="cancelSendHold()" ontouchstart="startSendHold(event)" ontouchend="cancelSendHold()" title="Tap to send now. Hold for send later.">➤</button>
 </div>
 
 <script>
@@ -140,6 +143,9 @@ var THREAD_EMAIL_SENDER = 'fencecrafters@homecrafter.ai';
 var THREAD_EMAIL_SUBJECT = 'Following up from FenceCrafters';
 var ACTIVE_LEAD_ID = null;
 var ACTIVE_IS_READ = true;
+var SCHEDULE_OPEN = false;
+var SEND_HOLD_TIMER = null;
+var SEND_HOLD_OPENED = false;
 var MANUAL_UNREAD_KEY = TOKEN ? 'chat_manual_unread_' + TOKEN : '';
 var MARK_READ_ON_NEXT_LOAD = STAFF_MODE && !(MANUAL_UNREAD_KEY && sessionStorage.getItem(MANUAL_UNREAD_KEY) === '1');
 
@@ -238,7 +244,7 @@ function loadMessages() {
       document.getElementById('headerInfo').textContent = customerName + ' · ' + (data.lead.service || 'Project') + ' Inquiry' + (STAFF_MODE ? ' · Staff Reply Mode' : '');
       document.getElementById('staffBanner').className = STAFF_MODE ? 'staff-banner on' : 'staff-banner';
       document.getElementById('staffTools').className = STAFF_MODE ? 'staff-tools on' : 'staff-tools';
-      document.getElementById('composeExtra').className = STAFF_MODE ? 'compose-extra on' : 'compose-extra';
+      document.getElementById('composeExtra').className = (STAFF_MODE && SCHEDULE_OPEN) ? 'compose-extra on' : 'compose-extra';
       document.getElementById('backBtn').className = STAFF_MODE ? 'header-back on' : 'header-back';
       var profileBtn = document.getElementById('profileBtn');
       if (profileBtn) {
@@ -301,6 +307,48 @@ function clearSchedule() {
   if (sched) sched.value = '';
 }
 
+function showSchedulePicker() {
+  if (!STAFF_MODE) return;
+  SCHEDULE_OPEN = true;
+  var el = document.getElementById('composeExtra');
+  if (el) {
+    el.className = 'compose-extra on flash';
+    setTimeout(function() { if (SCHEDULE_OPEN) el.className = 'compose-extra on'; }, 500);
+  }
+  var sched = document.getElementById('scheduledFor');
+  if (sched) sched.focus();
+}
+
+function startSendHold(event) {
+  cancelSendHold();
+  SEND_HOLD_TIMER = setTimeout(function() {
+    SEND_HOLD_TIMER = null;
+    SEND_HOLD_OPENED = true;
+    if (event && event.cancelable) event.preventDefault();
+    showSchedulePicker();
+  }, 550);
+}
+
+function cancelSendHold() {
+  if (SEND_HOLD_TIMER) {
+    clearTimeout(SEND_HOLD_TIMER);
+    SEND_HOLD_TIMER = null;
+  }
+}
+
+function localDateTimeValue(date) {
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+}
+
+function setTomorrowMorningSchedule() {
+  var d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+  var sched = document.getElementById('scheduledFor');
+  if (sched) sched.value = localDateTimeValue(d);
+}
+
 function updateAttachmentHint() {
   var input = document.getElementById('messageAttachments');
   var hint = document.getElementById('attachmentHint');
@@ -326,6 +374,10 @@ function readSelectedAttachments() {
 }
 
 function sendMsg() {
+  if (SEND_HOLD_OPENED) {
+    SEND_HOLD_OPENED = false;
+    return;
+  }
   var input = document.getElementById('msgInput');
   var text = input.value.trim();
   if (!text) return;
