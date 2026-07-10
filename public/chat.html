@@ -16,6 +16,9 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .header-back.on { display:block; }
 .header-profile { display:none; border:1px solid rgba(196,170,106,0.45); background:rgba(255,255,255,0.06); color:var(--gold); border-radius:999px; padding:0.38rem 0.7rem; font:700 0.68rem 'Montserrat',sans-serif; cursor:pointer; text-decoration:none; white-space:nowrap; }
 .header-profile.on { display:inline-block; }
+.header-unread { display:none; border:1px solid rgba(255,255,255,0.4); background:#c0392b; color:#fff; border-radius:999px; padding:0.38rem 0.72rem; font:800 0.68rem 'Montserrat',sans-serif; cursor:pointer; white-space:nowrap; box-shadow:0 0 0 3px rgba(192,57,43,0.18); }
+.header-unread.on { display:inline-block; }
+.header-unread.active { background:#fff; color:#c0392b; border-color:#f1c4bd; }
 .header-logo { font-size: 1rem; font-weight: 700; color: var(--gold); letter-spacing: 0.15em; }
 .header-info { font-size: 0.7rem; color: rgba(255,255,255,0.6); }
 .header-dot { width: 8px; height: 8px; border-radius: 50%; background: #2d8a4e; margin-left: auto; }
@@ -50,7 +53,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .compose-hint { font-size:0.62rem; color:#8a7f68; font-weight:700; }
 .staff-banner { display:none; background:#fff7df; color:#6f560c; padding:0.45rem 1rem; font-size:0.68rem; border-bottom:1px solid #ead89b; text-align:center; }
 .staff-banner.on { display:block; }
-.staff-tools { display:none; gap:0.4rem; padding:0.55rem 1rem 0; background:#fff; border-top:1px solid #eee; }
+.staff-tools { display:none; gap:0.4rem; flex-wrap:wrap; padding:0.55rem 1rem 0; background:#fff; border-top:1px solid #eee; }
 .staff-tools.on { display:flex; }
 .staff-tools button, .staff-tools select { flex:0 0 auto; padding:0.35rem 0.75rem; border-radius:999px; border:1px solid #e0ddd6; background:#fff; color:var(--midnight); font:600 0.72rem 'Montserrat',sans-serif; }
 .staff-tools button.active { background:var(--midnight); color:var(--gold); border-color:var(--midnight); }
@@ -81,6 +84,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 <div class="header">
   <button type="button" class="header-back" id="backBtn" onclick="goBackToCrm()">← Back</button>
   <a class="header-profile" id="profileBtn" href="/crm.html">Profile</a>
+  <button type="button" class="header-unread" id="headerUnreadBtn" onclick="markUnread()">Unread</button>
   <div>
     <div class="header-logo">PNM FENCING</div>
     <div class="header-info" id="headerInfo">Loading...</div>
@@ -249,10 +253,17 @@ function loadMessages() {
 
 function updateUnreadButton() {
   var btn = document.getElementById('markUnreadBtn');
-  if (!btn) return;
-  btn.textContent = ACTIVE_IS_READ ? 'Mark Unread' : 'Mark Read';
-  btn.className = ACTIVE_IS_READ ? 'mark-unread' : 'mark-unread active';
-  btn.disabled = !STAFF_MODE || !ACTIVE_LEAD_ID;
+  var headerBtn = document.getElementById('headerUnreadBtn');
+  if (btn) {
+    btn.textContent = ACTIVE_IS_READ ? 'Mark Unread' : 'Unread ✓';
+    btn.className = ACTIVE_IS_READ ? 'mark-unread' : 'mark-unread active';
+    btn.disabled = !STAFF_MODE || !ACTIVE_LEAD_ID;
+  }
+  if (headerBtn) {
+    headerBtn.textContent = ACTIVE_IS_READ ? 'Unread' : 'Unread ✓';
+    headerBtn.className = 'header-unread' + (STAFF_MODE ? ' on' : '') + (ACTIVE_IS_READ ? '' : ' active');
+    headerBtn.disabled = !STAFF_MODE || !ACTIVE_LEAD_ID;
+  }
 }
 
 function goBackToCrm() {
