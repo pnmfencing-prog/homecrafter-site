@@ -9,6 +9,39 @@ import {
   pnmFencingEmailPausedResponse,
 } from '@/lib/email-policy';
 import { normalizeText, normalizeTrimmedText } from '@/lib/text';
+import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
+const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
+const TWILIO_FROM = process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '';
+
+async function sendTwilioSms(to: string, body: string): Promise<string | null> {
+  if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
+    throw new Error('Twilio environment variables are not configured');
+  }
+  const cleanTo = await assertSmsCapable(to);
+  const params = new URLSearchParams();
+  params.append('From', TWILIO_FROM);
+  params.append('To', cleanTo);
+  params.append('Body', body);
+
+  const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
+    method: 'POST',
+    headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+  const responseText = await res.text();
+  let payload: Record<string, unknown> = {};
+  try { payload = JSON.parse(responseText); } catch {}
+  if (!res.ok || payload.error_code || payload.code) {
+    throw new Error(`Twilio SMS failed: ${responseText}`);
+  }
+  return typeof payload.sid === 'string' ? payload.sid : null;
+}
 
 // GET — fetch messages for a chat token (customer-facing)
 export async function GET(request: NextRequest) {
@@ -87,6 +120,8 @@ export async function POST(request: NextRequest) {
   const fromStaff = body.fromStaff === true;
   const channel = fromStaff && body.channel === 'email' ? 'email' : 'sms';
   const subject = String(body.subject || FENCECRAFTERS_THREAD_DEFAULT_SUBJECT).trim();
+  const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+  const scheduledForRaw = fromStaff ? String(body.scheduledFor || '').trim() : '';
 
   if (!token || !text || text.length > 2000) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
@@ -96,7 +131,7 @@ export async function POST(request: NextRequest) {
   }
 
   const leads = await sql`
-    SELECT id, customer_name, customer_email FROM crm_leads WHERE chat_token = ${token}
+    SELECT id, customer_name, customer_phone, customer_email, campaign_id, outreach_paused FROM crm_leads WHERE chat_token = ${token}
   `;
   if (leads.length === 0) {
     return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
@@ -110,14 +145,65 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(pnmFencingEmailPausedResponse(), { status: 423 });
   }
 
+  if (scheduledForRaw) {
+    if (channel !== 'sms') {
+      return NextResponse.json({ error: 'Scheduled send is currently available for text messages only' }, { status: 400 });
+    }
+    if (attachments.length) {
+      return NextResponse.json({ error: 'Scheduled text messages cannot include attachments yet' }, { status: 400 });
+    }
+    if (!leads[0].customer_phone) {
+      return NextResponse.json({ error: 'Customer phone missing' }, { status: 400 });
+    }
+    const scheduledAt = new Date(scheduledForRaw);
+    if (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now() + 30_000) {
+      return NextResponse.json({ error: 'Choose a future date/time' }, { status: 400 });
+    }
+    const cleanTo = normalizeSmsPhone(leads[0].customer_phone);
+    const queued = await sql`
+      INSERT INTO scheduled_sms (to_phone, message, scheduled_for, crm_lead_id)
+      VALUES (${cleanTo}, ${text}, ${scheduledAt.toISOString()}, ${leadId})
+      RETURNING id, scheduled_for
+    `;
+    await sql`
+      INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+      VALUES (${leadId}, 'note', ${`🕒 Scheduled SMS #${queued[0].id} for ${scheduledAt.toLocaleString('en-US', { timeZone: 'America/New_York' })}: ${text}`}, false, 'staff_chat')
+    `;
+    await sql`UPDATE crm_leads SET updated_at = NOW(), is_read = true WHERE id = ${leadId}`;
+    return NextResponse.json({ success: true, scheduled: true, id: queued[0].id });
+  }
+
   const desc = fromStaff && channel === 'email'
     ? `📤 Subject: ${subject}\n\n${text}`
     : (fromStaff ? '📤 ' : '📥 ') + text;
 
-  await sql`
+  if (fromStaff && channel === 'sms') {
+    if (!leads[0].customer_phone) return NextResponse.json({ error: 'Customer phone missing' }, { status: 400 });
+    if (attachments.length) return NextResponse.json({ error: 'Text attachments are saved to CRM, but MMS sending is not enabled yet. Send photos by email for now.' }, { status: 400 });
+    try {
+      await sendTwilioSms(leads[0].customer_phone, text);
+    } catch (err: unknown) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'SMS send failed' }, { status: 502 });
+    }
+  }
+
+  const inserted = await sql`
     INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
     VALUES (${leadId}, ${channel}, ${desc}, ${!fromStaff}, ${fromStaff ? 'staff_chat' : 'customer_chat'})
+    RETURNING id
   `;
+  const activityId = inserted[0].id;
+  for (const att of attachments.slice(0, 5)) {
+    const fileName = String(att.name || 'attachment').slice(0, 180);
+    const mimeType = String(att.mimeType || 'application/octet-stream').slice(0, 120);
+    const dataBase64 = String(att.dataBase64 || '').replace(/^data:[^;]+;base64,/, '');
+    if (!dataBase64) continue;
+    const sizeBytes = Math.floor((dataBase64.length * 3) / 4);
+    await sql`
+      INSERT INTO crm_attachments (crm_activity_id, crm_lead_id, file_name, mime_type, content_base64, size_bytes, direction)
+      VALUES (${activityId}, ${leadId}, ${fileName}, ${mimeType}, ${dataBase64}, ${sizeBytes}, ${fromStaff ? 'outbound' : 'inbound'})
+    `;
+  }
 
   if (fromStaff && channel === 'email' && process.env.BREVO_API_KEY) {
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -129,17 +215,32 @@ export async function POST(request: NextRequest) {
         to: [{ email: leads[0].customer_email, name: leads[0].customer_name || undefined }],
         subject,
         textContent: text,
-        htmlContent: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;white-space:pre-wrap">${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
-      }),
+            htmlContent: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;white-space:pre-wrap">${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
+            attachment: attachments.slice(0, 5).map((att: { name?: string; dataBase64?: string }) => ({
+              name: String(att.name || 'attachment').slice(0, 180),
+              content: String(att.dataBase64 || '').replace(/^data:[^;]+;base64,/, ''),
+            })).filter((att: { content: string }) => att.content),
+          }),
     });
     if (!res.ok) return NextResponse.json({ error: `Email send failed: ${await res.text()}` }, { status: 502 });
   }
 
   await sql`
     UPDATE crm_leads
-    SET updated_at = NOW(), last_message_by = ${fromStaff ? 'you' : 'customer'}, last_message_at = NOW(), is_read = ${fromStaff}
+    SET updated_at = NOW(),
+        last_message_by = ${fromStaff ? 'you' : 'customer'},
+        last_message_at = NOW(),
+        is_read = ${fromStaff},
+        customer_responded = CASE WHEN ${fromStaff} THEN customer_responded ELSE true END,
+        outreach_paused = CASE WHEN ${fromStaff} THEN outreach_paused ELSE true END
     WHERE id = ${leadId}
   `;
+  if (!fromStaff && leads[0].campaign_id && !leads[0].outreach_paused) {
+    await sql`
+      INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+      VALUES (${leadId}, 'status_change', '✅ Campaign completed: customer replied', false, 'campaign_system')
+    `;
+  }
 
   return NextResponse.json({ success: true });
 }

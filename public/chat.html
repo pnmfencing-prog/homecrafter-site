@@ -41,6 +41,13 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .compose textarea { flex: 1; min-width: 0; min-height: 44px; max-height: 35vh; padding: 0.7rem 1rem; border: 1px solid #e0ddd6; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 16px; line-height: 1.35; outline: none; resize: none; overflow-y: auto; }
 .compose textarea:focus { border-color: var(--gold); }
 .compose button { background: var(--midnight); color: var(--gold); border: none; border-radius: 50%; min-width: 44px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.compose-extra { display:none; gap:0.45rem; align-items:center; flex-wrap:wrap; padding:0.45rem 1rem 0; background:#fff; border-top:1px solid #eee; }
+.compose-extra.on { display:flex; }
+.compose-extra label { display:inline-flex; align-items:center; gap:0.32rem; border:1px solid #e0ddd6; border-radius:999px; padding:0.35rem 0.65rem; color:var(--midnight); font:700 0.66rem 'Montserrat',sans-serif; background:#fff; cursor:pointer; }
+.compose-extra input[type="file"] { display:none; }
+.compose-extra input[type="datetime-local"] { border:1px solid #e0ddd6; border-radius:999px; padding:0.35rem 0.6rem; color:var(--midnight); font:700 0.66rem 'Montserrat',sans-serif; background:#fff; }
+.compose-extra button { border:1px solid #e0ddd6; border-radius:999px; padding:0.35rem 0.65rem; color:var(--midnight); font:700 0.66rem 'Montserrat',sans-serif; background:#fff; cursor:pointer; }
+.compose-hint { font-size:0.62rem; color:#8a7f68; font-weight:700; }
 .staff-banner { display:none; background:#fff7df; color:#6f560c; padding:0.45rem 1rem; font-size:0.68rem; border-bottom:1px solid #ead89b; text-align:center; }
 .staff-banner.on { display:block; }
 .staff-tools { display:none; gap:0.4rem; padding:0.55rem 1rem 0; background:#fff; border-top:1px solid #eee; }
@@ -104,6 +111,14 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <div class="loading">Loading conversation...</div>
 </div>
 
+<div class="compose-extra" id="composeExtra">
+  <label title="Attach images or PDFs"><span>📎 Attach</span><input id="messageAttachments" type="file" multiple accept="image/*,.pdf" onchange="updateAttachmentHint()"></label>
+  <span class="compose-hint" id="attachmentHint">No attachments</span>
+  <span class="compose-hint">Send later:</span>
+  <input id="scheduledFor" type="datetime-local" title="Optional future send time">
+  <button type="button" onclick="clearSchedule()">Clear</button>
+</div>
+
 <div class="compose">
   <textarea id="msgInput" rows="1" placeholder="Type a message..." autocomplete="off"></textarea>
   <button onclick="sendMsg()" id="sendBtn">➤</button>
@@ -121,7 +136,8 @@ var THREAD_EMAIL_SENDER = 'fencecrafters@homecrafter.ai';
 var THREAD_EMAIL_SUBJECT = 'Following up from FenceCrafters';
 var ACTIVE_LEAD_ID = null;
 var ACTIVE_IS_READ = true;
-var MARK_READ_ON_NEXT_LOAD = STAFF_MODE;
+var MANUAL_UNREAD_KEY = TOKEN ? 'chat_manual_unread_' + TOKEN : '';
+var MARK_READ_ON_NEXT_LOAD = STAFF_MODE && !(MANUAL_UNREAD_KEY && sessionStorage.getItem(MANUAL_UNREAD_KEY) === '1');
 
 function timeStr(t) {
   return new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -176,6 +192,8 @@ function setChannel(channel) {
   var senderNote = document.getElementById('senderNote');
   if (senderNote) senderNote.textContent = 'From: ' + THREAD_EMAIL_SENDER;
   document.getElementById('msgInput').placeholder = CHANNEL === 'email' ? 'Type email body...' : (STAFF_MODE ? 'Reply as FenceCrafters...' : 'Type a message...');
+  var sched = document.getElementById('scheduledFor');
+  if (sched) sched.disabled = CHANNEL !== 'sms';
 }
 
 function notifyLeadRead(id, isRead) {
@@ -216,6 +234,7 @@ function loadMessages() {
       document.getElementById('headerInfo').textContent = customerName + ' · ' + (data.lead.service || 'Project') + ' Inquiry' + (STAFF_MODE ? ' · Staff Reply Mode' : '');
       document.getElementById('staffBanner').className = STAFF_MODE ? 'staff-banner on' : 'staff-banner';
       document.getElementById('staffTools').className = STAFF_MODE ? 'staff-tools on' : 'staff-tools';
+      document.getElementById('composeExtra').className = STAFF_MODE ? 'compose-extra on' : 'compose-extra';
       document.getElementById('backBtn').className = STAFF_MODE ? 'header-back on' : 'header-back';
       var profileBtn = document.getElementById('profileBtn');
       if (profileBtn) {
@@ -232,6 +251,7 @@ function updateUnreadButton() {
   var btn = document.getElementById('markUnreadBtn');
   if (!btn) return;
   btn.textContent = ACTIVE_IS_READ ? 'Mark Unread' : 'Mark Read';
+  btn.className = ACTIVE_IS_READ ? 'mark-unread' : 'mark-unread active';
   btn.disabled = !STAFF_MODE || !ACTIVE_LEAD_ID;
 }
 
@@ -253,6 +273,10 @@ function markUnread() {
   }).then(function(r) {
     if (!r.ok) throw new Error('Could not update read status');
     ACTIVE_IS_READ = nextRead;
+    if (MANUAL_UNREAD_KEY) {
+      if (nextRead === false) sessionStorage.setItem(MANUAL_UNREAD_KEY, '1');
+      else sessionStorage.removeItem(MANUAL_UNREAD_KEY);
+    }
     notifyLeadRead(ACTIVE_LEAD_ID, nextRead);
     updateUnreadButton();
   }).catch(function() {
@@ -261,23 +285,75 @@ function markUnread() {
   });
 }
 
+function clearSchedule() {
+  var sched = document.getElementById('scheduledFor');
+  if (sched) sched.value = '';
+}
+
+function updateAttachmentHint() {
+  var input = document.getElementById('messageAttachments');
+  var hint = document.getElementById('attachmentHint');
+  var count = input && input.files ? input.files.length : 0;
+  if (hint) hint.textContent = count ? (count + ' selected') : 'No attachments';
+}
+
+function readSelectedAttachments() {
+  var input = document.getElementById('messageAttachments');
+  var files = input && input.files ? Array.prototype.slice.call(input.files, 0, 5) : [];
+  return Promise.all(files.map(function(file) {
+    return new Promise(function(resolve, reject) {
+      if (file.size > 5 * 1024 * 1024) return reject(new Error(file.name + ' is over 5MB'));
+      var reader = new FileReader();
+      reader.onload = function() {
+        var result = String(reader.result || '');
+        resolve({ name: file.name, mimeType: file.type || 'application/octet-stream', dataBase64: result.replace(/^data:[^;]+;base64,/, '') });
+      };
+      reader.onerror = function() { reject(new Error('Could not read ' + file.name)); };
+      reader.readAsDataURL(file);
+    });
+  }));
+}
+
 function sendMsg() {
   var input = document.getElementById('msgInput');
   var text = input.value.trim();
   if (!text) return;
-  input.value = '';
-  autoGrowTextarea(input);
+  var sched = document.getElementById('scheduledFor');
+  var scheduledFor = '';
+  if (sched && sched.value) {
+    var scheduledDate = new Date(sched.value);
+    if (isNaN(scheduledDate.getTime())) {
+      alert('Please choose a valid future date/time.');
+      return;
+    }
+    scheduledFor = scheduledDate.toISOString();
+  }
   document.getElementById('sendBtn').disabled = true;
-
-  fetch('/api/chat', {
-    method: 'POST',
-    headers: STAFF_MODE ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN } : { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: TOKEN, message: text, fromStaff: STAFF_MODE, channel: CHANNEL, subject: document.getElementById('emailSubject')?.value || THREAD_EMAIL_SUBJECT })
-  }).then(function(r) {
+  readSelectedAttachments().then(function(attachments) {
+    return fetch('/api/chat', {
+      method: 'POST',
+      headers: STAFF_MODE ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN } : { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: TOKEN, message: text, fromStaff: STAFF_MODE, channel: CHANNEL, subject: document.getElementById('emailSubject')?.value || THREAD_EMAIL_SUBJECT, attachments: attachments, scheduledFor: scheduledFor })
+    }).then(function(r) {
+      return r.json().catch(function() { return {}; }).then(function(payload) { return { ok: r.ok, payload: payload }; });
+    });
+  }).then(function(result) {
     document.getElementById('sendBtn').disabled = false;
-    if (!r.ok) alert('Could not send message. Please open the thread from the CRM.');
+    if (!result.ok) {
+      alert(result.payload.error || 'Could not send message. Please open the thread from the CRM.');
+      return;
+    }
+    input.value = '';
+    autoGrowTextarea(input);
+    var fileInput = document.getElementById('messageAttachments');
+    if (fileInput) fileInput.value = '';
+    updateAttachmentHint();
+    clearSchedule();
     if (STAFF_MODE && ACTIVE_LEAD_ID) notifyLeadRead(ACTIVE_LEAD_ID, true);
     loadMessages();
+  }).catch(function(err) {
+    document.getElementById('sendBtn').disabled = false;
+    alert(err && err.message ? err.message : 'Could not send message.');
   });
 }
 
