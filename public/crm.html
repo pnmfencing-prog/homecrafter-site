@@ -453,6 +453,49 @@ var CRM_REFRESH_MS = 30000; // light polling only while CRM tab is open
 var PNM_EMAIL_SENDING_PAUSED = false;
 var THREAD_EMAIL_SENDER = 'fencecrafters@homecrafter.ai';
 var THREAD_EMAIL_SUBJECT = 'Following up from FenceCrafters';
+var CRM_FILTER_STATE_KEY = 'crm_dashboard_filter_state_v2';
+
+function saveCrmFilterState() {
+  try {
+    localStorage.setItem(CRM_FILTER_STATE_KEY, JSON.stringify({
+      currentView: currentView,
+      currentFilter: currentFilter,
+      currentSource: currentSource,
+      readFilter: readFilter,
+      messageFilter: messageFilter,
+      campaignFilter: campaignFilter,
+      flaggedFilter: flaggedFilter,
+      lastMessageSince: lastMessageSince,
+      savedAt: Date.now()
+    }));
+  } catch (e) {}
+}
+
+function applyCrmFilterControls() {
+  document.querySelectorAll('[data-rf]').forEach(function(b) { b.classList.toggle('active', b.dataset.rf === readFilter); });
+  document.querySelectorAll('.message-filter .btn').forEach(function(b) { b.classList.toggle('active', b.dataset.mf === messageFilter); });
+  document.querySelectorAll('[data-cf]').forEach(function(b) { b.classList.toggle('active', campaignFilter !== 'all' && b.dataset.cf === campaignFilter); });
+  var flaggedBtn = document.getElementById('flaggedFilterBtn');
+  if (flaggedBtn) flaggedBtn.classList.toggle('active', flaggedFilter);
+  var sinceEl = document.getElementById('lastMessageSince');
+  if (sinceEl) sinceEl.value = lastMessageSince || '';
+}
+
+function restoreCrmFilterState() {
+  try {
+    var saved = JSON.parse(localStorage.getItem(CRM_FILTER_STATE_KEY) || '{}');
+    if (!saved || !saved.savedAt) return;
+    currentView = saved.currentView === 'list' ? 'list' : 'board';
+    currentFilter = saved.currentFilter || 'all';
+    currentSource = saved.currentSource || 'all';
+    readFilter = ['all', 'unread', 'read'].indexOf(saved.readFilter) >= 0 ? saved.readFilter : 'all';
+    messageFilter = ['all', 'you', 'customer'].indexOf(saved.messageFilter) >= 0 ? saved.messageFilter : 'all';
+    campaignFilter = saved.campaignFilter || 'all';
+    flaggedFilter = saved.flaggedFilter === true;
+    lastMessageSince = saved.lastMessageSince || '';
+    applyCrmFilterControls();
+  } catch (e) {}
+}
 
 var COLUMNS = [
   { key: 'new', label: 'New', color: '#2563eb' },
@@ -750,6 +793,7 @@ function consumeReadSignals() {
     renderBoard();
     renderList();
   }
+  return changed;
 }
 
 function openTileChat(event, id, token) {
@@ -933,6 +977,7 @@ function setReadFilter(filter) {
   document.querySelectorAll('[data-rf]').forEach(function(b) {
     b.classList.toggle('active', b.dataset.rf === filter);
   });
+  saveCrmFilterState();
   // Reload from the API so read/unread applies to the full column, not just the
   // previously loaded/capped board slice. This matters most for Real Estate New.
   loadLeads();
@@ -943,6 +988,7 @@ function setCampaignFilter(filter) {
   document.querySelectorAll('[data-cf]').forEach(function(b) {
     b.classList.toggle('active', campaignFilter !== 'all' && b.dataset.cf === campaignFilter);
   });
+  saveCrmFilterState();
   loadLeads();
 }
 
@@ -950,11 +996,13 @@ function setFlaggedFilter() {
   flaggedFilter = !flaggedFilter;
   var btn = document.getElementById('flaggedFilterBtn');
   if (btn) btn.classList.toggle('active', flaggedFilter);
+  saveCrmFilterState();
   loadLeads();
 }
 
 function setLastMessageSince(value) {
   lastMessageSince = value || '';
+  saveCrmFilterState();
   loadLeads();
 }
 
@@ -968,9 +1016,11 @@ function setMessageFilter(filter) {
   // cannot hide Promising/Neutral replies.
   if (filter !== 'all') {
     currentFilter = 'all';
+    saveCrmFilterState();
     loadLeads();
     return;
   }
+  saveCrmFilterState();
   renderBoard();
   renderList();
 }
@@ -991,6 +1041,7 @@ function resetCrmFilters() {
   document.querySelectorAll('[data-cf]').forEach(function(b) { b.classList.remove('active'); });
   var flaggedBtn = document.getElementById('flaggedFilterBtn');
   if (flaggedBtn) flaggedBtn.classList.remove('active');
+  saveCrmFilterState();
   loadLeads();
 }
 
@@ -1022,6 +1073,7 @@ function renderList() {
 
 function filterByStatus(status) {
   currentFilter = currentFilter === status ? 'all' : status;
+  saveCrmFilterState();
   loadLeads();
 }
 
@@ -1033,6 +1085,7 @@ function setView(view) {
   document.querySelectorAll('.view-toggle .btn').forEach(function(b) {
     b.classList.toggle('active', b.dataset.view === view);
   });
+  saveCrmFilterState();
 }
 
 function openNewLeadModal() { document.getElementById('newLeadModal').classList.add('show'); }
@@ -2162,14 +2215,20 @@ function scrollToStatus(status) {
 
 window.addEventListener('resize', initSwipeDots);
 window.addEventListener('storage', function(e) {
-  if (e.key && e.key.indexOf('crm_read_lead_') === 0) consumeReadSignals();
+  if (e.key && e.key.indexOf('crm_read_lead_') === 0) {
+    consumeReadSignals();
+    loadLeads();
+  }
 });
 window.addEventListener('focus', function() {
+  restoreCrmFilterState();
   consumeReadSignals();
   setTimeout(loadLeads, 150);
 });
 window.addEventListener('pageshow', function() {
+  restoreCrmFilterState();
   consumeReadSignals();
+  setTimeout(loadLeads, 80);
 });
 window.addEventListener('popstate', function() {
   var params = new URLSearchParams(window.location.search);
@@ -2210,7 +2269,9 @@ function openLinkedLeadFromUrl() {
 }
 
 // Init
+restoreCrmFilterState();
 loadCampaigns().then(loadLeads);
+setView(currentView);
 initSwipeDots();
 openLinkedLeadFromUrl();
 setInterval(refreshCrmQuietly, CRM_REFRESH_MS);
