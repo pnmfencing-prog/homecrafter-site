@@ -1085,7 +1085,11 @@ function filterByStatus(status) {
 
 function setView(view) {
   currentView = view;
-  document.getElementById('board').style.display = view === 'board' ? 'grid' : 'none';
+  var board = document.getElementById('board');
+  // Do not force `display:grid` inline here: it overrides the mobile CSS that
+  // changes the board to a horizontal flex scroller. That was causing all CRM
+  // columns to squeeze into one phone-width screen and overlap.
+  board.style.display = view === 'board' ? '' : 'none';
   document.getElementById('boardFilterBar').style.display = view === 'board' ? 'flex' : 'none';
   document.getElementById('listView').style.display = view === 'list' ? 'block' : 'none';
   document.querySelectorAll('.view-toggle .btn').forEach(function(b) {
