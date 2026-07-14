@@ -17,9 +17,15 @@ export async function GET(request: NextRequest) {
 
   if (date) {
     const events = await sql`
-      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token, p.estimate_no AS proposal_estimate_no
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token,
+             cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
+             cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
+             camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
+             CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+             p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      LEFT JOIN crm_campaigns camp ON camp.id = cl.campaign_id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
       WHERE ce.event_date = ${date}
       ORDER BY ce.event_time ASC NULLS LAST
@@ -30,9 +36,15 @@ export async function GET(request: NextRequest) {
   if (month) {
     const startDate = `${month}-01`;
     const events = await sql`
-      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token, p.estimate_no AS proposal_estimate_no
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token,
+             cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
+             cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
+             camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
+             CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+             p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      LEFT JOIN crm_campaigns camp ON camp.id = cl.campaign_id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
       WHERE ce.event_date >= ${startDate}::date 
         AND ce.event_date < (${startDate}::date + INTERVAL '1 month')
@@ -46,9 +58,15 @@ export async function GET(request: NextRequest) {
   const to = searchParams.get('to');
   if (from && to && searchParams.get('missed') !== 'true') {
     const events = await sql`
-      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token, p.estimate_no AS proposal_estimate_no
+      SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token,
+             cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
+             cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
+             camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
+             CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+             p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
+      LEFT JOIN crm_campaigns camp ON camp.id = cl.campaign_id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
       WHERE ce.event_date >= ${from}::date AND ce.event_date <= ${to}::date
       ORDER BY ce.event_date ASC, ce.event_time ASC NULLS LAST
@@ -64,20 +82,32 @@ export async function GET(request: NextRequest) {
     let events;
     if (from && to) {
       events = await sql`
-        SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.chat_token, p.estimate_no AS proposal_estimate_no
+        SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.chat_token,
+               cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
+               cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
+               camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
+               CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+               p.estimate_no AS proposal_estimate_no
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
-      LEFT JOIN proposals p ON ce.proposal_id = p.id
+        LEFT JOIN crm_campaigns camp ON camp.id = cl.campaign_id
+        LEFT JOIN proposals p ON ce.proposal_id = p.id
         WHERE ce.status IN ('missed', 'scheduled') AND (ce.event_date < CURRENT_DATE OR (ce.event_date = CURRENT_DATE AND ce.event_time < LOCALTIME))
           AND ce.event_date >= ${from}::date AND ce.event_date <= ${to}::date
         ORDER BY ce.event_date DESC
       `;
     } else {
       events = await sql`
-        SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.chat_token, p.estimate_no AS proposal_estimate_no
+        SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.chat_token,
+               cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
+               cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
+               camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
+               CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+               p.estimate_no AS proposal_estimate_no
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
-      LEFT JOIN proposals p ON ce.proposal_id = p.id
+        LEFT JOIN crm_campaigns camp ON camp.id = cl.campaign_id
+        LEFT JOIN proposals p ON ce.proposal_id = p.id
         WHERE ce.status IN ('missed', 'scheduled') AND (ce.event_date < CURRENT_DATE OR (ce.event_date = CURRENT_DATE AND ce.event_time < LOCALTIME))
         ORDER BY ce.event_date DESC
         LIMIT 50
@@ -88,10 +118,16 @@ export async function GET(request: NextRequest) {
 
   // Default: upcoming 14 days
   const events = await sql`
-    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token, p.estimate_no AS proposal_estimate_no
+    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.service_type, cl.chat_token,
+           cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
+           cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
+           camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
+           CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+           p.estimate_no AS proposal_estimate_no
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
-      LEFT JOIN proposals p ON ce.proposal_id = p.id
+    LEFT JOIN crm_campaigns camp ON camp.id = cl.campaign_id
+    LEFT JOIN proposals p ON ce.proposal_id = p.id
     WHERE ce.event_date >= CURRENT_DATE
       AND ce.event_date <= CURRENT_DATE + INTERVAL '14 days'
     ORDER BY ce.event_date ASC, ce.event_time ASC NULLS LAST
@@ -99,10 +135,16 @@ export async function GET(request: NextRequest) {
   
   // Also get overdue
   const overdue = await sql`
-    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.chat_token, p.estimate_no AS proposal_estimate_no
+    SELECT ce.*, cl.customer_name, cl.customer_phone, cl.customer_email, cl.chat_token,
+           cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
+           cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
+           camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
+           CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+           p.estimate_no AS proposal_estimate_no
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
-      LEFT JOIN proposals p ON ce.proposal_id = p.id
+    LEFT JOIN crm_campaigns camp ON camp.id = cl.campaign_id
+    LEFT JOIN proposals p ON ce.proposal_id = p.id
     WHERE (ce.event_date < (NOW() AT TIME ZONE 'America/New_York')::date OR (ce.event_date = (NOW() AT TIME ZONE 'America/New_York')::date AND ce.event_time < (NOW() AT TIME ZONE 'America/New_York')::time)) AND ce.status IN ('scheduled', 'missed')
     ORDER BY ce.event_date DESC
     LIMIT 10

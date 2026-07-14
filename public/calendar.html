@@ -321,6 +321,23 @@ function fmtTime12(t) {
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+function formatCrmCampaignBadge(e) {
+  if (!e.crm_lead_id) return '';
+  if (e.crm_campaign_active) {
+    var name = e.crm_campaign_name || ('Campaign #' + e.crm_campaign_id);
+    return '<span title="Active assigned CRM campaign" style="display:inline-block;padding:0.25rem 0.6rem;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:6px;font-size:0.65rem;font-weight:700;letter-spacing:0.03em;margin-right:0.3rem;margin-bottom:0.2rem">' +
+      '🟢 Campaign: ' + name + '</span>';
+  }
+  if (e.crm_campaign_id) {
+    var inactiveName = e.crm_campaign_name || ('Campaign #' + e.crm_campaign_id);
+    var reason = e.crm_customer_responded ? 'customer responded' : (e.crm_outreach_paused ? 'outreach paused' : (e.crm_campaign_is_active === false ? 'campaign inactive' : 'not active'));
+    return '<span title="Assigned CRM campaign is not active: ' + reason + '" style="display:inline-block;padding:0.25rem 0.6rem;background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;font-size:0.65rem;font-weight:700;letter-spacing:0.03em;margin-right:0.3rem;margin-bottom:0.2rem">' +
+      '⚪ Campaign: ' + inactiveName + '</span>';
+  }
+  return '<span title="No assigned CRM campaign" style="display:inline-block;padding:0.25rem 0.6rem;background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;border-radius:6px;font-size:0.65rem;font-weight:700;letter-spacing:0.03em;margin-right:0.3rem;margin-bottom:0.2rem">' +
+    'No campaign</span>';
+}
+
 function formatCrmThreadBadge(e) {
   if (!e.crm_lead_id && !e.chat_token) return '';
   var html = '<div style="margin-top:0.3rem">';
@@ -328,6 +345,7 @@ function formatCrmThreadBadge(e) {
     html += '<a href="/crm.html?lead=' + e.crm_lead_id + '" onclick="event.stopPropagation()" ' +
       'style="display:inline-block;padding:0.25rem 0.6rem;background:#2563eb;color:#fff;border-radius:6px;font-size:0.65rem;font-weight:600;text-decoration:none;letter-spacing:0.03em;margin-right:0.3rem;margin-bottom:0.2rem">' +
       '📇 CRM Lead</a>';
+    html += formatCrmCampaignBadge(e);
   }
   if (e.chat_token) {
     html += '<a href="/chat.html?t=' + encodeURIComponent(e.chat_token) + '&staff=1" target="_blank" onclick="event.stopPropagation()" ' +
@@ -348,29 +366,11 @@ function formatProposalBadge(e) {
       '📄 Proposal #' + estNo + '</a></div>';
   }
   
-  // Try matching by customer_id first, then by name
-  if (!allProposalsList.length) return '';
+  // Only auto-match proposals by CRM lead ID. Loose name matching caused false links
+  // like Art matching Jason Stewart, so proposal badges should be explicit/reliable.
+  if (!allProposalsList.length || !e.crm_lead_id) return '';
   
-  var matches = [];
-  
-  // Match by crm_lead_id (most reliable)
-  if (e.crm_lead_id) {
-    matches = allProposalsList.filter(function(p) { return p.crm_lead_id === e.crm_lead_id; });
-  }
-  
-  // Fallback: match by name
-  if (!matches.length) {
-    var eventName = (e.customer_name || '').toLowerCase().trim();
-    var eventTitle = (e.title || '').toLowerCase().trim();
-    
-    matches = allProposalsList.filter(function(p) {
-      var propName = (p.client_name || '').toLowerCase().trim();
-      if (!propName) return false;
-      return (eventName && propName === eventName) || 
-             (eventTitle && eventTitle.includes(propName)) ||
-             (eventName && propName.includes(eventName));
-    });
-  }
+  var matches = allProposalsList.filter(function(p) { return p.crm_lead_id === e.crm_lead_id; });
   
   if (!matches.length) return '';
   
