@@ -57,7 +57,15 @@ export async function GET(request: NextRequest) {
     FROM proposals
   `;
 
-  return NextResponse.json({ proposals, stats: stats[0] });
+  // Older cached calendar pages used loose client-name matching (e.g. Art matched Stewart).
+  // When the proposal list is requested by the calendar, hide names so cached clients can
+  // only match proposals by explicit crm_lead_id/proposal_id. Proposal pages/details are unchanged.
+  const referer = request.headers.get('referer') || '';
+  const safeProposals = referer.includes('/calendar.html')
+    ? proposals.map((proposal: Record<string, unknown>) => ({ ...proposal, client_name: '' }))
+    : proposals;
+
+  return NextResponse.json({ proposals: safeProposals, stats: stats[0] });
 }
 
 export async function POST(request: NextRequest) {
