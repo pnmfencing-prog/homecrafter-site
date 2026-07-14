@@ -22,7 +22,7 @@ function normalizePhone(phone: string): string {
   return normalizeSmsPhone(phone);
 }
 
-async function sendTwilioSms(to: string, body: string): Promise<string | null> {
+async function sendTwilioSms(to: string, body: string, mediaUrls: string[] = []): Promise<string | null> {
   if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
     throw new Error('Twilio environment variables are not configured');
   }
@@ -32,6 +32,9 @@ async function sendTwilioSms(to: string, body: string): Promise<string | null> {
   params.append('From', TWILIO_FROM);
   params.append('To', cleanTo);
   params.append('Body', body);
+  for (const mediaUrl of mediaUrls.slice(0, 5)) {
+    params.append('MediaUrl', mediaUrl);
+  }
 
   const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
   const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
@@ -46,9 +49,15 @@ async function sendTwilioSms(to: string, body: string): Promise<string | null> {
   let payload: any = {};
   try { payload = JSON.parse(text); } catch {}
   if (!res.ok || payload.error_code || payload.code) {
-    throw new Error(`Twilio SMS failed: ${text}`);
+    throw new Error(`Twilio SMS/MMS failed: ${text}`);
   }
   return payload.sid || null;
+}
+
+function publicBaseUrl(request: NextRequest): string {
+  const configured = (process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || '').trim();
+  if (configured) return configured.startsWith('http') ? configured.replace(/\/$/, '') : `https://${configured.replace(/\/$/, '')}`;
+  return request.nextUrl.origin || 'https://homecrafter.ai';
 }
 
 function isAdmin(request: NextRequest): boolean {
@@ -790,58 +799,87 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Scheduled send is currently available for text messages only' }, { status: 400 });
     }
 
+    let outboundSmsTo = '';
+    let outboundSmsBody = '';
+    let outboundEmailTo = '';
+    let outboundEmailName = '';
     if (activity_type === 'sms' && !isFromCustomer) {
       const leads = await sql`SELECT customer_phone FROM crm_leads WHERE id = ${id} LIMIT 1`;
-      const to = leads[0]?.customer_phone;
-      const smsBody = normalizeText(description || '').replace(/^(📤|📥)\s*/, '');
-      if (!to) return NextResponse.json({ error: 'Customer phone is missing' }, { status: 400 });
-      if (!smsBody) return NextResponse.json({ error: 'SMS body is missing' }, { status: 400 });
-      try {
-        await sendTwilioSms(to, smsBody);
-      } catch (err: any) {
-        return NextResponse.json({ error: err?.message || 'SMS send failed' }, { status: 502 });
+      outboundSmsTo = leads[0]?.customer_phone || '';
+      outboundSmsBody = normalizeText(description || '').replace(/^(📤|📥)\s*/, '');
+      if (!outboundSmsTo) return NextResponse.json({ error: 'Customer phone is missing' }, { status: 400 });
+      if (!outboundSmsBody) return NextResponse.json({ error: 'SMS body is missing' }, { status: 400 });
+      const unsupported = attachments
+        .slice(0, 5)
+        .filter((att: { mimeType?: string }) => !String(att.mimeType || '').toLowerCase().startsWith('image/'));
+      if (unsupported.length) {
+        return NextResponse.json({ error: 'Text/MMS attachments must be images. Send PDFs or documents by email.' }, { status: 400 });
       }
+    }
+
+    if (activity_type === 'email' && !isFromCustomer) {
+      const leads = await sql`SELECT customer_name, customer_email FROM crm_leads WHERE id = ${id} LIMIT 1`;
+      outboundEmailTo = leads[0]?.customer_email || '';
+      outboundEmailName = leads[0]?.customer_name || '';
+      if (!outboundEmailTo) return NextResponse.json({ error: 'Customer email is missing' }, { status: 400 });
+      if (!process.env.BREVO_API_KEY) return NextResponse.json({ error: 'Brevo email is not configured' }, { status: 503 });
     }
 
     const inserted = await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${id}, ${activity_type || 'note'}, ${description}, ${isFromCustomer}) RETURNING id`;
     const activityId = inserted[0].id;
+    const attachmentIds: number[] = [];
     for (const att of attachments.slice(0, 5)) {
       const fileName = String(att.name || 'attachment').slice(0, 180);
       const mimeType = String(att.mimeType || 'application/octet-stream').slice(0, 120);
       const dataBase64 = String(att.dataBase64 || '').replace(/^data:[^;]+;base64,/, '');
       if (!dataBase64) continue;
       const sizeBytes = Math.floor((dataBase64.length * 3) / 4);
-      await sql`
+      const saved = await sql`
         INSERT INTO crm_attachments (crm_activity_id, crm_lead_id, file_name, mime_type, content_base64, size_bytes, direction)
         VALUES (${activityId}, ${id}, ${fileName}, ${mimeType}, ${dataBase64}, ${sizeBytes}, ${isFromCustomer ? 'inbound' : 'outbound'})
+        RETURNING id
       `;
+      attachmentIds.push(saved[0].id);
     }
+
+    if (activity_type === 'sms' && !isFromCustomer) {
+      const mediaUrls = attachmentIds.map((attachmentId) => `${publicBaseUrl(request)}/api/crm-attachments/${attachmentId}`);
+      try {
+        await sendTwilioSms(outboundSmsTo, outboundSmsBody, mediaUrls);
+      } catch (err: unknown) {
+        await sql`DELETE FROM crm_activity WHERE id = ${activityId}`;
+        const message = err instanceof Error ? err.message : 'SMS/MMS send failed';
+        return NextResponse.json({ error: message }, { status: 502 });
+      }
+    }
+
     const sender = isFromCustomer ? 'customer' : 'you';
     await sql`UPDATE crm_leads SET updated_at = NOW(), last_message_by = ${sender}, last_message_at = NOW(), is_read = ${!isFromCustomer} WHERE id = ${id}`;
 
     if (activity_type === 'email' && !isFromCustomer) {
-      const leads = await sql`SELECT customer_name, customer_email FROM crm_leads WHERE id = ${id} LIMIT 1`;
-      const to = leads[0]?.customer_email;
       const cleanSubject = (subject || FENCECRAFTERS_THREAD_DEFAULT_SUBJECT).trim();
       const bodyText = normalizeText(description || '').replace(/^(📤|📥)\s*/, '').replace(/^Subject:\s*[^\n]+\n\n/, '');
-      if (to && process.env.BREVO_API_KEY) {
-        const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sender: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_SENDER_EMAIL },
-            replyTo: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_REPLY_TO_EMAIL },
-            to: [{ email: to, name: leads[0]?.customer_name || undefined }],
-            subject: cleanSubject,
-            textContent: bodyText,
-            htmlContent: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;white-space:pre-wrap">${bodyText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
-            attachment: attachments.slice(0, 5).map((att: any) => ({
-              name: String(att.name || 'attachment').slice(0, 180),
-              content: String(att.dataBase64 || '').replace(/^data:[^;]+;base64,/, ''),
-            })).filter((att: any) => att.content),
-          }),
-        });
-        if (!res.ok) return NextResponse.json({ error: `Email send failed: ${await res.text()}` }, { status: 502 });
+      const emailAttachments = attachments.slice(0, 5).map((att: { name?: string; dataBase64?: string }) => ({
+        name: String(att.name || 'attachment').slice(0, 180),
+        content: String(att.dataBase64 || '').replace(/^data:[^;]+;base64,/, ''),
+      })).filter((att: { content: string }) => att.content);
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': process.env.BREVO_API_KEY || '', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_SENDER_EMAIL },
+          replyTo: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_REPLY_TO_EMAIL },
+          to: [{ email: outboundEmailTo, name: outboundEmailName || undefined }],
+          subject: cleanSubject,
+          textContent: bodyText,
+          htmlContent: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;white-space:pre-wrap">${bodyText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
+          attachment: emailAttachments,
+        }),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        await sql`DELETE FROM crm_activity WHERE id = ${activityId}`;
+        return NextResponse.json({ error: `Email send failed: ${errorText}` }, { status: 502 });
       }
     }
 
