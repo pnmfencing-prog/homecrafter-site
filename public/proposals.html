@@ -342,7 +342,7 @@ function openEditProposal(id) {
   
   html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">';
   html += fld('Total ($)', 'total', p.total, 'number');
-  html += fld('Spot Fee ($)', 'spot_holding_fee', p.spot_holding_fee ?? 150, 'number');
+  html += fld('Spot Fee ($)', 'spot_holding_fee', p.spot_holding_fee == null ? 150 : p.spot_holding_fee, 'number');
   html += '<div style="margin-bottom:0.6rem;display:flex;align-items:flex-end;padding-bottom:0.3rem"><button type="button" class="btn btn-outline btn-sm" onclick="autoCalcPayments()" style="width:100%">Auto-Calc ↻</button></div>';
   html += '</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">';
