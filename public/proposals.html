@@ -246,7 +246,6 @@ function renderProposalView(p) {
   document.getElementById('modalTitle').textContent = '#' + p.estimate_no + ' — ' + (p.client_name || 'Proposal');
   
   var statusColor = p.status === 'signed' ? 'var(--green)' : p.status === 'opened' ? 'var(--purple)' : p.status === 'sent' ? 'var(--blue)' : p.status === 'draft' ? 'var(--orange)' : '#999';
-  var spot = p.spot_holding_fee || 150;
   
   var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +
     '<span style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:' + statusColor + '">' + p.status + '</span>' +
@@ -343,7 +342,7 @@ function openEditProposal(id) {
   
   html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">';
   html += fld('Total ($)', 'total', p.total, 'number');
-  html += fld('Spot Fee ($)', 'spot_holding_fee', p.spot_holding_fee || 150, 'number');
+  html += fld('Spot Fee ($)', 'spot_holding_fee', p.spot_holding_fee ?? 150, 'number');
   html += '<div style="margin-bottom:0.6rem;display:flex;align-items:flex-end;padding-bottom:0.3rem"><button type="button" class="btn btn-outline btn-sm" onclick="autoCalcPayments()" style="width:100%">Auto-Calc ↻</button></div>';
   html += '</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 0.75rem">';
@@ -515,7 +514,8 @@ function closeActiveEditor() {
 
 function autoCalcPayments() {
   var total = parseFloat(document.getElementById('pe-total').value) || 0;
-  var spot = parseFloat(document.getElementById('pe-spot_holding_fee').value) || 150;
+  var spotInput = document.getElementById('pe-spot_holding_fee').value;
+  var spot = spotInput === '' ? 150 : (parseFloat(spotInput) || 0);
   var remaining = total - spot;
   document.getElementById('pe-deposit').value = Math.floor(remaining * 0.50);
   document.getElementById('pe-installment_2').value = Math.floor(remaining * 0.25);
