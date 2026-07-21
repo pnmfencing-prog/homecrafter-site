@@ -10,6 +10,13 @@ const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN |
 const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
 const ANGRY_OPTOUT_RE = /\b(fuck off|f off|leave me alone|do not text|dont text|don't text|remove me|wrong number|not interested|no thanks?|no thank you|i'?m good|im good|i am good|all set|we'?re good|were good)\b/i;
 
+function profileFromTwilioTo(to: string): 'fencecrafters' | 'pnm_fencing' {
+  const digits = normalizePhone(to);
+  // +1 908-317-3444 is the newer Twilio number Dan assigned to PNM Fencing.
+  if (digits === '9083173444') return 'pnm_fencing';
+  return 'fencecrafters';
+}
+
 function normalizePhone(phone: string): string {
   const digits = (phone || '').replace(/\D/g, '');
   if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
@@ -164,11 +171,12 @@ async function logContractorSmsReply(contractor: any, from: string, body: string
   `;
 }
 
-async function findOrCreateLead(from: string): Promise<{ lead: any; created: boolean }> {
+async function findOrCreateLead(from: string, crmProfile: 'fencecrafters' | 'pnm_fencing'): Promise<{ lead: any; created: boolean }> {
   const normalized = normalizePhone(from);
   const matches = await sql`
     SELECT * FROM crm_leads
     WHERE regexp_replace(coalesce(customer_phone, ''), '[^0-9]', '', 'g') IN (${normalized}, ${`1${normalized}`})
+      AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile}
     ORDER BY updated_at DESC
     LIMIT 1
   `;
@@ -180,8 +188,8 @@ async function findOrCreateLead(from: string): Promise<{ lead: any; created: boo
   const chatToken = [...Array(16)].map(() => Math.random().toString(36)[2]).join('');
   const displayPhone = formatPhone(from);
   const created = await sql`
-    INSERT INTO crm_leads (customer_name, customer_phone, source, status, chat_token, lead_code, notes, customer_responded, is_read, last_message_by, last_message_at)
-    VALUES (${`Unknown texter ${displayPhone}`}, ${displayPhone}, 'angi_sms', 'new', ${chatToken}, ${leadCode}, 'Created automatically from incoming text message', true, false, 'customer', NOW())
+    INSERT INTO crm_leads (customer_name, customer_phone, source, status, chat_token, lead_code, notes, customer_responded, is_read, last_message_by, last_message_at, crm_profile)
+    VALUES (${`Unknown texter ${displayPhone}`}, ${displayPhone}, 'angi_sms', 'new', ${chatToken}, ${leadCode}, 'Created automatically from incoming text message', true, false, 'customer', NOW(), ${crmProfile})
     RETURNING *
   `;
   await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${created[0].id}, 'status_change', 'Lead created from incoming SMS')`;
@@ -199,6 +207,8 @@ function newLeadReplyForProfile(profileValue: unknown): string {
 export async function POST(request: NextRequest) {
   const form = await request.formData();
   const from = String(form.get('From') || '');
+  const to = String(form.get('To') || '');
+  const inboundProfile = profileFromTwilioTo(to);
   const body = String(form.get('Body') || '').trim();
   const expectedMediaCount = Math.min(Number(form.get('NumMedia') || 0) || 0, 10);
   const inboundAttachments = await collectTwilioMedia(form);
@@ -217,7 +227,7 @@ export async function POST(request: NextRequest) {
       }
       suppressAnyReply = true;
     } else {
-      const result = await findOrCreateLead(from);
+      const result = await findOrCreateLead(from, inboundProfile);
       lead = result.lead;
       const attachmentSummary = inboundAttachments.length
         ? `📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}`
@@ -305,8 +315,9 @@ export async function POST(request: NextRequest) {
 
     if (normalizePhone(from) !== DAN_PHONE) {
       const name = lead.customer_name || `Unknown texter ${formatPhone(from)}`;
-      const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}`;
-      notificationText = `New PNM text from ${name} (${formatPhone(from)}): ${body || '[attachment]'}${inboundAttachments.length ? `\n📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : ''}\n\nOpen thread: ${threadUrl}`;
+      const profile = crmProfileConfig(lead.crm_profile || inboundProfile);
+      const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}&profile=${profile.key}`;
+      notificationText = `New ${profile.label} text from ${name} (${formatPhone(from)}): ${body || '[attachment]'}${inboundAttachments.length ? `\n📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : ''}\n\nOpen thread: ${threadUrl}`;
 
       if (result.created && !suppressAnyReply) {
         newLeadAutoReply = newLeadReplyForProfile(lead.crm_profile);
