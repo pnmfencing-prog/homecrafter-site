@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import {
-  FENCECRAFTERS_THREAD_DEFAULT_SUBJECT,
-  FENCECRAFTERS_THREAD_REPLY_TO_EMAIL,
-  FENCECRAFTERS_THREAD_SENDER_EMAIL,
-  FENCECRAFTERS_THREAD_SENDER_NAME,
+  crmProfileConfig,
+  normalizeCrmProfile,
   PNM_FENCING_EMAIL_SENDING_PAUSED,
   pnmFencingEmailPausedResponse,
 } from '@/lib/email-policy';
@@ -93,6 +91,7 @@ async function enrichCampaignStatus(leads: any[]) {
       l.effective_campaign_id AS campaign_id,
       camp.name AS campaign_name,
       camp.is_active AS campaign_is_active,
+      COALESCE(l.campaign_started_at, inferred_start.started_at) AS campaign_started_at,
       COALESCE(l.outreach_count, 0)::int AS campaign_sms_sent,
       COALESCE(l.email_outreach_count, 0)::int AS campaign_email_sent,
       COALESCE(MAX(m.step_number) FILTER (WHERE m.channel IN ('sms', 'both') AND COALESCE(m.sms_body, '') <> ''), 0)::int AS campaign_sms_steps,
@@ -100,7 +99,18 @@ async function enrichCampaignStatus(leads: any[]) {
     FROM lead_base l
     LEFT JOIN crm_campaigns camp ON camp.id = l.effective_campaign_id
     LEFT JOIN crm_campaign_messages m ON m.campaign_id = camp.id AND m.is_active = true
-    GROUP BY l.id, l.effective_campaign_id, camp.name, camp.is_active, l.outreach_count, l.email_outreach_count
+    LEFT JOIN LATERAL (
+      SELECT MIN(a.created_at) AS started_at
+      FROM crm_activity a
+      WHERE a.crm_lead_id = l.id
+        AND a.is_from_customer = false
+        AND (
+          a.created_by IN ('crm_autorespond', 'campaign_system', 'bulk_followup')
+          OR a.description ILIKE '📤%'
+          OR a.description ILIKE '⚠️ SMS outreach #%'
+        )
+    ) inferred_start ON true
+    GROUP BY l.id, l.effective_campaign_id, camp.name, camp.is_active, l.campaign_started_at, inferred_start.started_at, l.outreach_count, l.email_outreach_count
   `;
   const byLeadId = new Map(rows.map((row) => [row.lead_id, row]));
   return leads.map((lead) => {
@@ -117,6 +127,7 @@ async function enrichCampaignStatus(leads: any[]) {
     return {
       ...lead,
       campaign_id: campaignId,
+      campaign_started_at: row.campaign_started_at || lead.campaign_started_at || null,
       campaign_name: row.campaign_name || null,
       campaign_is_active: row.campaign_is_active ?? null,
       campaign_sms_sent: smsSent,
@@ -140,6 +151,7 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('search');
   const id = searchParams.get('id');
   const campaignFilter = searchParams.get('campaign');
+  const profileFilter = normalizeCrmProfile(searchParams.get('profile'));
   const readFilter = searchParams.get('read');
   const messageFilter = searchParams.get('message');
   const flaggedOnly = searchParams.get('flagged') === '1';
@@ -520,6 +532,8 @@ export async function GET(request: NextRequest) {
     leads = leads.filter((lead) => lead.is_read === true);
   }
 
+  leads = leads.filter((lead) => normalizeCrmProfile(lead.crm_profile) === profileFilter);
+
   if (messageFilter === 'customer') {
     leads = leads.filter((lead) => lead.last_message_by === 'customer');
   } else if (messageFilter === 'you') {
@@ -620,6 +634,7 @@ export async function GET(request: NextRequest) {
       coalesce(sum(job_value) FILTER (WHERE status IN ('won', 'sold')), 0)::numeric as total_revenue,
       coalesce(sum(quoted_amount) FILTER (WHERE status IN ('quoted','scheduled')), 0)::numeric as pipeline_value
     FROM crm_leads
+    WHERE COALESCE(crm_profile, 'fencecrafters') = ${profileFilter}
   `;
 
   const exactStats = !search && (campaignFilter || 'all') === 'all'
@@ -641,7 +656,8 @@ export async function GET(request: NextRequest) {
           coalesce(sum(job_value) FILTER (WHERE status IN ('won', 'sold')), 0)::numeric as total_revenue,
           coalesce(sum(quoted_amount) FILTER (WHERE status IN ('quoted','scheduled')), 0)::numeric as pipeline_value
         FROM crm_leads
-        WHERE (${status || 'all'} = 'all' OR status = ${status || 'all'})
+        WHERE COALESCE(crm_profile, 'fencecrafters') = ${profileFilter}
+          AND (${status || 'all'} = 'all' OR status = ${status || 'all'})
           AND (${source || 'all'} = 'all' OR source = ${source || 'all'})
           AND (${readFilter || 'all'} = 'all' OR (${readFilter || 'all'} = 'unread' AND is_read IS NOT TRUE) OR (${readFilter || 'all'} = 'read' AND is_read IS TRUE))
           AND (${messageFilter || 'all'} = 'all' OR (${messageFilter || 'all'} = 'you' AND last_message_by IN ('you', 'company')) OR (${messageFilter || 'all'} = 'customer' AND last_message_by = 'customer'))
@@ -664,10 +680,11 @@ export async function POST(request: NextRequest) {
 
   if (action === 'find_or_create') {
     const name = (body.customer_name || '').trim();
+    const crmProfile = normalizeCrmProfile(body.crm_profile);
     if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 });
     
     // Check if lead exists by exact name match
-    const existing = await sql`SELECT * FROM crm_leads WHERE LOWER(customer_name) = LOWER(${name}) LIMIT 1`;
+    const existing = await sql`SELECT * FROM crm_leads WHERE LOWER(customer_name) = LOWER(${name}) AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
     if (existing.length) {
       // Update phone/email if provided and missing
       if (body.customer_phone && !existing[0].customer_phone) {
@@ -684,8 +701,8 @@ export async function POST(request: NextRequest) {
     const leadCode = String(maxCode[0].next_code);
     const chatToken = [...Array(16)].map(() => Math.random().toString(36)[2]).join('');
     const result = await sql`
-      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, source, status, chat_token, lead_code)
-      VALUES (${name}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.source || 'direct'}, 'new', ${chatToken}, ${leadCode})
+      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, source, status, chat_token, lead_code, crm_profile)
+      VALUES (${name}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.source || 'direct'}, 'new', ${chatToken}, ${leadCode}, ${crmProfile})
       RETURNING *
     `;
     await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${result[0].id}, 'status_change', 'Lead created from calendar')`;
@@ -693,13 +710,14 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === 'create') {
+    const crmProfile = normalizeCrmProfile(body.crm_profile);
     const chatToken = [...Array(16)].map(() => Math.random().toString(36)[2]).join('');
     // Auto-assign lead code
     const maxCode = await sql`SELECT COALESCE(MAX(CAST(lead_code AS INTEGER)), 99) + 1 as next_code FROM crm_leads WHERE lead_code ~ '^[0-9]+$'`;
     const leadCode = String(maxCode[0].next_code);
     const result = await sql`
-      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, chat_token, lead_code)
-      VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'}, ${chatToken}, ${leadCode})
+      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, chat_token, lead_code, crm_profile)
+      VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'}, ${chatToken}, ${leadCode}, ${crmProfile})
       RETURNING *
     `;
     await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${result[0].id}, 'status_change', 'Lead created')`;
@@ -773,7 +791,7 @@ export async function POST(request: NextRequest) {
 
     if (scheduledForRaw && activity_type === 'sms' && !isFromCustomer) {
       if (attachments.length) return NextResponse.json({ error: 'Scheduled texts cannot include attachments yet' }, { status: 400 });
-      const leads = await sql`SELECT customer_phone FROM crm_leads WHERE id = ${id} LIMIT 1`;
+      const leads = await sql`SELECT customer_phone, crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
       const to = leads[0]?.customer_phone;
       const smsBody = normalizeText(description || '').replace(/^(📤|📥)\s*/, '');
       if (!to) return NextResponse.json({ error: 'Customer phone is missing' }, { status: 400 });
@@ -804,7 +822,7 @@ export async function POST(request: NextRequest) {
     let outboundEmailTo = '';
     let outboundEmailName = '';
     if (activity_type === 'sms' && !isFromCustomer) {
-      const leads = await sql`SELECT customer_phone FROM crm_leads WHERE id = ${id} LIMIT 1`;
+      const leads = await sql`SELECT customer_phone, crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
       outboundSmsTo = leads[0]?.customer_phone || '';
       outboundSmsBody = normalizeText(description || '').replace(/^(📤|📥)\s*/, '');
       if (!outboundSmsTo) return NextResponse.json({ error: 'Customer phone is missing' }, { status: 400 });
@@ -818,7 +836,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (activity_type === 'email' && !isFromCustomer) {
-      const leads = await sql`SELECT customer_name, customer_email FROM crm_leads WHERE id = ${id} LIMIT 1`;
+      const leads = await sql`SELECT customer_name, customer_email, crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
       outboundEmailTo = leads[0]?.customer_email || '';
       outboundEmailName = leads[0]?.customer_name || '';
       if (!outboundEmailTo) return NextResponse.json({ error: 'Customer email is missing' }, { status: 400 });
@@ -857,7 +875,9 @@ export async function POST(request: NextRequest) {
     await sql`UPDATE crm_leads SET updated_at = NOW(), last_message_by = ${sender}, last_message_at = NOW(), is_read = ${!isFromCustomer} WHERE id = ${id}`;
 
     if (activity_type === 'email' && !isFromCustomer) {
-      const cleanSubject = (subject || FENCECRAFTERS_THREAD_DEFAULT_SUBJECT).trim();
+      const leadProfileRows = await sql`SELECT crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
+      const profile = crmProfileConfig(leadProfileRows[0]?.crm_profile);
+      const cleanSubject = (subject || profile.defaultSubject).trim();
       const bodyText = normalizeText(description || '').replace(/^(📤|📥)\s*/, '').replace(/^Subject:\s*[^\n]+\n\n/, '');
       const emailAttachments = attachments.slice(0, 5).map((att: { name?: string; dataBase64?: string }) => ({
         name: String(att.name || 'attachment').slice(0, 180),
@@ -867,8 +887,8 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: { 'api-key': process.env.BREVO_API_KEY || '', 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sender: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_SENDER_EMAIL },
-          replyTo: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_REPLY_TO_EMAIL },
+          sender: { name: profile.senderName, email: profile.senderEmail },
+          replyTo: { name: profile.senderName, email: profile.replyToEmail },
           to: [{ email: outboundEmailTo, name: outboundEmailName || undefined }],
           subject: cleanSubject,
           textContent: bodyText,

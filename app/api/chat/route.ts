@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import {
   FENCECRAFTERS_THREAD_DEFAULT_SUBJECT,
-  FENCECRAFTERS_THREAD_REPLY_TO_EMAIL,
-  FENCECRAFTERS_THREAD_SENDER_EMAIL,
-  FENCECRAFTERS_THREAD_SENDER_NAME,
+  crmProfileConfig,
   PNM_FENCING_EMAIL_SENDING_PAUSED,
   pnmFencingEmailPausedResponse,
 } from '@/lib/email-policy';
@@ -119,7 +117,7 @@ export async function POST(request: NextRequest) {
   const text = normalizeTrimmedText(body.message || '');
   const fromStaff = body.fromStaff === true;
   const channel = fromStaff && body.channel === 'email' ? 'email' : 'sms';
-  const subject = String(body.subject || FENCECRAFTERS_THREAD_DEFAULT_SUBJECT).trim();
+  let subject = String(body.subject || FENCECRAFTERS_THREAD_DEFAULT_SUBJECT).trim();
   const attachments = Array.isArray(body.attachments) ? body.attachments : [];
   const scheduledForRaw = fromStaff ? String(body.scheduledFor || '').trim() : '';
 
@@ -131,13 +129,15 @@ export async function POST(request: NextRequest) {
   }
 
   const leads = await sql`
-    SELECT id, customer_name, customer_phone, customer_email, campaign_id, outreach_paused FROM crm_leads WHERE chat_token = ${token}
+    SELECT id, customer_name, customer_phone, customer_email, campaign_id, outreach_paused, crm_profile FROM crm_leads WHERE chat_token = ${token}
   `;
   if (leads.length === 0) {
     return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
   }
 
   const leadId = leads[0].id;
+  const profile = crmProfileConfig(leads[0].crm_profile);
+  if (!body.subject) subject = profile.defaultSubject;
   if (channel === 'email' && !leads[0].customer_email) {
     return NextResponse.json({ error: 'Customer email missing' }, { status: 400 });
   }
@@ -210,8 +210,8 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sender: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_SENDER_EMAIL },
-        replyTo: { name: FENCECRAFTERS_THREAD_SENDER_NAME, email: FENCECRAFTERS_THREAD_REPLY_TO_EMAIL },
+        sender: { name: profile.senderName, email: profile.senderEmail },
+        replyTo: { name: profile.senderName, email: profile.replyToEmail },
         to: [{ email: leads[0].customer_email, name: leads[0].customer_name || undefined }],
         subject,
         textContent: text,

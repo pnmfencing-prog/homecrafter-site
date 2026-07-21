@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { normalizeCrmProfile } from '@/lib/email-policy';
 
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
@@ -78,19 +79,20 @@ async function ensureImportSchema() {
     )
   `;
   await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS import_batch_id INTEGER REFERENCES crm_import_batches(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
 }
 
-async function findDuplicate(phone: string, email: string, name: string, address: string) {
+async function findDuplicate(phone: string, email: string, name: string, address: string, crmProfile: string) {
   if (phone) {
-    const rows = await sql`SELECT id FROM crm_leads WHERE regexp_replace(COALESCE(customer_phone,''), '[^0-9]', '', 'g') = ${phone} LIMIT 1`;
+    const rows = await sql`SELECT id FROM crm_leads WHERE regexp_replace(COALESCE(customer_phone,''), '[^0-9]', '', 'g') = ${phone} AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
     if (rows.length) return rows[0].id;
   }
   if (email) {
-    const rows = await sql`SELECT id FROM crm_leads WHERE LOWER(customer_email) = ${email} LIMIT 1`;
+    const rows = await sql`SELECT id FROM crm_leads WHERE LOWER(customer_email) = ${email} AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
     if (rows.length) return rows[0].id;
   }
   if (name && address) {
-    const rows = await sql`SELECT id FROM crm_leads WHERE LOWER(customer_name) = LOWER(${name}) AND LOWER(COALESCE(customer_address,'')) = LOWER(${address}) LIMIT 1`;
+    const rows = await sql`SELECT id FROM crm_leads WHERE LOWER(customer_name) = LOWER(${name}) AND LOWER(COALESCE(customer_address,'')) = LOWER(${address}) AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
     if (rows.length) return rows[0].id;
   }
   return null;
@@ -107,6 +109,7 @@ export async function POST(request: NextRequest) {
   const batchName = String(body.batch_name || body.batchName || body.filename || `BatchLeads ${new Date().toISOString().slice(0, 10)}`).trim();
   const source = String(body.source || 'batchleads').trim().toLowerCase() || 'batchleads';
   const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
+  const crmProfile = normalizeCrmProfile(body.crm_profile);
   const serviceDefault = String(body.service_type || body.service || 'Fencing').trim();
 
   const batchRows = await sql`
@@ -148,7 +151,7 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const dupeId = await findDuplicate(phone, email, name, address);
+      const dupeId = await findDuplicate(phone, email, name, address, crmProfile);
       if (dupeId) {
         duplicate++;
         await sql`
@@ -162,8 +165,8 @@ export async function POST(request: NextRequest) {
       const maxCode = await sql`SELECT COALESCE(MAX(CAST(lead_code AS INTEGER)), 99) + 1 as next_code FROM crm_leads WHERE lead_code ~ '^[0-9]+$'`;
       const leadCode = String(maxCode[0].next_code);
       const lead = await sql`
-        INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, status, chat_token, lead_code, campaign_id, import_batch_id)
-        VALUES (${name || null}, ${phone || null}, ${email || null}, ${address || null}, ${city || null}, ${state || null}, ${zip || null}, ${service}, ${notes || null}, ${source}, 'new', ${chatToken()}, ${leadCode}, ${campaignId}, ${batchId})
+        INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, status, chat_token, lead_code, campaign_id, import_batch_id, crm_profile)
+        VALUES (${name || null}, ${phone || null}, ${email || null}, ${address || null}, ${city || null}, ${state || null}, ${zip || null}, ${service}, ${notes || null}, ${source}, 'new', ${chatToken()}, ${leadCode}, ${campaignId}, ${batchId}, ${crmProfile})
         RETURNING id
       `;
       imported++;

@@ -25,6 +25,10 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .header-nav { display: flex; gap: 1rem 1.25rem; justify-content: center; align-items: center; margin-top: 0.75rem; flex-wrap: wrap; }
 .header-nav a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; transition: color 0.2s; white-space: nowrap; }
 .header-nav a:hover, .header-nav a.active { color: var(--gold); }
+.profile-switcher { display: inline-flex; gap: 0.35rem; margin-top: 0.75rem; padding: 0.22rem; border: 1px solid rgba(196,170,106,0.28); border-radius: 999px; background: rgba(255,255,255,0.06); }
+.profile-btn { border: 0; border-radius: 999px; padding: 0.42rem 0.8rem; background: transparent; color: rgba(255,255,255,0.7); font: 800 0.65rem 'Montserrat', sans-serif; letter-spacing: 0.07em; text-transform: uppercase; cursor: pointer; }
+.profile-btn.active { background: var(--gold); color: var(--midnight); }
+.profile-meta { margin-top: 0.35rem; font-size: 0.6rem; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.06em; }
 
 /* Top stats */
 .stats-row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0.75rem; padding: 1.25rem 1.25rem 0; max-width: 1900px; margin: 0 auto; }
@@ -321,6 +325,11 @@ body.lead-modal-open > .portal-home { display: none; }
   <a class="portal-home" href="/calendar.html" title="Portal home" aria-label="Portal home">&#8962;</a>
   <div class="logo">PNM FENCING</div>
   <div class="header-sub">Sales Board</div>
+  <div class="profile-switcher" aria-label="CRM profile switcher">
+    <button class="profile-btn active" data-profile="fencecrafters" onclick="setCrmProfile('fencecrafters')">FenceCrafters</button>
+    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button>
+  </div>
+  <div class="profile-meta" id="profileMeta">From: fencecrafters@homecrafter.ai · Signature: Scott / FenceCrafters</div>
   <div class="header-nav">
     <a href="/crm.html" class="active">Sales Board</a>
     <a href="/calendar.html">Calendar</a>
@@ -442,6 +451,7 @@ var campaigns = [];
 var campaignsLoaded = false;
 var campaignsLoadPromise = null;
 var currentView = 'board';
+var currentCrmProfile = 'fencecrafters';
 var currentFilter = 'all';
 var currentSource = 'all';
 var readFilter = 'all';
@@ -461,10 +471,53 @@ var CRM_FILTER_STATE_KEY = 'crm_dashboard_filter_state_v2';
 var PROFILE_SEND_HOLD_TIMER = null;
 var PROFILE_SEND_HOLD_OPENED = false;
 
+var CRM_PROFILES = {
+  fencecrafters: {
+    label: 'FenceCrafters',
+    senderEmail: 'fencecrafters@homecrafter.ai',
+    subject: 'Following up from FenceCrafters',
+    smsSignature: 'Scott\nFenceCrafters',
+    meta: 'From: fencecrafters@homecrafter.ai · Signature: Scott / FenceCrafters'
+  },
+  pnm_fencing: {
+    label: 'PNM Fencing',
+    senderEmail: 'pnmfencing@homecrafter.ai',
+    subject: 'Following up from PNM Fencing',
+    smsSignature: 'PNM Fencing',
+    meta: 'From: pnmfencing@homecrafter.ai · Signature: PNM Fencing'
+  }
+};
+
+function profileKey(value) { return value === 'pnm_fencing' ? 'pnm_fencing' : 'fencecrafters'; }
+function activeProfileConfig() { return CRM_PROFILES[profileKey(currentCrmProfile)]; }
+function leadProfileConfig(lead) { return CRM_PROFILES[profileKey(lead && lead.crm_profile)] || activeProfileConfig(); }
+function applyCrmProfileUi() {
+  currentCrmProfile = profileKey(currentCrmProfile);
+  var p = activeProfileConfig();
+  THREAD_EMAIL_SENDER = p.senderEmail;
+  THREAD_EMAIL_SUBJECT = p.subject;
+  document.querySelectorAll('.profile-btn').forEach(function(btn) { btn.classList.toggle('active', btn.dataset.profile === currentCrmProfile); });
+  var meta = document.getElementById('profileMeta');
+  if (meta) meta.textContent = p.meta;
+  var logo = document.querySelector('.logo');
+  if (logo) logo.textContent = p.label.toUpperCase();
+}
+
+function setCrmProfile(profile) {
+  currentCrmProfile = profileKey(profile);
+  activeLeadId = null;
+  activeLeadDetail = null;
+  closeModal();
+  applyCrmProfileUi();
+  saveCrmFilterState();
+  loadLeads();
+}
+
 function saveCrmFilterState() {
   try {
     localStorage.setItem(CRM_FILTER_STATE_KEY, JSON.stringify({
       currentView: currentView,
+      currentCrmProfile: currentCrmProfile,
       currentFilter: currentFilter,
       currentSource: currentSource,
       readFilter: readFilter,
@@ -492,6 +545,7 @@ function restoreCrmFilterState() {
     var saved = JSON.parse(localStorage.getItem(CRM_FILTER_STATE_KEY) || '{}');
     if (!saved || !saved.savedAt) return;
     currentView = saved.currentView === 'list' ? 'list' : 'board';
+    currentCrmProfile = profileKey(saved.currentCrmProfile);
     currentFilter = saved.currentFilter || 'all';
     currentSource = saved.currentSource || 'all';
     readFilter = ['all', 'unread', 'read'].indexOf(saved.readFilter) >= 0 ? saved.readFilter : 'all';
@@ -500,6 +554,7 @@ function restoreCrmFilterState() {
     flaggedFilter = saved.flaggedFilter === true;
     lastMessageSince = saved.lastMessageSince || '';
     applyCrmFilterControls();
+    applyCrmProfileUi();
   } catch (e) {}
 }
 
@@ -682,7 +737,7 @@ function tileSendButtonHtml(l) {
 function messageAuthor(l) {
   if (l.latest_message_from_customer) return l.customer_name || 'Customer';
   if (l.latest_message_created_by && l.latest_message_created_by !== 'admin') return l.latest_message_created_by;
-  return 'PNM Fencing';
+  return leadProfileConfig(l).label;
 }
 
 function loadCampaigns() {
@@ -826,7 +881,7 @@ function loadLeads() {
   var search = searchEl ? searchEl.value.trim() : '';
   var effectiveStatus = search ? 'all' : (messageFilter !== 'all' ? 'all' : currentFilter);
   var effectiveSource = search ? 'all' : currentSource;
-  var params = '?status=' + effectiveStatus + '&source=' + effectiveSource;
+  var params = '?status=' + effectiveStatus + '&source=' + effectiveSource + '&profile=' + encodeURIComponent(profileKey(currentCrmProfile));
   if (!search && campaignFilter !== 'all') params += '&campaign=' + encodeURIComponent(campaignFilter);
   if (!search && flaggedFilter) params += '&flagged=1';
   if (search) params += '&search=' + encodeURIComponent(search);
@@ -867,6 +922,7 @@ function renderActiveFilterPill() {
   var el = document.getElementById('activeFilterPill');
   if (!el) return;
   var parts = [];
+  parts.push('Profile: ' + activeProfileConfig().label);
   parts.push('Status: ' + (messageFilter !== 'all' ? 'All' : currentFilter));
   parts.push('Read: ' + readFilter);
   parts.push('Msgs: ' + (messageFilter === 'customer' ? 'Received' : messageFilter === 'you' ? 'Sent' : 'All'));
@@ -1138,6 +1194,7 @@ function createLead() {
     service_type: document.getElementById('nl-service').value,
     notes: document.getElementById('nl-notes').value,
     source: document.getElementById('nl-source').value,
+    crm_profile: profileKey(currentCrmProfile),
   })).then(function(r) { return r.json(); }).then(function(d) {
     if (d.success) { closeNewModal(); loadLeads(); }
   });
@@ -1188,6 +1245,9 @@ function openLeadDetail(id, skipHistory) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       var l = data.lead;
+      var detailProfile = leadProfileConfig(l);
+      THREAD_EMAIL_SENDER = detailProfile.senderEmail;
+      THREAD_EMAIL_SUBJECT = detailProfile.subject;
       activeLeadDetail = l;
       var act = (data.activity || []).sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); });
 
@@ -1230,7 +1290,7 @@ function openLeadDetail(id, skipHistory) {
         return (a.activity_type === 'sms' || a.activity_type === 'email') && (a.is_from_customer === true || desc.startsWith('📥'));
       });
       var defaultReplyChannel = lastInbound && lastInbound.activity_type === 'email' && hasValidEmail && !PNM_EMAIL_SENDING_PAUSED ? 'email' : 'sms';
-      var emailSenderNote = '<span id="email-sender-note" style="font-size:0.62rem;color:var(--text-muted);font-weight:700;display:' + (defaultReplyChannel === 'email' ? 'inline' : 'none') + '">From: ' + THREAD_EMAIL_SENDER + '</span>'; 
+      var emailSenderNote = '<span id="email-sender-note" style="font-size:0.62rem;color:var(--text-muted);font-weight:700;display:' + (defaultReplyChannel === 'email' ? 'inline' : 'none') + '">From: ' + detailProfile.senderEmail + '</span>'; 
 
       var activityHtml = '';
       act.forEach(function(a) {
@@ -1396,7 +1456,7 @@ function openLeadDetail(id, skipHistory) {
             '<input type="hidden" id="note-type" value="' + defaultReplyChannel + '">' +
             '<div class="channel-toggle">' +
               '<button type="button" id="channel-sms" class="btn btn-outline ' + (defaultReplyChannel === 'sms' ? 'active' : '') + '" onclick="setMessageChannel(\'sms\',' + l.id + ')">💬 Text</button>' +
-              '<button type="button" id="channel-email" class="btn btn-outline ' + (defaultReplyChannel === 'email' ? 'active' : '') + '" ' + ((!hasValidEmail || PNM_EMAIL_SENDING_PAUSED) ? 'disabled title="Email sending is paused"' : 'title="Sends from ' + THREAD_EMAIL_SENDER + '"') + ' onclick="setMessageChannel(\'email\',' + l.id + ')">✉️ Email <span style="display:block;font-size:0.52rem;line-height:1.1;opacity:0.78">' + THREAD_EMAIL_SENDER + '</span>' + (PNM_EMAIL_SENDING_PAUSED ? ' Paused' : '') + '</button>' +
+              '<button type="button" id="channel-email" class="btn btn-outline ' + (defaultReplyChannel === 'email' ? 'active' : '') + '" ' + ((!hasValidEmail || PNM_EMAIL_SENDING_PAUSED) ? 'disabled title="Email sending is paused"' : 'title="Sends from ' + detailProfile.senderEmail + '"') + ' onclick="setMessageChannel(\'email\',' + l.id + ')">✉️ Email <span style="display:block;font-size:0.52rem;line-height:1.1;opacity:0.78">' + detailProfile.senderEmail + '</span>' + (PNM_EMAIL_SENDING_PAUSED ? ' Paused' : '') + '</button>' +
               emailSenderNote +
             '</div>' +
             '<div id="email-subject-row" class="email-subject-row"><input type="text" id="email-subject" placeholder="Email subject..." style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.8rem"></div>' +
@@ -1791,11 +1851,17 @@ function applyTileTemplate(event, id) {
   input.focus();
 }
 
-function signedSmsBody(text) {
+function appendSignature(text, profile) {
   var body = normalizeText(text || '').trim();
   if (!body) return '';
-  if (!/FenceCrafters/i.test(body)) body += '\n\nScott\nFenceCrafters';
+  var sig = (profile || activeProfileConfig()).smsSignature;
+  var marker = sig === 'PNM Fencing' ? 'PNM Fencing' : 'FenceCrafters';
+  if (sig && body.indexOf(sig) === -1 && !new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(body)) body += '\n\n' + sig;
   return body;
+}
+
+function signedSmsBody(text, lead) {
+  return appendSignature(text, leadProfileConfig(lead));
 }
 
 function setTileReplyStatus(id, message, kind) {
@@ -1820,7 +1886,8 @@ function sendTileQuickReply(event, id) {
   }
   var input = document.getElementById('tile-reply-' + id);
   var btn = document.getElementById('tile-send-' + id);
-  var body = signedSmsBody(input ? input.value : '');
+  var lead = allLeads.find(function(l) { return l.id === id; });
+  var body = signedSmsBody(input ? input.value : '', lead);
   if (!body) {
     setTileReplyStatus(id, 'Type a reply first.', 'err');
     if (input) input.focus();
@@ -1943,11 +2010,16 @@ function addNote(id) {
     }
   }
   var desc = text;
+  var outboundBody = text;
+  var profileForMessage = leadProfileConfig(activeLeadDetail);
+  if ((type === 'sms' || type === 'email') && text && !text.startsWith('📤') && !text.startsWith('📥')) {
+    outboundBody = appendSignature(text, profileForMessage);
+  }
   if (type === 'sms' && !text.startsWith('📤') && !text.startsWith('📥')) {
-    desc = '📤 ' + (text || 'Attachment');
+    desc = '📤 ' + (outboundBody || 'Attachment');
   }
   if (type === 'email' && !text.startsWith('📤') && !text.startsWith('📥')) {
-    desc = '📤 Subject: ' + subject + '\n\n' + (text || 'See attached.');
+    desc = '📤 Subject: ' + subject + '\n\n' + (outboundBody || 'See attached.');
   }
   var scheduledFor = '';
   var sched = document.getElementById('profile-scheduled-for');
@@ -2076,7 +2148,7 @@ function importCSV(input) {
       rows.push(row);
     }
     if (!confirm('Import ' + rows.length + ' leads from CSV?')) return;
-    fetch('/api/crm-import', api('POST', { rows: rows }))
+    fetch('/api/crm-import', api('POST', { rows: rows, crm_profile: profileKey(currentCrmProfile) }))
       .then(function(r) { return r.json(); })
       .then(function(d) {
         alert('Imported: ' + d.imported + '\nSkipped (dupes): ' + d.skipped + (d.errors.length ? '\nErrors: ' + d.errors.length : ''));
@@ -2362,6 +2434,7 @@ function openLinkedLeadFromUrl() {
 
 // Init
 restoreCrmFilterState();
+applyCrmProfileUi();
 loadCampaigns().then(loadLeads);
 setView(currentView);
 initSwipeDots();
