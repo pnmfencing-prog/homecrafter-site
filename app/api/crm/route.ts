@@ -796,8 +796,12 @@ export async function POST(request: NextRequest) {
     const scheduledForRaw = String(body.scheduled_for || body.scheduledFor || '').trim();
     const isFromCustomer = description?.startsWith('📥') || false;
 
-    if (activity_type === 'email' && !isFromCustomer && PNM_FENCING_EMAIL_SENDING_PAUSED) {
-      return NextResponse.json(pnmFencingEmailPausedResponse(), { status: 423 });
+    if (activity_type === 'email' && !isFromCustomer) {
+      const leadProfileRows = await sql`SELECT crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
+      const profile = crmProfileConfig(leadProfileRows[0]?.crm_profile);
+      if (profile.key === 'pnm_fencing' && PNM_FENCING_EMAIL_SENDING_PAUSED) {
+        return NextResponse.json(pnmFencingEmailPausedResponse(), { status: 423 });
+      }
     }
 
     if (scheduledForRaw && activity_type === 'sms' && !isFromCustomer) {
@@ -894,18 +898,19 @@ export async function POST(request: NextRequest) {
         name: String(att.name || 'attachment').slice(0, 180),
         content: String(att.dataBase64 || '').replace(/^data:[^;]+;base64,/, ''),
       })).filter((att: { content: string }) => att.content);
+      const payload: Record<string, unknown> = {
+        sender: { name: profile.senderName, email: profile.senderEmail },
+        replyTo: { name: profile.senderName, email: profile.replyToEmail },
+        to: [{ email: outboundEmailTo, name: outboundEmailName || undefined }],
+        subject: cleanSubject,
+        textContent: bodyText,
+        htmlContent: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;white-space:pre-wrap">${bodyText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
+      };
+      if (emailAttachments.length) payload.attachment = emailAttachments;
       const res = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: { 'api-key': process.env.BREVO_API_KEY || '', 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sender: { name: profile.senderName, email: profile.senderEmail },
-          replyTo: { name: profile.senderName, email: profile.replyToEmail },
-          to: [{ email: outboundEmailTo, name: outboundEmailName || undefined }],
-          subject: cleanSubject,
-          textContent: bodyText,
-          htmlContent: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;white-space:pre-wrap">${bodyText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
-          attachment: emailAttachments,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const errorText = await res.text();
