@@ -297,7 +297,8 @@ export async function GET(request: NextRequest) {
           FROM crm_campaign_messages
           WHERE campaign_id = ec.effective_campaign_id
         ) cm ON true
-        WHERE (${status || 'all'} = 'all' OR l.status = ${status || 'all'})
+        WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+          AND (${status || 'all'} = 'all' OR l.status = ${status || 'all'})
           AND (${source || 'all'} = 'all' OR l.source = ${source || 'all'})
           AND (${readFilter || 'all'} = 'all'
             OR (${readFilter || 'all'} = 'read' AND l.is_read IS TRUE)
@@ -340,7 +341,8 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
-      WHERE l.status = ${status} AND (
+      WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.status = ${status} AND (
         l.customer_name ILIKE ${searchPat}
         OR l.customer_phone ILIKE ${searchPat}
         OR l.customer_email ILIKE ${searchPat}
@@ -370,7 +372,8 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
-      WHERE l.status = ${status}
+      WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.status = ${status}
       ORDER BY l.created_at DESC`;
   } else if (source && source !== 'all' && search) {
     const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
@@ -387,7 +390,8 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
-      WHERE l.source = ${source} AND (
+      WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.source = ${source} AND (
         l.customer_name ILIKE ${searchPat}
         OR l.customer_phone ILIKE ${searchPat}
         OR l.customer_email ILIKE ${searchPat}
@@ -417,7 +421,8 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
-      WHERE l.source = ${source}
+      WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.source = ${source}
       ORDER BY l.created_at DESC`;
   } else if (search) {
     const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
@@ -434,7 +439,9 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
-      WHERE l.customer_name ILIKE ${searchPat}
+      WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND (
+        l.customer_name ILIKE ${searchPat}
         OR l.customer_phone ILIKE ${searchPat}
         OR l.customer_email ILIKE ${searchPat}
         OR l.customer_address ILIKE ${searchPat}
@@ -447,7 +454,7 @@ export async function GET(request: NextRequest) {
               a.description ILIKE ${searchPat}
               OR regexp_replace(replace(replace(COALESCE(a.description, ''), E'\\n', ' '), E'\\r', ' '), '[[:space:]]+', ' ', 'g') ILIKE ${searchPat}
             )
-        )
+        ))
       ORDER BY l.created_at DESC`;
   } else if (messageFilter === 'you') {
     const workflowLimit = resultLimit || 250;
@@ -463,7 +470,8 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
-      WHERE l.last_message_by IN ('you', 'company')
+      WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.last_message_by IN ('you', 'company')
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${workflowLimit}`;
   } else if (messageFilter === 'customer') {
@@ -480,7 +488,8 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
-      WHERE l.last_message_by = 'customer'
+      WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.last_message_by = 'customer'
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${workflowLimit}`;
   } else if (maxPerStatus) {
@@ -506,6 +515,7 @@ export async function GET(request: NextRequest) {
                ) AS status_rank
         FROM crm_leads l
         LEFT JOIN latest_by_lead latest ON latest.crm_lead_id = l.id
+        WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
       )
       SELECT * FROM lead_rows
       WHERE status_rank <= ${maxPerStatus}
@@ -523,6 +533,7 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 1
       ) latest ON true
+      WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC`;
   }
 

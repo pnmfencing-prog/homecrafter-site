@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   }
 
   const leads = await sql`
-    SELECT id, customer_name, service_type, is_read, flagged FROM crm_leads WHERE chat_token = ${token}
+    SELECT id, customer_name, service_type, is_read, flagged, crm_profile FROM crm_leads WHERE chat_token = ${token}
   `;
   if (leads.length === 0) {
     return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
@@ -86,7 +86,14 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    lead: { id: lead.id, name: lead.customer_name, service: lead.service_type, isRead: lead.is_read, flagged: lead.flagged === true },
+    lead: {
+      id: lead.id,
+      name: lead.customer_name,
+      service: lead.service_type,
+      isRead: lead.is_read,
+      flagged: lead.flagged === true,
+      profile: crmProfileConfig(lead.crm_profile),
+    },
     messages: messages.map((m: any) => {
       const description = normalizeText(m.description || '');
       const hasOutboundPrefix = description.startsWith('📤');
@@ -114,7 +121,7 @@ function isAdmin(request: NextRequest): boolean {
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const token = body.token;
-  const text = normalizeTrimmedText(body.message || '');
+  let text = normalizeTrimmedText(body.message || '');
   const fromStaff = body.fromStaff === true;
   const channel = fromStaff && body.channel === 'email' ? 'email' : 'sms';
   let subject = String(body.subject || FENCECRAFTERS_THREAD_DEFAULT_SUBJECT).trim();
@@ -138,6 +145,9 @@ export async function POST(request: NextRequest) {
   const leadId = leads[0].id;
   const profile = crmProfileConfig(leads[0].crm_profile);
   if (!body.subject) subject = profile.defaultSubject;
+  if (fromStaff && profile.smsSignature && !text.includes(profile.smsSignature) && !text.toLowerCase().includes(profile.label.toLowerCase())) {
+    text = `${text}\n\n${profile.smsSignature}`;
+  }
   if (channel === 'email' && !leads[0].customer_email) {
     return NextResponse.json({ error: 'Customer email missing' }, { status: 400 });
   }

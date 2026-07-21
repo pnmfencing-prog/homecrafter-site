@@ -141,6 +141,7 @@ var CHANNEL = 'sms';
 var PNM_EMAIL_SENDING_PAUSED = false;
 var THREAD_EMAIL_SENDER = 'fencecrafters@homecrafter.ai';
 var THREAD_EMAIL_SUBJECT = 'Following up from FenceCrafters';
+var THREAD_PROFILE_LABEL = 'FenceCrafters';
 var ACTIVE_LEAD_ID = null;
 var ACTIVE_IS_READ = true;
 var SCHEDULE_OPEN = false;
@@ -201,7 +202,7 @@ function setChannel(channel) {
   document.getElementById('subjectRow').className = CHANNEL === 'email' ? 'subject-row on' : 'subject-row';
   var senderNote = document.getElementById('senderNote');
   if (senderNote) senderNote.textContent = 'From: ' + THREAD_EMAIL_SENDER;
-  document.getElementById('msgInput').placeholder = CHANNEL === 'email' ? 'Type email body...' : (STAFF_MODE ? 'Reply as FenceCrafters...' : 'Type a message...');
+  document.getElementById('msgInput').placeholder = CHANNEL === 'email' ? 'Type email body...' : (STAFF_MODE ? 'Reply as ' + THREAD_PROFILE_LABEL + '...' : 'Type a message...');
   var sched = document.getElementById('scheduledFor');
   if (sched) sched.disabled = CHANNEL !== 'sms';
 }
@@ -239,6 +240,18 @@ function loadMessages() {
       }
       ACTIVE_LEAD_ID = data.lead.id;
       ACTIVE_IS_READ = data.lead.isRead !== false;
+      var profile = data.lead.profile || {};
+      THREAD_PROFILE_LABEL = profile.label || 'FenceCrafters';
+      THREAD_EMAIL_SENDER = profile.senderEmail || 'fencecrafters@homecrafter.ai';
+      THREAD_EMAIL_SUBJECT = profile.defaultSubject || 'Following up from FenceCrafters';
+      var banner = document.getElementById('staffBanner');
+      if (banner) banner.textContent = 'Staff Reply Mode — messages you send here will show as ' + THREAD_PROFILE_LABEL + '.';
+      var chip = document.getElementById('emailSenderChip');
+      if (chip) chip.textContent = THREAD_EMAIL_SENDER;
+      var subjectInput = document.getElementById('emailSubject');
+      if (subjectInput && (!subjectInput.value || subjectInput.value === 'Following up from FenceCrafters')) subjectInput.value = THREAD_EMAIL_SUBJECT;
+      var logo = document.querySelector('.header-logo');
+      if (logo) logo.textContent = THREAD_PROFILE_LABEL.toUpperCase();
       if (STAFF_MODE && ACTIVE_IS_READ) notifyLeadRead(ACTIVE_LEAD_ID, true);
       var customerName = data.lead.name || 'Customer';
       document.getElementById('headerInfo').textContent = customerName + ' · ' + (data.lead.service || 'Project') + ' Inquiry' + (STAFF_MODE ? ' · Staff Reply Mode' : '');

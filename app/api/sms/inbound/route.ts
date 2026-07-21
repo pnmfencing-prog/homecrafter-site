@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { crmProfileConfig } from '@/lib/email-policy';
 
 const DAN_PHONE = '9086924847';
 const DAN_PHONE_E164 = '+19086924847';
 const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
-const NEW_LEAD_REPLY = 'Hi, this is Scott with FenceCrafters. I was assigned as the estimator for your project.\n\nDid you by chance have a property survey or the total footage or section count?';
 const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
 const ANGRY_OPTOUT_RE = /\b(fuck off|f off|leave me alone|do not text|dont text|don't text|remove me|wrong number|not interested|no thanks?|no thank you|i'?m good|im good|i am good|all set|we'?re good|were good)\b/i;
 
@@ -188,6 +188,14 @@ async function findOrCreateLead(from: string): Promise<{ lead: any; created: boo
   return { lead: created[0], created: true };
 }
 
+function newLeadReplyForProfile(profileValue: unknown): string {
+  const profile = crmProfileConfig(profileValue);
+  const intro = profile.key === 'pnm_fencing'
+    ? 'Hi, this is PNM Fencing. I was assigned as the estimator for your project.'
+    : 'Hi, this is Scott with FenceCrafters. I was assigned as the estimator for your project.';
+  return `${intro}\n\nDid you by chance have a property survey or the total footage or section count?`;
+}
+
 export async function POST(request: NextRequest) {
   const form = await request.formData();
   const from = String(form.get('From') || '');
@@ -275,6 +283,7 @@ export async function POST(request: NextRequest) {
       await sql`
         UPDATE crm_leads
         SET customer_responded = true,
+            outreach_paused = true,
             is_read = false,
             last_message_by = 'customer',
             last_message_at = NOW(),
@@ -286,6 +295,12 @@ export async function POST(request: NextRequest) {
             END
         WHERE id = ${lead.id}
       `;
+      if (lead.campaign_id && !lead.outreach_paused) {
+        await sql`
+          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+          VALUES (${lead.id}, 'status_change', '✅ Campaign completed: customer replied', false, 'campaign_system')
+        `;
+      }
     }
 
     if (normalizePhone(from) !== DAN_PHONE) {
@@ -294,10 +309,10 @@ export async function POST(request: NextRequest) {
       notificationText = `New PNM text from ${name} (${formatPhone(from)}): ${body || '[attachment]'}${inboundAttachments.length ? `\n📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : ''}\n\nOpen thread: ${threadUrl}`;
 
       if (result.created && !suppressAnyReply) {
-        newLeadAutoReply = NEW_LEAD_REPLY;
+        newLeadAutoReply = newLeadReplyForProfile(lead.crm_profile);
         await sql`
           INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
-          VALUES (${lead.id}, 'sms', ${`📤 ${NEW_LEAD_REPLY}`}, false, 'system')
+          VALUES (${lead.id}, 'sms', ${`📤 ${newLeadAutoReply}`}, false, 'system')
         `;
         await sql`
           UPDATE crm_leads

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { normalizeCrmProfile } from '@/lib/email-policy';
 
 function normalizePhone(value: any): string | null {
   if (!value) return null;
@@ -79,6 +80,15 @@ function buildNotes(body: any): string {
   return parts.join('\n');
 }
 
+function profileFromRequest(request: NextRequest, body: any) {
+  const { searchParams } = new URL(request.url);
+  const explicit = searchParams.get('profile') || body?.crm_profile || body?.profile || body?.crmProfile;
+  if (explicit) return normalizeCrmProfile(explicit);
+  const company = String(body?.spCompanyName || body?.company || body?.brand || '').toLowerCase();
+  if (company.includes('pnm')) return 'pnm_fencing';
+  return 'fencecrafters';
+}
+
 export async function POST(request: NextRequest) {
   let body: any;
   try {
@@ -100,7 +110,9 @@ export async function POST(request: NextRequest) {
   const state = str(body.stateProvince || body.state || 'NJ');
   const zip = str(body.postalCode || body.zip);
   const service = str(body.taskName) || 'Fencing';
+  const crmProfile = profileFromRequest(request, body);
   let notes = buildNotes(body);
+  notes = `${notes}${notes ? '\n' : ''}CRM profile: ${crmProfile}`;
   if (secondaryPhone) notes = `${notes}${notes ? '\n' : ''}Secondary phone: ${secondaryPhone}`;
 
   if (!name && !phone && !email) {
@@ -109,14 +121,14 @@ export async function POST(request: NextRequest) {
 
   const leadOid = str(body.leadOid);
   if (leadOid) {
-    const existingByOid = await sql`SELECT * FROM crm_leads WHERE source = 'angi' AND notes ILIKE ${`%Angi leadOid: ${leadOid}%`} LIMIT 1`;
+    const existingByOid = await sql`SELECT * FROM crm_leads WHERE source = 'angi' AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} AND notes ILIKE ${`%Angi leadOid: ${leadOid}%`} LIMIT 1`;
     if (existingByOid.length) {
       return NextResponse.json({ success: true, created: false, duplicate: true, lead: existingByOid[0] });
     }
   }
 
   if (phone) {
-    const existing = await sql`SELECT * FROM crm_leads WHERE customer_phone = ${phone} LIMIT 1`;
+    const existing = await sql`SELECT * FROM crm_leads WHERE customer_phone = ${phone} AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
     if (existing.length) {
       await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${existing[0].id}, 'note', ${`Duplicate Angi lead received${leadOid ? ` (leadOid ${leadOid})` : ''}.`}, true)`;
       return NextResponse.json({ success: true, created: false, duplicate: true, lead: existing[0] });
@@ -124,7 +136,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (email) {
-    const existing = await sql`SELECT * FROM crm_leads WHERE customer_email = ${email} LIMIT 1`;
+    const existing = await sql`SELECT * FROM crm_leads WHERE customer_email = ${email} AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
     if (existing.length) {
       await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${existing[0].id}, 'note', ${`Duplicate Angi lead received${leadOid ? ` (leadOid ${leadOid})` : ''}.`}, true)`;
       return NextResponse.json({ success: true, created: false, duplicate: true, lead: existing[0] });
@@ -144,8 +156,8 @@ export async function POST(request: NextRequest) {
   const campaignId = defaultCampaign[0]?.id || null;
 
   const result = await sql`
-    INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, status, chat_token, lead_code, is_read, campaign_id, campaign_started_at)
-    VALUES (${name}, ${phone}, ${email}, ${address}, ${city}, ${state}, ${zip}, ${service}, ${notes || null}, 'angi', 'new', ${chatToken}, ${leadCode}, false, ${campaignId}, NOW())
+    INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, status, chat_token, lead_code, is_read, campaign_id, campaign_started_at, crm_profile)
+    VALUES (${name}, ${phone}, ${email}, ${address}, ${city}, ${state}, ${zip}, ${service}, ${notes || null}, 'angi', 'new', ${chatToken}, ${leadCode}, false, ${campaignId}, NOW(), ${crmProfile})
     RETURNING *
   `;
 
