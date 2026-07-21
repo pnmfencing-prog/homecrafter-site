@@ -12,6 +12,24 @@ function cleanText(value: unknown): string | null {
   return text ? text : null;
 }
 
+function shouldStartTomorrowAt10(campaign: { name?: string | null; source?: string | null } | null | undefined): boolean {
+  const name = String(campaign?.name || '').toLowerCase();
+  const source = String(campaign?.source || '').toLowerCase();
+  return name.includes('quote follow up') && (source === 'angi' || source === 'batchleads');
+}
+
+async function nextCampaignStartExpression(campaignId: number | null, campaign: { name?: string | null; source?: string | null } | null | undefined) {
+  if (!campaignId) return null;
+  if (shouldStartTomorrowAt10(campaign)) {
+    const rows = await sql`
+      SELECT (((NOW() AT TIME ZONE 'America/New_York')::date + INTERVAL '1 day' + TIME '10:00') AT TIME ZONE 'America/New_York') AS start_at
+    `;
+    return rows[0].start_at;
+  }
+  const rows = await sql`SELECT NOW() AS start_at`;
+  return rows[0].start_at;
+}
+
 async function ensureSchema() {
   await sql`
     CREATE TABLE IF NOT EXISTS crm_campaigns (
@@ -299,11 +317,13 @@ export async function POST(request: NextRequest) {
     const leadId = Number(body.lead_id);
     const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
     if (!leadId) return NextResponse.json({ error: 'Lead id required' }, { status: 400 });
-    const campaignRows = campaignId ? await sql`SELECT name FROM crm_campaigns WHERE id = ${campaignId} LIMIT 1` : [];
-    const campaignName = campaignRows[0]?.name || null;
+    const campaignRows = campaignId ? await sql`SELECT name, source FROM crm_campaigns WHERE id = ${campaignId} LIMIT 1` : [];
+    const campaign = campaignRows[0] || null;
+    const campaignName = campaign?.name || null;
+    const campaignStartAt = await nextCampaignStartExpression(campaignId, campaign);
     await sql`
       UPDATE crm_leads
-      SET campaign_id = ${campaignId}, campaign_started_at = CASE WHEN ${campaignId}::integer IS NULL THEN NULL ELSE NOW() END,
+      SET campaign_id = ${campaignId}, campaign_started_at = ${campaignStartAt},
           outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
       WHERE id = ${leadId}
     `;
@@ -318,11 +338,13 @@ export async function POST(request: NextRequest) {
     const leadIds = Array.isArray(body.lead_ids) ? body.lead_ids.map(Number).filter(Boolean) : [];
     const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
     if (!leadIds.length) return NextResponse.json({ error: 'No leads selected' }, { status: 400 });
-    const campaignRows = campaignId ? await sql`SELECT name FROM crm_campaigns WHERE id = ${campaignId} LIMIT 1` : [];
-    const campaignName = campaignRows[0]?.name || null;
+    const campaignRows = campaignId ? await sql`SELECT name, source FROM crm_campaigns WHERE id = ${campaignId} LIMIT 1` : [];
+    const campaign = campaignRows[0] || null;
+    const campaignName = campaign?.name || null;
+    const campaignStartAt = await nextCampaignStartExpression(campaignId, campaign);
     await sql`
       UPDATE crm_leads
-      SET campaign_id = ${campaignId}, campaign_started_at = CASE WHEN ${campaignId}::integer IS NULL THEN NULL ELSE NOW() END,
+      SET campaign_id = ${campaignId}, campaign_started_at = ${campaignStartAt},
           outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
       WHERE id = ANY(${leadIds})
     `;
