@@ -53,9 +53,20 @@ async function sendTwilioSms(to: string, body: string, mediaUrls: string[] = [])
 }
 
 function publicBaseUrl(request: NextRequest): string {
-  const configured = (process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || '').trim();
+  const configured = (process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || '').trim();
   if (configured) return configured.startsWith('http') ? configured.replace(/\/$/, '') : `https://${configured.replace(/\/$/, '')}`;
-  return request.nextUrl.origin || 'https://homecrafter.ai';
+  // Prefer the public host the CRM request came through. VERCEL_URL can point at an
+  // internal/preview deployment domain, which Twilio may fetch as HTML/protection
+  // instead of the attachment bytes and then fail MMS delivery with error 12300.
+  if (request.nextUrl.origin) return request.nextUrl.origin.replace(/\/$/, '');
+  const vercelUrl = (process.env.VERCEL_URL || '').trim();
+  if (vercelUrl) return vercelUrl.startsWith('http') ? vercelUrl.replace(/\/$/, '') : `https://${vercelUrl.replace(/\/$/, '')}`;
+  return 'https://homecrafter.ai';
+}
+
+function isSupportedMmsMime(mimeType: string): boolean {
+  const mime = String(mimeType || '').toLowerCase();
+  return mime === 'image/jpeg' || mime === 'image/jpg' || mime === 'image/png' || mime === 'image/gif';
 }
 
 function isAdmin(request: NextRequest): boolean {
@@ -844,9 +855,9 @@ export async function POST(request: NextRequest) {
       if (!outboundSmsBody) return NextResponse.json({ error: 'SMS body is missing' }, { status: 400 });
       const unsupported = attachments
         .slice(0, 5)
-        .filter((att: { mimeType?: string }) => !String(att.mimeType || '').toLowerCase().startsWith('image/'));
+        .filter((att: { mimeType?: string }) => !isSupportedMmsMime(String(att.mimeType || '')));
       if (unsupported.length) {
-        return NextResponse.json({ error: 'Text/MMS attachments must be images. Send PDFs or documents by email.' }, { status: 400 });
+        return NextResponse.json({ error: 'Text/MMS attachments must be JPG, PNG, or GIF images. iPhone HEIC photos and PDFs need to be converted or sent by email.' }, { status: 400 });
       }
     }
 
