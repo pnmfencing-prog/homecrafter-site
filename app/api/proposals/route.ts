@@ -57,13 +57,13 @@ export async function GET(request: NextRequest) {
   const stats = await sql`
     SELECT 
       count(*)::int as total,
-      count(*) FILTER (WHERE status = 'draft')::int as draft_count,
-      count(*) FILTER (WHERE status = 'sent')::int as sent_count,
-      count(*) FILTER (WHERE status = 'opened')::int as opened_count,
-      count(*) FILTER (WHERE status = 'signed')::int as signed_count,
-      count(*) FILTER (WHERE status = 'cancelled')::int as cancelled_count,
-      coalesce(sum(total) FILTER (WHERE status = 'signed'), 0)::numeric as signed_value,
-      coalesce(sum(total) FILTER (WHERE status = 'sent'), 0)::numeric as pending_value
+      count(*) FILTER (WHERE p.status = 'draft')::int as draft_count,
+      count(*) FILTER (WHERE p.status = 'sent')::int as sent_count,
+      count(*) FILTER (WHERE p.status = 'opened')::int as opened_count,
+      count(*) FILTER (WHERE p.status = 'signed')::int as signed_count,
+      count(*) FILTER (WHERE p.status = 'cancelled')::int as cancelled_count,
+      coalesce(sum(p.total) FILTER (WHERE p.status = 'signed'), 0)::numeric as signed_value,
+      coalesce(sum(p.total) FILTER (WHERE p.status = 'sent'), 0)::numeric as pending_value
     FROM proposals p
     LEFT JOIN crm_leads cl ON p.crm_lead_id = cl.id
     WHERE COALESCE(p.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
