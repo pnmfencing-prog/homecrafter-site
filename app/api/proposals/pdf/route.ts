@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { crmProfileConfig } from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
 
 function isAdmin(request: NextRequest): boolean {
@@ -25,6 +26,9 @@ export async function GET(request: NextRequest) {
   if (!proposals.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const p = proposals[0];
+  const profile = crmProfileConfig(p.crm_profile || searchParams.get('profile'));
+  const companyName = profile.label;
+  const companyNameCaps = companyName.toUpperCase();
 
   // Track when customer opens the proposal (only update if status is 'sent')
   if (p.status === 'sent') {
@@ -49,14 +53,14 @@ ${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type
 No removal of existing fencing.
 No disposal included.
 No material delivery included.
-PNM Fencing to supply labor only for installation of up to 25 posts.
+${companyName} to supply labor only for installation of up to 25 posts.
 
 Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete.
 Utility mark-out Included.
 
-PNM not responsible for unmarked sprinkler lines and miscellaneous pipes.
+${companyName} not responsible for unmarked sprinkler lines and miscellaneous pipes.
 
-Fence to follow grade of ground. Footing soil dispersed around posts/sections. PNM not responsible for earth settling.`
+Fence to follow grade of ground. Footing soil dispersed around posts/sections. ${companyName} not responsible for earth settling.`
     : `Disposal of packing materials included.
 ${removalIncluded ? 'Removal of old fencing included.' : 'No removal of old fencing.'}
 Delivery included.
@@ -65,13 +69,13 @@ Concrete on all posts*
 Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete.
 Utility mark-out Included.
 
-PNM not responsible for unmarked sprinkler lines and miscellaneous pipes.
+${companyName} not responsible for unmarked sprinkler lines and miscellaneous pipes.
 
-Fence to follow grade of ground. Footing soil dispersed around posts/sections. PNM not responsible for earth settling.`;
+Fence to follow grade of ground. Footing soil dispersed around posts/sections. ${companyName} not responsible for earth settling.`;
   
   const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PNM Estimate ${p.estimate_no}</title>
+<title>${companyName} Estimate ${p.estimate_no}</title>
 <style>
   body { font-family: Helvetica, Arial, sans-serif; max-width: 750px; margin: 0 auto; padding: 40px 30px; color: #000; font-size: 11pt; line-height: 1.5; }
   .header { display: flex; justify-content: space-between; margin-bottom: 10px; }
@@ -101,7 +105,7 @@ Fence to follow grade of ground. Footing soil dispersed around posts/sections. P
 </style></head><body>
 <button class="print-btn" onclick="window.print()">🖨 Print / Save PDF</button>
 
-<div class="company">PNM FENCING NJ LLC</div>
+<div class="company">${companyNameCaps}</div>
 <div class="company-sub">PO Box 437 Oakhurst, NJ 07712 | 1-(908)-692-4847</div>
 
 <div class="header">
@@ -124,7 +128,7 @@ Fence to follow grade of ground. Footing soil dispersed around posts/sections. P
 ${p.redacted ? `
 <div style="background:#f8f0f0;border:2px solid #c00;border-radius:8px;padding:30px;text-align:center;margin:40px 0;">
   <p style="font-size:14pt;font-weight:bold;color:#c00;margin:0 0 10px 0;">This proposal has been withdrawn.</p>
-  <p style="font-size:10pt;color:#666;margin:0;">This estimate is no longer valid. Please message PNM Fencing for a current quote.</p>
+  <p style="font-size:10pt;color:#666;margin:0;">This estimate is no longer valid. Please message ${companyName} for a current quote.</p>
   <p style="font-size:10pt;color:#666;margin:10px 0 0 0;">1-(908)-692-4847</p>
 </div>
 ` : `
@@ -150,15 +154,15 @@ ${p.redacted ? `
   <p>By supplying the initial deposit above, the customer understands and agrees to abide by all of the terms and conditions set forth in this agreement.</p>
   <p>${isLaborOnly ? 'Second installment due during installation in the amount of:' : 'Second installment due upon material delivery to above referenced job site address in the amount of:'} $${Number(p.installment_2 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
   <p>Remaining balance due upon day of installation completion in the amount of: $${Number(p.installment_3 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
-  ${isLaborOnly ? '' : '<p>All materials remain property of PNM Fencing NJ LLC until final payment has been satisfied. If final payment is not satisfied upon install completion, PNM Fencing NJ LLC reserves the right to remove provided materials at customer\'s expense.</p>'}
+  ${isLaborOnly ? '' : '<p>All materials remain property of ' + companyName + ' until final payment has been satisfied. If final payment is not satisfied upon install completion, ' + companyName + ' reserves the right to remove provided materials at customer\'s expense.</p>'}
   <p>All past due balances will be assessed with a penalty interest rate of 28% APR.</p>
   <p style="margin-top:10px">Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete. Utility mark-out Included.</p>
-  <p>PNM not responsible for unmarked sprinkler lines and miscellaneous pipes.</p>
-  <p>Fence to follow grade of ground. Footing soil dispersed around posts/sections. PNM not responsible for earth settling.</p>
+  <p>${companyName} not responsible for unmarked sprinkler lines and miscellaneous pipes.</p>
+  <p>Fence to follow grade of ground. Footing soil dispersed around posts/sections. ${companyName} not responsible for earth settling.</p>
 </div>
 `}
 
-${p.redacted ? '' : '<div class="cancel"><strong>YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.</strong> IF YOU WISH TO CANCEL THIS CONTRACT, YOU MUST EITHER: <br>1. SEND A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION BY REGISTERED OR CERTIFIED MAIL, RETURN RECEIPT REQUESTED; OR <br>2. PERSONALLY DELIVER A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION TO: <br><br>PNM<br>PO Box 437<br>Oakhurst NJ 07712<br>1-(908)-692-4847 <br><br>If you cancel this contract within the three day period, you are entitled to a full refund of your money. Refunds must be made within 30 days.</div>'}
+${p.redacted ? '' : '<div class="cancel"><strong>YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.</strong> IF YOU WISH TO CANCEL THIS CONTRACT, YOU MUST EITHER: <br>1. SEND A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION BY REGISTERED OR CERTIFIED MAIL, RETURN RECEIPT REQUESTED; OR <br>2. PERSONALLY DELIVER A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION TO: <br><br>' + companyName + '<br>PO Box 437<br>Oakhurst NJ 07712<br>1-(908)-692-4847 <br><br>If you cancel this contract within the three day period, you are entitled to a full refund of your money. Refunds must be made within 30 days.</div>'}
 
 ${p.redacted ? '' : (() => {
   if (p.signature_data) {

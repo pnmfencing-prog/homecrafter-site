@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { normalizeCrmProfile } from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
 
 function isAdmin(request: NextRequest): boolean {
@@ -8,12 +9,18 @@ function isAdmin(request: NextRequest): boolean {
   return token === (process.env.ADMIN_TOKEN || 'hc-admin-2026');
 }
 
+async function ensureProfileColumn() {
+  await sql`ALTER TABLE proposals ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
+}
+
 export async function GET(request: NextRequest) {
   if (!isAdmin(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  await ensureProfileColumn();
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   const status = searchParams.get('status');
+  const profile = normalizeCrmProfile(searchParams.get('profile'));
 
   if (id) {
     const proposals = await sql`
@@ -21,6 +28,7 @@ export async function GET(request: NextRequest) {
       FROM proposals p
       LEFT JOIN crm_leads cl ON p.crm_lead_id = cl.id
       WHERE p.id = ${parseInt(id)}
+        AND COALESCE(p.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
     `;
     if (!proposals.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ proposal: proposals[0] });
@@ -33,6 +41,7 @@ export async function GET(request: NextRequest) {
       FROM proposals p
       LEFT JOIN crm_leads cl ON p.crm_lead_id = cl.id
       WHERE p.status = ${status}
+        AND COALESCE(p.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
       ORDER BY p.created_at DESC
     `;
   } else {
@@ -40,6 +49,7 @@ export async function GET(request: NextRequest) {
       SELECT p.*, cl.customer_name as lead_name, cl.customer_phone as lead_phone
       FROM proposals p
       LEFT JOIN crm_leads cl ON p.crm_lead_id = cl.id
+      WHERE COALESCE(p.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
       ORDER BY p.created_at DESC
     `;
   }
@@ -54,7 +64,9 @@ export async function GET(request: NextRequest) {
       count(*) FILTER (WHERE status = 'cancelled')::int as cancelled_count,
       coalesce(sum(total) FILTER (WHERE status = 'signed'), 0)::numeric as signed_value,
       coalesce(sum(total) FILTER (WHERE status = 'sent'), 0)::numeric as pending_value
-    FROM proposals
+    FROM proposals p
+    LEFT JOIN crm_leads cl ON p.crm_lead_id = cl.id
+    WHERE COALESCE(p.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
   `;
 
   // Older cached calendar pages used loose client-name matching (e.g. Art matched Stewart).
@@ -70,9 +82,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   if (!isAdmin(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  await ensureProfileColumn();
 
   const body = await request.json();
   const { action } = body;
+  const profile = normalizeCrmProfile(body.crm_profile);
 
   if (action === 'create') {
     // Get next estimate number
@@ -82,7 +96,7 @@ export async function POST(request: NextRequest) {
     const result = await sql`
       INSERT INTO proposals (estimate_no, crm_lead_id, client_name, client_email, client_phone, client_address, client_city, client_state, client_zip,
         footage, height, color, material, gate_count, panels, extra_posts, removal_type, removal_footage,
-        total, deposit, installment_2, installment_3, spot_holding_fee, status, pdf_filename, notes, description_override)
+        total, deposit, installment_2, installment_3, spot_holding_fee, status, pdf_filename, notes, description_override, crm_profile)
       VALUES (${estNo}, ${body.crm_lead_id || null}, ${body.client_name || null}, ${body.client_email || null}, ${body.client_phone || null},
         ${body.client_address || null}, ${body.client_city || null}, ${body.client_state || null}, ${body.client_zip || null},
         ${body.footage || null}, ${body.height || '6ft'}, ${body.color || 'White'}, ${body.material || 'vinyl'},
@@ -90,7 +104,7 @@ export async function POST(request: NextRequest) {
         ${body.removal_type || null}, ${body.removal_footage || 0},
         ${body.total || null}, ${body.deposit || null}, ${body.installment_2 || null}, ${body.installment_3 || null},
         ${body.spot_holding_fee ?? 150}, ${body.status || 'draft'}, ${body.pdf_filename || null},
-        ${body.notes ? normalizeText(body.notes) : null}, ${body.description_override ? normalizeText(body.description_override) : null})
+        ${body.notes ? normalizeText(body.notes) : null}, ${body.description_override ? normalizeText(body.description_override) : null}, ${profile})
       RETURNING *
     `;
     return NextResponse.json({ success: true, proposal: result[0] });

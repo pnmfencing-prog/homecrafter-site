@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { PNM_FENCING_EMAIL_SENDING_PAUSED, pnmFencingEmailPausedResponse } from '@/lib/email-policy';
+import { crmProfileConfig, PNM_FENCING_EMAIL_SENDING_PAUSED, pnmFencingEmailPausedResponse } from '@/lib/email-policy';
 
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
 
   const p = proposals[0];
   if (!p.client_email) return NextResponse.json({ error: 'No client email on this proposal' }, { status: 400 });
-  if (PNM_FENCING_EMAIL_SENDING_PAUSED) {
+  const profile = crmProfileConfig(p.crm_profile || body.crm_profile);
+  if (profile.key === 'pnm_fencing' && PNM_FENCING_EMAIL_SENDING_PAUSED) {
     return NextResponse.json(pnmFencingEmailPausedResponse(), { status: 423 });
   }
 
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
   const scopeText = p.description_override
     ? String(p.description_override).replace(/\s+/g, ' ').trim()
     : `${p.footage || ''} LF of ${p.height || ''} ${(p.color || 'white').toUpperCase()} ${p.material || 'vinyl'} privacy fence, ${gateText}`.replace(/\s+/g, ' ').trim();
-  const companyName = body.company_name || 'PNM Fencing NJ LLC';
+  const companyName = body.company_name || profile.label;
 
   const emailHtml = `
 <!DOCTYPE html>
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
 
 <!-- Header -->
 <tr><td style="background:#1e1845;padding:30px 40px;text-align:center;">
-  <div style="font-size:26px;font-weight:bold;color:#c4aa6a;letter-spacing:3px;">PNM FENCING NJ LLC</div>
+  <div style="font-size:26px;font-weight:bold;color:#c4aa6a;letter-spacing:3px;">${companyName.toUpperCase()}</div>
   <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:6px;letter-spacing:1px;">PROPOSAL</div>
 </td></tr>
 
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
     <p style="font-size:14px;color:#333;margin-bottom:15px;font-weight:600;">
       📄 View & Sign Your Proposal
     </p>
-    <a href="https://homecrafter.ai/api/proposals/pdf?estimate_no=${p.estimate_no}&token=hc-admin-2026" 
+    <a href="https://homecrafter.ai/api/proposals/pdf?estimate_no=${p.estimate_no}&profile=${profile.key}&token=hc-admin-2026" 
        style="display:inline-block;background:#1e1845;color:#c4aa6a;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;">
       VIEW PROPOSAL & SIGN ONLINE
     </a>
@@ -116,8 +117,8 @@ export async function POST(request: NextRequest) {
 <!-- Footer -->
 <tr><td style="background:#faf9f6;padding:20px 40px;text-align:center;border-top:1px solid #eee;">
   <div style="font-size:11px;color:#999;">
-    ${companyName} · PO Box ___ Oakhurst, NJ 07712<br>
-    1-(908)-692-4847 · pnmfencing@gmail.com
+    ${companyName} · PO Box 437 Oakhurst, NJ 07712<br>
+    1-(908)-692-4847 · ${profile.senderEmail}
   </div>
 </td></tr>
 
@@ -136,8 +137,8 @@ export async function POST(request: NextRequest) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      sender: { name: companyName, email: 'trent@homecrafter.ai' },
-      replyTo: { name: 'PNM Fencing', email: 'pnmfencing@gmail.com' },
+      sender: { name: companyName, email: profile.senderEmail },
+      replyTo: { name: companyName, email: profile.replyToEmail },
       to: [{ email: p.client_email, name: p.client_name || undefined }],
       subject: `Proposal #${p.estimate_no} from ${companyName}`,
       htmlContent: emailHtml,

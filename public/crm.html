@@ -331,9 +331,9 @@ body.lead-modal-open > .portal-home { display: none; }
   </div>
   <div class="profile-meta" id="profileMeta">From: fencecrafters@homecrafter.ai · Signature: Scott / FenceCrafters</div>
   <div class="header-nav">
-    <a href="/crm.html" class="active">Sales Board</a>
-    <a href="/calendar.html">Calendar</a>
-    <a href="/proposals.html">Proposals</a>
+    <a data-profile-link="/crm.html" href="/crm.html" class="active">Sales Board</a>
+    <a data-profile-link="/calendar.html" href="/calendar.html">Calendar</a>
+    <a data-profile-link="/proposals.html" href="/proposals.html">Proposals</a>
     <a href="/campaigns.html">Campaigns</a>
     <a href="/imports.html">Imports</a>
     <a href="/strategy.html">Strategy</a>
@@ -501,6 +501,10 @@ function applyCrmProfileUi() {
   if (meta) meta.textContent = p.meta;
   var logo = document.querySelector('.logo');
   if (logo) logo.textContent = p.label.toUpperCase();
+  document.querySelectorAll('[data-profile-link]').forEach(function(a) {
+    var base = a.dataset.profileLink || a.getAttribute('href') || '#';
+    a.href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'profile=' + encodeURIComponent(currentCrmProfile);
+  });
 }
 
 function setCrmProfile(profile) {
@@ -696,7 +700,7 @@ function tileCalendarBadge(l) {
   var title = l.active_calendar_event_title || 'Calendar event';
   var extraCount = Math.max(0, Number(l.active_calendar_event_count || 1) - 1);
   var more = extraCount ? '<span class="event-more">+' + extraCount + '</span>' : '';
-  return '<a class="tile-event-badge" href="/calendar.html?date=' + encodeURIComponent(date) + '&event=' + encodeURIComponent(l.active_calendar_event_id) + '" onclick="event.stopPropagation()" title="Open calendar event: ' + escAttr(title) + '">📅 <span class="event-text">' + esc(label) + '</span>' + more + '</a>';
+  return '<a class="tile-event-badge" href="/calendar.html?date=' + encodeURIComponent(date) + '&event=' + encodeURIComponent(l.active_calendar_event_id) + '&profile=' + encodeURIComponent(profileKey(currentCrmProfile)) + '" onclick="event.stopPropagation()" title="Open calendar event: ' + escAttr(title) + '">📅 <span class="event-text">' + esc(label) + '</span>' + more + '</a>'; 
 }
 function tileActivityAt(l) {
   return l.latest_message_at || l.last_message_at || l.updated_at || l.created_at;
@@ -1370,7 +1374,7 @@ function openLeadDetail(id, skipHistory) {
         '<div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;align-items:center">' +
           (tileCalendarBadge(l) ? '<div style="width:100%;margin-bottom:0.15rem">' + tileCalendarBadge(l) + '</div>' : '') +
           '<button type="button" class="btn btn-outline" style="font-size:0.65rem" onclick="showCalendarAddForm(event,' + l.id + ')">📅 Add to Calendar</button>' +
-          '<a class="btn btn-outline" href="/proposals.html" style="font-size:0.65rem;text-decoration:none">📄 Proposals</a>' +
+          '<a class="btn btn-outline" href="/proposals.html?profile=' + encodeURIComponent(profileKey(currentCrmProfile)) + '" style="font-size:0.65rem;text-decoration:none">📄 Proposals</a>' +
           '<div id="calendar-add-form" style="display:none;width:100%;margin-top:0.5rem;margin-bottom:1rem;padding:0.75rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:10px;position:relative;z-index:6">' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">' +
               '<input id="calendar-title" placeholder="Event title" style="grid-column:span 2;padding:0.55rem 0.7rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.78rem;background:#fff;color:var(--midnight)">' +
@@ -1654,7 +1658,7 @@ function submitLeadCalendar(event, leadId) {
   if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
   if (feedback) feedback.textContent = 'Creating calendar event...';
 
-  fetch('/api/calendar', api('POST', { action: 'create', title: title, event_type: type, event_date: date, event_time: time || null, location: address || null, crm_lead_id: leadId }))
+  fetch('/api/calendar', api('POST', { action: 'create', title: title, event_type: type, event_date: date, event_time: time || null, location: address || null, crm_lead_id: leadId, crm_profile: profileKey(currentCrmProfile) }))
     .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
     .then(function(result) {
       var data = result.data || {};

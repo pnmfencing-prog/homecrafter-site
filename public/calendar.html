@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calendar — PNM Fencing</title>
+<title>Calendar — FenceCrafters</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -152,17 +152,26 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   }
 }
 </style>
+<style>
+.profile-switcher { display:inline-flex;gap:0.35rem;margin-top:0.65rem;padding:0.22rem;border:1px solid rgba(196,170,106,0.28);border-radius:999px;background:rgba(255,255,255,0.06); }
+.profile-btn { border:0;border-radius:999px;padding:0.42rem 0.8rem;background:transparent;color:rgba(255,255,255,0.7);font:800 0.65rem 'Montserrat',sans-serif;letter-spacing:0.07em;text-transform:uppercase;cursor:pointer; }
+.profile-btn.active { background:var(--gold);color:var(--midnight); }
+</style>
 </head>
 <body>
 
 <div class="header">
   <a class="portal-home" href="/calendar.html" title="Portal home" aria-label="Portal home">&#8962;</a>
-  <div class="logo">PNM FENCING</div>
+  <div class="logo">FENCECRAFTERS</div>
   <div class="header-sub">Calendar & Tasks</div>
+  <div class="profile-switcher" aria-label="CRM profile switcher">
+    <button class="profile-btn active" data-profile="fencecrafters" onclick="setCrmProfile('fencecrafters')">FenceCrafters</button>
+    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button>
+  </div>
   <div class="header-nav">
-    <a href="/crm.html">Sales Board</a>
-    <a href="/calendar.html" class="active">Calendar</a>
-    <a href="/proposals.html">Proposals</a>
+    <a data-profile-link="/crm.html" href="/crm.html">Sales Board</a>
+    <a data-profile-link="/calendar.html" href="/calendar.html" class="active">Calendar</a>
+    <a data-profile-link="/proposals.html" href="/proposals.html">Proposals</a>
     <a href="/campaigns.html">Campaigns</a>
     <a href="/imports.html">Imports</a>
     <a href="/strategy.html">Strategy</a>
@@ -301,10 +310,56 @@ var monthEvents = [];
 var crmLeads = [];
 var currentSearch = '';
 var allProposalsList = [];
+var CRM_FILTER_STATE_KEY = 'pnm_crm_filter_state_v2';
+var currentCrmProfile = 'fencecrafters';
+var CRM_PROFILES = {
+  fencecrafters: { label: 'FenceCrafters' },
+  pnm_fencing: { label: 'PNM Fencing' }
+};
+
+function profileKey(value) { return value === 'pnm_fencing' ? 'pnm_fencing' : 'fencecrafters'; }
+function profileQuerySep(url) { return url.indexOf('?') >= 0 ? '&' : '?'; }
+function profileUrl(url) { return url + profileQuerySep(url) + 'profile=' + encodeURIComponent(profileKey(currentCrmProfile)); }
+function withProfile(url) { return profileUrl(url); }
+function loadCrmProfileFromState() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('profile')) return profileKey(params.get('profile'));
+  try { return profileKey((JSON.parse(localStorage.getItem(CRM_FILTER_STATE_KEY) || '{}') || {}).currentCrmProfile); } catch (e) { return 'fencecrafters'; }
+}
+function saveCrmProfileToState() {
+  try {
+    var saved = JSON.parse(localStorage.getItem(CRM_FILTER_STATE_KEY) || '{}') || {};
+    saved.currentCrmProfile = profileKey(currentCrmProfile);
+    saved.savedAt = Date.now();
+    localStorage.setItem(CRM_FILTER_STATE_KEY, JSON.stringify(saved));
+  } catch (e) {}
+}
+function applyCrmProfileUi() {
+  currentCrmProfile = profileKey(currentCrmProfile);
+  var label = CRM_PROFILES[currentCrmProfile].label;
+  document.title = 'Calendar — ' + label;
+  var logo = document.querySelector('.logo');
+  if (logo) logo.textContent = label.toUpperCase();
+  document.querySelectorAll('.profile-btn').forEach(function(btn) { btn.classList.toggle('active', btn.dataset.profile === currentCrmProfile); });
+  document.querySelectorAll('[data-profile-link]').forEach(function(a) { a.href = profileUrl(a.dataset.profileLink); });
+  var home = document.querySelector('.portal-home');
+  if (home) home.href = profileUrl('/calendar.html');
+}
+function setCrmProfile(profile) {
+  currentCrmProfile = profileKey(profile);
+  saveCrmProfileToState();
+  applyCrmProfileUi();
+  loadProposals();
+  loadMonth();
+  if (currentView === 'feed') loadFeed();
+}
 
 function api(method, body) {
   var opts = { method: method || 'GET', headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } };
-  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  if (body) {
+    if (typeof body === 'object' && !body.crm_profile) body.crm_profile = profileKey(currentCrmProfile);
+    opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body);
+  }
   return opts;
 }
 
@@ -342,7 +397,7 @@ function formatCrmThreadBadge(e) {
   if (!e.crm_lead_id && !e.chat_token) return '';
   var html = '<div style="margin-top:0.3rem">';
   if (e.crm_lead_id) {
-    html += '<a href="/crm.html?lead=' + e.crm_lead_id + '" onclick="event.stopPropagation()" ' +
+    html += '<a href="/crm.html?lead=' + e.crm_lead_id + '&profile=' + encodeURIComponent(profileKey(currentCrmProfile)) + '" onclick="event.stopPropagation()" ' +
       'style="display:inline-block;padding:0.25rem 0.6rem;background:#2563eb;color:#fff;border-radius:6px;font-size:0.65rem;font-weight:600;text-decoration:none;letter-spacing:0.03em;margin-right:0.3rem;margin-bottom:0.2rem">' +
       '📇 CRM Lead</a>';
     html += formatCrmCampaignBadge(e);
@@ -361,7 +416,7 @@ function formatProposalBadge(e) {
   if (e.proposal_id) {
     var estNo = e.proposal_estimate_no || e.proposal_id;
     return '<div style="margin-top:0.3rem">' +
-      '<a href="/proposals.html?highlight=' + e.proposal_id + '" onclick="event.stopPropagation()" ' +
+      '<a href="/proposals.html?highlight=' + e.proposal_id + '&profile=' + encodeURIComponent(profileKey(currentCrmProfile)) + '" onclick="event.stopPropagation()" ' +
       'style="display:inline-block;padding:0.25rem 0.6rem;background:#1e1845;color:#c4aa6a;border-radius:6px;font-size:0.65rem;font-weight:600;text-decoration:none;letter-spacing:0.03em">' +
       '📄 Proposal #' + estNo + '</a></div>';
   }
@@ -376,7 +431,7 @@ function formatProposalBadge(e) {
   
   var html = '<div style="margin-top:0.3rem">';
   matches.forEach(function(p) {
-    html += '<a href="/proposals.html?highlight=' + p.id + '" onclick="event.stopPropagation()" ' +
+    html += '<a href="/proposals.html?highlight=' + p.id + '&profile=' + encodeURIComponent(profileKey(currentCrmProfile)) + '" onclick="event.stopPropagation()" ' +
       'style="display:inline-block;padding:0.25rem 0.6rem;background:#1e1845;color:#c4aa6a;border-radius:6px;font-size:0.65rem;font-weight:600;text-decoration:none;letter-spacing:0.03em;margin-right:0.3rem;margin-bottom:0.2rem">' +
       '📄 Proposal #' + p.estimate_no + '</a>';
   });
@@ -385,7 +440,7 @@ function formatProposalBadge(e) {
 }
 
 function loadProposals() {
-  fetch('/api/proposals', api('GET'))
+  fetch('/api/proposals?profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('GET'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
       allProposalsList = data.proposals || [];
@@ -440,7 +495,7 @@ function loadMonth() {
   var ym = fmtMonth(currentMonth);
   document.getElementById('calTitle').textContent = MONTHS[currentMonth.getMonth()] + ' ' + currentMonth.getFullYear();
   
-  fetch('/api/calendar?month=' + ym, api('GET'))
+  fetch('/api/calendar?month=' + ym + '&profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('GET'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
       monthEvents = data.events || [];
@@ -449,7 +504,7 @@ function loadMonth() {
     });
   
   // Load overdue
-  fetch('/api/calendar', api('GET'))
+  fetch('/api/calendar?profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('GET'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
       renderOverdue(data.overdue || []);
@@ -616,7 +671,7 @@ function openNewEvent(dateStr) {
   document.getElementById('proposalSection').style.display = 'none';
   
   // Load CRM leads for dropdown
-  fetch('/api/crm?limit=500', api('GET')).then(function(r) { return r.json(); }).then(function(data) {
+  fetch('/api/crm?limit=500&profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('GET')).then(function(r) { return r.json(); }).then(function(data) {
     crmLeads = data.leads || [];
     populateLeadDropdown('');
   });
@@ -662,6 +717,7 @@ function saveEvent() {
   if (customerName && !body.crm_lead_id) {
     fetch('/api/crm', api('POST', {
       action: 'find_or_create',
+      crm_profile: profileKey(currentCrmProfile),
       customer_name: customerName,
       customer_phone: body.customer_phone || null,
       customer_email: body.customer_email || null
@@ -742,7 +798,7 @@ function editEvent(id) {
   document.getElementById('ev-allday').checked = event.all_day || false;
   
   // Load CRM leads for dropdown
-  fetch('/api/crm?limit=500', api('GET')).then(function(r) { return r.json(); }).then(function(data) {
+  fetch('/api/crm?limit=500&profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('GET')).then(function(r) { return r.json(); }).then(function(data) {
     crmLeads = data.leads || [];
     populateLeadDropdown(event.crm_lead_id || '');
   });
@@ -802,7 +858,7 @@ function generateProposal() {
         closeModal();
         loadMonth();
         // Open proposal on proposals page
-        window.open('/proposals.html?highlight=' + data.proposal.id, '_blank');
+        window.open('/proposals.html?highlight=' + data.proposal.id + '&profile=' + encodeURIComponent(profileKey(currentCrmProfile)), '_blank');
       });
     } else {
       alert('❌ Error creating proposal: ' + (data.error || 'Unknown error'));
@@ -907,7 +963,7 @@ function loadMissed() {
     params += '&from=' + fmtDate(from) + '&to=' + fmtDate(to);
   }
   
-  fetch('/api/calendar' + params, api('GET'))
+  fetch('/api/calendar' + params + (params.indexOf('?') >= 0 ? '&' : '?') + 'profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('GET'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
       var events = data.events || [];
@@ -1013,7 +1069,7 @@ function loadFeed() {
   var to = new Date();
   to.setDate(to.getDate() + feedDaysForward);
   
-  fetch('/api/calendar?from=' + fmtDate(from) + '&to=' + fmtDate(to), api('GET'))
+  fetch('/api/calendar?from=' + fmtDate(from) + '&to=' + fmtDate(to) + '&profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('GET'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
       feedEvents = data.events || [];
@@ -1116,6 +1172,9 @@ function loadMoreFeed() {
   loadFeed();
 }
 
+currentCrmProfile = loadCrmProfileFromState();
+saveCrmProfileToState();
+applyCrmProfileUi();
 loadProposals();
 loadMonth();
 if (paramDate) {

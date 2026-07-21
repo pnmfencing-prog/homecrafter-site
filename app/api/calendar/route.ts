@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { normalizeCrmProfile } from '@/lib/email-policy';
 
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
@@ -7,13 +8,19 @@ function isAdmin(request: NextRequest): boolean {
   return token === (process.env.ADMIN_TOKEN || 'hc-admin-2026');
 }
 
+async function ensureProfileColumn() {
+  await sql`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
+}
+
 export async function GET(request: NextRequest) {
   if (!isAdmin(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  await ensureProfileColumn();
 
   const { searchParams } = new URL(request.url);
   const date = searchParams.get('date'); // specific date
   const month = searchParams.get('month'); // YYYY-MM
   const status = searchParams.get('status');
+  const profile = normalizeCrmProfile(searchParams.get('profile'));
 
   if (date) {
     const events = await sql`
@@ -28,6 +35,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN crm_campaigns camp ON camp.id = cl.campaign_id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
       WHERE ce.event_date = ${date}
+        AND COALESCE(ce.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
       ORDER BY ce.event_time ASC NULLS LAST
     `;
     return NextResponse.json({ events });
@@ -48,6 +56,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN proposals p ON ce.proposal_id = p.id
       WHERE ce.event_date >= ${startDate}::date 
         AND ce.event_date < (${startDate}::date + INTERVAL '1 month')
+        AND COALESCE(ce.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
       ORDER BY ce.event_date ASC, ce.event_time ASC NULLS LAST
     `;
     return NextResponse.json({ events });
@@ -69,6 +78,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN crm_campaigns camp ON camp.id = cl.campaign_id
       LEFT JOIN proposals p ON ce.proposal_id = p.id
       WHERE ce.event_date >= ${from}::date AND ce.event_date <= ${to}::date
+        AND COALESCE(ce.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
       ORDER BY ce.event_date ASC, ce.event_time ASC NULLS LAST
     `;
     return NextResponse.json({ events });
@@ -94,6 +104,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN proposals p ON ce.proposal_id = p.id
         WHERE ce.status IN ('missed', 'scheduled') AND (ce.event_date < CURRENT_DATE OR (ce.event_date = CURRENT_DATE AND ce.event_time < LOCALTIME))
           AND ce.event_date >= ${from}::date AND ce.event_date <= ${to}::date
+          AND COALESCE(ce.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
         ORDER BY ce.event_date DESC
       `;
     } else {
@@ -109,6 +120,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN crm_campaigns camp ON camp.id = cl.campaign_id
         LEFT JOIN proposals p ON ce.proposal_id = p.id
         WHERE ce.status IN ('missed', 'scheduled') AND (ce.event_date < CURRENT_DATE OR (ce.event_date = CURRENT_DATE AND ce.event_time < LOCALTIME))
+          AND COALESCE(ce.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
         ORDER BY ce.event_date DESC
         LIMIT 50
       `;
@@ -130,6 +142,7 @@ export async function GET(request: NextRequest) {
     LEFT JOIN proposals p ON ce.proposal_id = p.id
     WHERE ce.event_date >= CURRENT_DATE
       AND ce.event_date <= CURRENT_DATE + INTERVAL '14 days'
+      AND COALESCE(ce.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
     ORDER BY ce.event_date ASC, ce.event_time ASC NULLS LAST
   `;
   
@@ -146,6 +159,7 @@ export async function GET(request: NextRequest) {
     LEFT JOIN crm_campaigns camp ON camp.id = cl.campaign_id
     LEFT JOIN proposals p ON ce.proposal_id = p.id
     WHERE (ce.event_date < (NOW() AT TIME ZONE 'America/New_York')::date OR (ce.event_date = (NOW() AT TIME ZONE 'America/New_York')::date AND ce.event_time < (NOW() AT TIME ZONE 'America/New_York')::time)) AND ce.status IN ('scheduled', 'missed')
+      AND COALESCE(ce.crm_profile, cl.crm_profile, 'fencecrafters') = ${profile}
     ORDER BY ce.event_date DESC
     LIMIT 10
   `;
@@ -155,9 +169,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   if (!isAdmin(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  await ensureProfileColumn();
 
   const body = await request.json();
   const { action } = body;
+  const profile = normalizeCrmProfile(body.crm_profile);
 
   if (action === 'create') {
     let description = body.description || null;
@@ -167,10 +183,10 @@ export async function POST(request: NextRequest) {
       description = leads[0]?.notes || null;
     }
     const result = await sql`
-      INSERT INTO calendar_events (title, description, event_type, event_date, event_time, end_time, all_day, crm_lead_id, location, customer_id)
+      INSERT INTO calendar_events (title, description, event_type, event_date, event_time, end_time, all_day, crm_lead_id, location, customer_id, crm_profile)
       VALUES (${body.title}, ${description}, ${body.event_type || 'appointment'}, 
               ${body.event_date}, ${body.event_time || null}, ${body.end_time || null},
-              ${body.all_day || false}, ${crmLeadId}, ${body.location || null}, ${body.customer_id || null})
+              ${body.all_day || false}, ${crmLeadId}, ${body.location || null}, ${body.customer_id || null}, ${profile})
       RETURNING *
     `;
     if (crmLeadId && body.description !== undefined) {
