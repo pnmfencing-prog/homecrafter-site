@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { normalizeCrmProfile } from '@/lib/email-policy';
 
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
@@ -49,6 +50,8 @@ async function ensureImportSchema() {
     )
   `;
   await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS import_batch_id INTEGER REFERENCES crm_import_batches(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE crm_import_batches ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
+  await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
 }
 
 export async function GET(request: NextRequest) {
@@ -56,12 +59,14 @@ export async function GET(request: NextRequest) {
   await ensureImportSchema();
 
   const id = request.nextUrl.searchParams.get('id');
+  const profile = normalizeCrmProfile(request.nextUrl.searchParams.get('profile'));
   if (id) {
     const batches = await sql`
       SELECT b.*, c.name AS campaign_name
       FROM crm_import_batches b
       LEFT JOIN crm_campaigns c ON c.id = b.campaign_id
       WHERE b.id = ${Number(id)}
+        AND COALESCE(b.crm_profile, 'fencecrafters') = ${profile}
       LIMIT 1
     `;
     if (!batches.length) return NextResponse.json({ error: 'Import batch not found' }, { status: 404 });
@@ -82,6 +87,7 @@ export async function GET(request: NextRequest) {
     SELECT b.*, c.name AS campaign_name
     FROM crm_import_batches b
     LEFT JOIN crm_campaigns c ON c.id = b.campaign_id
+    WHERE COALESCE(b.crm_profile, 'fencecrafters') = ${profile}
     ORDER BY b.created_at DESC
     LIMIT 100
   `;

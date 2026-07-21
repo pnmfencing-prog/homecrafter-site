@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { normalizeCrmProfile } from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
 
 function isAdmin(request: NextRequest): boolean {
@@ -50,7 +51,7 @@ function topPhrases(messages: string[]): { phrase: string; count: number }[] {
     .map(([phrase, count]) => ({ phrase, count }));
 }
 
-async function ensureTable() {
+async function ensureTable(profile: string) {
   await sql`
     CREATE TABLE IF NOT EXISTS crm_strategy_insights (
       id SERIAL PRIMARY KEY,
@@ -71,23 +72,27 @@ async function ensureTable() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `;
-  const existing = await sql`SELECT COUNT(*)::int AS count FROM crm_strategy_todos`;
+  await sql`ALTER TABLE crm_strategy_insights ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
+  await sql`ALTER TABLE crm_strategy_todos ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
+  await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
+  const existing = await sql`SELECT COUNT(*)::int AS count FROM crm_strategy_todos WHERE COALESCE(crm_profile, 'fencecrafters') = ${profile}`;
   if (!existing[0]?.count) {
     await sql`
-      INSERT INTO crm_strategy_todos (task, importance) VALUES
-      ('Follow up fastest with every new lead before they shop around', 100),
-      ('Build automated missed-lead rescue campaign for quiet prospects', 92),
-      ('Collect and publish more finished-job photos/testimonials', 86),
-      ('Reactivate old unsold estimates with a simple seasonal offer', 78),
-      ('Improve Google Business Profile posts and review requests', 72)
+      INSERT INTO crm_strategy_todos (task, importance, crm_profile) VALUES
+      ('Follow up fastest with every new lead before they shop around', 100, ${profile}),
+      ('Build automated missed-lead rescue campaign for quiet prospects', 92, ${profile}),
+      ('Collect and publish more finished-job photos/testimonials', 86, ${profile}),
+      ('Reactivate old unsold estimates with a simple seasonal offer', 78, ${profile}),
+      ('Improve Google Business Profile posts and review requests', 72, ${profile})
     `;
   }
 }
 
-async function analyze() {
+async function analyze(profile: string) {
   const leads = await sql`
     SELECT id, source, status, service_type, quoted_amount, job_value, created_at, contacted_at, quoted_at, scheduled_at, completed_at, closed_at
     FROM crm_leads
+    WHERE COALESCE(crm_profile, 'fencecrafters') = ${profile}
     ORDER BY created_at DESC
   `;
   const activity = await sql`
@@ -96,6 +101,7 @@ async function analyze() {
     FROM crm_activity a
     LEFT JOIN crm_leads l ON l.id = a.crm_lead_id
     WHERE a.activity_type IN ('sms','email')
+      AND COALESCE(l.crm_profile, 'fencecrafters') = ${profile}
     ORDER BY a.crm_lead_id ASC, a.created_at ASC
   `;
 
@@ -289,17 +295,20 @@ async function analyze() {
 
 export async function GET(request: NextRequest) {
   if (!isAdmin(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  await ensureTable();
-  const data = await analyze();
+  const profile = normalizeCrmProfile(request.nextUrl.searchParams.get('profile'));
+  await ensureTable(profile);
+  const data = await analyze(profile);
   const saved = await sql`
     SELECT id, title, insight_type, summary, created_at
     FROM crm_strategy_insights
+    WHERE COALESCE(crm_profile, 'fencecrafters') = ${profile}
     ORDER BY created_at DESC
     LIMIT 10
   `;
   const todos = await sql`
     SELECT id, task, importance, completed, created_at, updated_at
     FROM crm_strategy_todos
+    WHERE COALESCE(crm_profile, 'fencecrafters') = ${profile}
     ORDER BY completed ASC, importance DESC, updated_at DESC
   `;
   return NextResponse.json({ ...data, saved, strategyTodos: todos });
@@ -307,8 +316,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   if (!isAdmin(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  await ensureTable();
   const body = await request.json().catch(() => ({}));
+  const profile = normalizeCrmProfile(body.crm_profile || request.nextUrl.searchParams.get('profile'));
+  await ensureTable(profile);
 
   if (body.action === 'save_todo') {
     const task = String(body.task || '').trim();
@@ -319,14 +329,14 @@ export async function POST(request: NextRequest) {
       const updated = await sql`
         UPDATE crm_strategy_todos
         SET task = ${task}, importance = ${importance}, completed = ${!!body.completed}, updated_at = NOW()
-        WHERE id = ${Number(body.id)}
+        WHERE id = ${Number(body.id)} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
         RETURNING id, task, importance, completed, created_at, updated_at
       `;
       todo = updated[0];
     } else {
       const inserted = await sql`
-        INSERT INTO crm_strategy_todos (task, importance, completed)
-        VALUES (${task}, ${importance}, ${!!body.completed})
+        INSERT INTO crm_strategy_todos (task, importance, completed, crm_profile)
+        VALUES (${task}, ${importance}, ${!!body.completed}, ${profile})
         RETURNING id, task, importance, completed, created_at, updated_at
       `;
       todo = inserted[0];
@@ -335,15 +345,15 @@ export async function POST(request: NextRequest) {
   }
 
   if (body.action === 'delete_todo') {
-    await sql`DELETE FROM crm_strategy_todos WHERE id = ${Number(body.id)}`;
+    await sql`DELETE FROM crm_strategy_todos WHERE id = ${Number(body.id)} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}`;
     return NextResponse.json({ success: true });
   }
 
-  const data = await analyze();
+  const data = await analyze(profile);
   const title = String(body.title || 'CRM communication learning snapshot').slice(0, 200);
   const result = await sql`
-    INSERT INTO crm_strategy_insights (title, insight_type, summary, payload)
-    VALUES (${title}, ${body.insight_type || 'analysis'}, ${data.learningSummary}, ${JSON.stringify(data)}::jsonb)
+    INSERT INTO crm_strategy_insights (title, insight_type, summary, payload, crm_profile)
+    VALUES (${title}, ${body.insight_type || 'analysis'}, ${data.learningSummary}, ${JSON.stringify(data)}::jsonb, ${profile})
     RETURNING id, title, created_at
   `;
   return NextResponse.json({ success: true, insight: result[0], analysis: data });

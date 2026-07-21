@@ -79,6 +79,7 @@ async function ensureImportSchema() {
     )
   `;
   await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS import_batch_id INTEGER REFERENCES crm_import_batches(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE crm_import_batches ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
   await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
 }
 
@@ -111,10 +112,14 @@ export async function POST(request: NextRequest) {
   const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
   const crmProfile = normalizeCrmProfile(body.crm_profile);
   const serviceDefault = String(body.service_type || body.service || 'Fencing').trim();
+  if (campaignId) {
+    const campaignRows = await sql`SELECT id FROM crm_campaigns WHERE id = ${campaignId} AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
+    if (!campaignRows.length) return NextResponse.json({ error: 'Campaign not found in this profile' }, { status: 404 });
+  }
 
   const batchRows = await sql`
-    INSERT INTO crm_import_batches (batch_name, original_filename, provider, market, search_criteria, source, campaign_id, total_rows, status)
-    VALUES (${batchName}, ${body.filename || null}, ${body.provider || 'BatchLeads'}, ${body.market || null}, ${body.search_criteria || null}, ${source}, ${campaignId}, ${rows.length}, 'processing')
+    INSERT INTO crm_import_batches (batch_name, original_filename, provider, market, search_criteria, source, campaign_id, total_rows, status, crm_profile)
+    VALUES (${batchName}, ${body.filename || null}, ${body.provider || 'BatchLeads'}, ${body.market || null}, ${body.search_criteria || null}, ${source}, ${campaignId}, ${rows.length}, 'processing', ${crmProfile})
     RETURNING id
   `;
   const batchId = batchRows[0].id;

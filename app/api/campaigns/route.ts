@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
+import { normalizeCrmProfile } from '@/lib/email-policy';
 
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
@@ -65,6 +66,8 @@ async function ensureSchema() {
   await sql`ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS sender_name TEXT`;
   await sql`ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS sender_email TEXT`;
   await sql`ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS reply_to_email TEXT`;
+  await sql`ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
+  await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS crm_profile TEXT NOT NULL DEFAULT 'fencecrafters'`;
   await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS campaign_id INTEGER REFERENCES crm_campaigns(id) ON DELETE SET NULL`;
   await sql`ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS campaign_started_at TIMESTAMPTZ`;
 }
@@ -78,6 +81,7 @@ export async function GET(request: NextRequest) {
   const includeLeads = searchParams.get('includeLeads') === '1';
   const countsOnly = searchParams.get('countsOnly') === '1';
   const includeNonresponders = searchParams.get('includeNonresponders') === '1';
+  const profile = normalizeCrmProfile(searchParams.get('profile'));
 
   const campaigns = id
     ? await sql`
@@ -89,8 +93,8 @@ export async function GET(request: NextRequest) {
               AND COALESCE(l.status, 'new') <> 'lost'
           )::int AS active_assigned_count
         FROM crm_campaigns c
-        LEFT JOIN crm_leads l ON l.campaign_id = c.id
-        WHERE c.id = ${Number(id)}
+        LEFT JOIN crm_leads l ON l.campaign_id = c.id AND COALESCE(l.crm_profile, 'fencecrafters') = ${profile}
+        WHERE c.id = ${Number(id)} AND COALESCE(c.crm_profile, 'fencecrafters') = ${profile}
         GROUP BY c.id
         ORDER BY c.created_at DESC
       `
@@ -103,7 +107,8 @@ export async function GET(request: NextRequest) {
               AND COALESCE(l.status, 'new') <> 'lost'
           )::int AS active_assigned_count
         FROM crm_campaigns c
-        LEFT JOIN crm_leads l ON l.campaign_id = c.id
+        LEFT JOIN crm_leads l ON l.campaign_id = c.id AND COALESCE(l.crm_profile, 'fencecrafters') = ${profile}
+        WHERE COALESCE(c.crm_profile, 'fencecrafters') = ${profile}
         GROUP BY c.id
         ORDER BY c.is_default DESC, c.created_at DESC
       `;
@@ -124,7 +129,7 @@ export async function GET(request: NextRequest) {
       WITH default_angi_campaign AS (
         SELECT id, name
         FROM crm_campaigns
-        WHERE source = 'angi' AND is_default = true AND is_active = true
+        WHERE source = 'angi' AND is_default = true AND is_active = true AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
         ORDER BY id ASC
         LIMIT 1
       ), campaign_steps AS (
@@ -144,6 +149,7 @@ export async function GET(request: NextRequest) {
             ELSE NULL
           END AS effective_campaign_id
         FROM crm_leads l
+        WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profile}
       ), enriched AS (
         SELECT
           l.id,
@@ -185,7 +191,7 @@ export async function GET(request: NextRequest) {
       WITH default_angi_campaign AS (
         SELECT id, name
         FROM crm_campaigns
-        WHERE source = 'angi' AND is_default = true AND is_active = true
+        WHERE source = 'angi' AND is_default = true AND is_active = true AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
         ORDER BY id ASC
         LIMIT 1
       ), campaign_steps AS (
@@ -205,6 +211,7 @@ export async function GET(request: NextRequest) {
             ELSE NULL
           END AS effective_campaign_id
         FROM crm_leads l
+        WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profile}
       )
       SELECT
         l.id, l.lead_code, l.customer_name, l.customer_phone, l.customer_email, l.source, l.status,
@@ -237,13 +244,14 @@ export async function GET(request: NextRequest) {
              source, status, created_at, last_outreach_at, outreach_count, email_outreach_count,
              customer_responded, outreach_paused, campaign_id, campaign_name, campaign_sms_steps,
              campaign_email_steps, final_send_day, days_since_last_outreach
-      FROM crm_campaign_nonresponders
+      FROM crm_campaign_nonresponders nr
       WHERE campaign_id IS NOT NULL
         AND customer_responded = false
         AND outreach_paused = false
         AND outreach_count >= campaign_sms_steps
         AND COALESCE(email_outreach_count, 0) >= campaign_email_steps
         AND days_since_last_outreach >= 1
+        AND EXISTS (SELECT 1 FROM crm_leads l WHERE l.id = nr.lead_id AND COALESCE(l.crm_profile, 'fencecrafters') = ${profile})
       ORDER BY last_outreach_at ASC NULLS LAST, created_at ASC
       LIMIT 1000
     `;
@@ -257,13 +265,14 @@ export async function POST(request: NextRequest) {
   await ensureSchema();
   const body = await request.json();
   const action = body.action;
+  const profile = normalizeCrmProfile(body.crm_profile || request.nextUrl.searchParams.get('profile'));
 
   if (action === 'create_campaign') {
     const name = cleanText(body.name);
     if (!name) return NextResponse.json({ error: 'Campaign name required' }, { status: 400 });
     const rows = await sql`
-      INSERT INTO crm_campaigns (name, description, source, is_active, is_default, sender_name, sender_email, reply_to_email)
-      VALUES (${name}, ${cleanText(body.description)}, ${cleanText(body.source)}, ${body.is_active !== false}, ${body.is_default === true}, ${cleanText(body.sender_name)}, ${cleanText(body.sender_email)}, ${cleanText(body.reply_to_email)})
+      INSERT INTO crm_campaigns (name, description, source, is_active, is_default, sender_name, sender_email, reply_to_email, crm_profile)
+      VALUES (${name}, ${cleanText(body.description)}, ${cleanText(body.source)}, ${body.is_active !== false}, ${body.is_default === true}, ${cleanText(body.sender_name)}, ${cleanText(body.sender_email)}, ${cleanText(body.reply_to_email)}, ${profile})
       RETURNING *
     `;
     return NextResponse.json({ success: true, campaign: rows[0] });
@@ -278,10 +287,10 @@ export async function POST(request: NextRequest) {
           is_active = ${body.is_active !== false}, is_default = ${body.is_default === true},
           sender_name = ${cleanText(body.sender_name)}, sender_email = ${cleanText(body.sender_email)},
           reply_to_email = ${cleanText(body.reply_to_email)}, updated_at = NOW()
-      WHERE id = ${id}
+      WHERE id = ${id} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
     `;
     if (body.is_default === true && cleanText(body.source)) {
-      await sql`UPDATE crm_campaigns SET is_default = false WHERE id <> ${id} AND source = ${cleanText(body.source)}`;
+      await sql`UPDATE crm_campaigns SET is_default = false WHERE id <> ${id} AND source = ${cleanText(body.source)} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}`;
     }
     return NextResponse.json({ success: true });
   }
@@ -290,6 +299,8 @@ export async function POST(request: NextRequest) {
     const campaignId = Number(body.campaign_id);
     const stepNumber = Number(body.step_number);
     if (!campaignId || !stepNumber) return NextResponse.json({ error: 'Campaign and step number required' }, { status: 400 });
+    const campaignRows = await sql`SELECT id FROM crm_campaigns WHERE id = ${campaignId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1`;
+    if (!campaignRows.length) return NextResponse.json({ error: 'Campaign not found in this profile' }, { status: 404 });
     const sendDay = Math.max(0, Number(body.send_day ?? 0));
     const channel = ['sms', 'email', 'both'].includes(body.channel) ? body.channel : 'both';
     const rows = await sql`
@@ -309,7 +320,13 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === 'delete_message') {
-    await sql`DELETE FROM crm_campaign_messages WHERE id = ${Number(body.id)}`;
+    await sql`
+      DELETE FROM crm_campaign_messages m
+      USING crm_campaigns c
+      WHERE m.id = ${Number(body.id)}
+        AND c.id = m.campaign_id
+        AND COALESCE(c.crm_profile, 'fencecrafters') = ${profile}
+    `;
     return NextResponse.json({ success: true });
   }
 
@@ -317,7 +334,8 @@ export async function POST(request: NextRequest) {
     const leadId = Number(body.lead_id);
     const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
     if (!leadId) return NextResponse.json({ error: 'Lead id required' }, { status: 400 });
-    const campaignRows = campaignId ? await sql`SELECT name, source FROM crm_campaigns WHERE id = ${campaignId} LIMIT 1` : [];
+    const campaignRows = campaignId ? await sql`SELECT name, source FROM crm_campaigns WHERE id = ${campaignId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1` : [];
+    if (campaignId && !campaignRows.length) return NextResponse.json({ error: 'Campaign not found in this profile' }, { status: 404 });
     const campaign = campaignRows[0] || null;
     const campaignName = campaign?.name || null;
     const campaignStartAt = await nextCampaignStartExpression(campaignId, campaign);
@@ -325,7 +343,7 @@ export async function POST(request: NextRequest) {
       UPDATE crm_leads
       SET campaign_id = ${campaignId}, campaign_started_at = ${campaignStartAt},
           outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
-      WHERE id = ${leadId}
+      WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
     `;
     await sql`
       INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
@@ -338,7 +356,8 @@ export async function POST(request: NextRequest) {
     const leadIds = Array.isArray(body.lead_ids) ? body.lead_ids.map(Number).filter(Boolean) : [];
     const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
     if (!leadIds.length) return NextResponse.json({ error: 'No leads selected' }, { status: 400 });
-    const campaignRows = campaignId ? await sql`SELECT name, source FROM crm_campaigns WHERE id = ${campaignId} LIMIT 1` : [];
+    const campaignRows = campaignId ? await sql`SELECT name, source FROM crm_campaigns WHERE id = ${campaignId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1` : [];
+    if (campaignId && !campaignRows.length) return NextResponse.json({ error: 'Campaign not found in this profile' }, { status: 404 });
     const campaign = campaignRows[0] || null;
     const campaignName = campaign?.name || null;
     const campaignStartAt = await nextCampaignStartExpression(campaignId, campaign);
@@ -346,13 +365,13 @@ export async function POST(request: NextRequest) {
       UPDATE crm_leads
       SET campaign_id = ${campaignId}, campaign_started_at = ${campaignStartAt},
           outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
-      WHERE id = ANY(${leadIds})
+      WHERE id = ANY(${leadIds}) AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
     `;
     await sql`
       INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
       SELECT id, 'status_change', ${campaignId ? `Assigned to campaign: ${campaignName || `Campaign #${campaignId}`}` : 'Campaign assignment removed'}, false, 'campaign_system'
       FROM crm_leads
-      WHERE id = ANY(${leadIds})
+      WHERE id = ANY(${leadIds}) AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
     `;
     return NextResponse.json({ success: true, count: leadIds.length, campaign_name: campaignName });
   }
