@@ -689,6 +689,16 @@ function renderAttachments(attachments) {
         '</div>' +
       '</div>';
     }
+    if ((att.mime_type || '').startsWith('video/')) {
+      return '<div style="display:block;max-width:min(320px,100%);border-radius:12px;overflow:hidden;border:1px solid rgba(0,0,0,0.08);background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.08)">' +
+        '<video controls preload="metadata" playsinline style="display:block;width:100%;max-width:min(320px,100%);background:#111" src="' + url + '">Your browser cannot preview this video. Use Download below.</video>' +
+        '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center;padding:0.38rem 0.5rem;color:var(--midnight);font-size:0.66rem;font-weight:800;letter-spacing:0.02em">' +
+          '<a href="' + url + '" target="_blank" rel="noopener" style="color:var(--midnight);text-decoration:none;border-bottom:1px solid rgba(26,20,51,0.25)">🎥 Open video</a>' +
+          '<span style="color:var(--text-muted)">·</span>' +
+          '<a href="' + downloadUrl + '" target="_blank" rel="noopener" style="color:var(--midnight);text-decoration:none;border-bottom:1px solid rgba(26,20,51,0.25)">Download</a>' +
+        '</div>' +
+      '</div>';
+    }
     return '<span style="display:inline-flex;align-items:center;gap:0.45rem;flex-wrap:wrap;padding:0.35rem 0.55rem;border-radius:8px;background:#fff;border:1px solid #e0ddd6;color:var(--midnight);font-size:0.7rem;text-decoration:none">📎 ' + name + ' <a href="' + url + '" target="_blank" rel="noopener">Open</a> <a href="' + downloadUrl + '" target="_blank" rel="noopener">Download</a></span>';
   }).join('') + '</div>';
 }
