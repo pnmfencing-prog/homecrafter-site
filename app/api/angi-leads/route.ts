@@ -149,7 +149,10 @@ export async function POST(request: NextRequest) {
 
   const defaultCampaign = await sql`
     SELECT id FROM crm_campaigns
-    WHERE source = 'angi' AND is_default = true AND is_active = true
+    WHERE source = 'angi'
+      AND is_default = true
+      AND is_active = true
+      AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile}
     ORDER BY id ASC
     LIMIT 1
   `;

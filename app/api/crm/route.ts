@@ -80,18 +80,20 @@ async function enrichCampaignStatus(leads: any[]) {
   if (!leadIds.length) return leads;
 
   const rows = await sql`
-    WITH default_angi_campaign AS (
-      SELECT id, name, is_active
-      FROM crm_campaigns
-      WHERE source = 'angi' AND is_default = true AND is_active = true
-      ORDER BY id ASC
-      LIMIT 1
-    ), lead_base AS (
+    WITH lead_base AS (
       SELECT
         l.*,
         CASE
           WHEN l.campaign_id IS NOT NULL THEN l.campaign_id
-          WHEN l.source = 'angi' THEN (SELECT id FROM default_angi_campaign)
+          WHEN l.source = 'angi' THEN (
+            SELECT id FROM crm_campaigns
+            WHERE source = 'angi'
+              AND is_default = true
+              AND is_active = true
+              AND COALESCE(crm_profile, 'fencecrafters') = COALESCE(l.crm_profile, 'fencecrafters')
+            ORDER BY id ASC
+            LIMIT 1
+          )
           ELSE NULL
         END AS effective_campaign_id
       FROM crm_leads l
@@ -294,7 +296,10 @@ export async function GET(request: NextRequest) {
             WHEN l.campaign_id IS NOT NULL THEN l.campaign_id
             WHEN l.source = 'angi' THEN (
               SELECT id FROM crm_campaigns
-              WHERE source = 'angi' AND is_default = true AND is_active = true
+              WHERE source = 'angi'
+                AND is_default = true
+                AND is_active = true
+                AND COALESCE(crm_profile, 'fencecrafters') = COALESCE(l.crm_profile, 'fencecrafters')
               ORDER BY id ASC
               LIMIT 1
             )
