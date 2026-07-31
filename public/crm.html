@@ -511,10 +511,13 @@ function setCrmProfile(profile) {
   currentCrmProfile = profileKey(profile);
   activeLeadId = null;
   activeLeadDetail = null;
+  campaigns = [];
+  campaignsLoaded = false;
+  campaignsLoadPromise = null;
   closeModal();
   applyCrmProfileUi();
   saveCrmFilterState();
-  loadLeads();
+  loadCampaigns().then(loadLeads);
 }
 
 function saveCrmFilterState() {
@@ -756,7 +759,8 @@ function messageAuthor(l) {
 
 function loadCampaigns() {
   if (campaignsLoadPromise) return campaignsLoadPromise;
-  campaignsLoadPromise = fetch('/api/campaigns', api('GET'))
+  var profile = profileKey(currentCrmProfile);
+  campaignsLoadPromise = fetch('/api/campaigns?profile=' + encodeURIComponent(profile), api('GET'))
     .then(function(r) { return r.json(); })
     .then(function(data) { campaigns = data.campaigns || []; campaignsLoaded = true; campaignsLoadPromise = null; return campaigns; })
     .catch(function() { campaigns = []; campaignsLoaded = true; campaignsLoadPromise = null; return campaigns; });
@@ -2081,7 +2085,7 @@ function assignLeadCampaign(id) {
   var feedback = document.getElementById('campaign-assign-feedback');
   var campaignId = sel.value ? Number(sel.value) : null;
   if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
-  fetch('/api/campaigns', api('POST', { action: 'assign_lead', lead_id: id, campaign_id: campaignId }))
+  fetch('/api/campaigns?profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('POST', { action: 'assign_lead', lead_id: id, campaign_id: campaignId, crm_profile: profileKey(currentCrmProfile) }))
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (d.error) {
