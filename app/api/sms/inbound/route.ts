@@ -4,6 +4,7 @@ import { crmProfileConfig } from '@/lib/email-policy';
 
 const DAN_PHONE = '9086924847';
 const DAN_PHONE_E164 = '+19086924847';
+const INTERNAL_TWILIO_NUMBERS = new Set(['9085035473', '9083173444']);
 const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
@@ -210,6 +211,14 @@ export async function POST(request: NextRequest) {
   const to = String(form.get('To') || '');
   const inboundProfile = profileFromTwilioTo(to);
   const body = String(form.get('Body') || '').trim();
+
+  // Prevent CRM-owned Twilio numbers from auto-replying to each other and creating loops.
+  if (INTERNAL_TWILIO_NUMBERS.has(normalizePhone(from))) {
+    return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+      headers: { 'Content-Type': 'text/xml' },
+    });
+  }
+
   const expectedMediaCount = Math.min(Number(form.get('NumMedia') || 0) || 0, 10);
   const inboundAttachments = await collectTwilioMedia(form);
   let notificationText = '';
