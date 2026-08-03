@@ -619,6 +619,37 @@ export async function GET(request: NextRequest) {
     leads = leads.filter((lead) => !lead.campaign_id || lead.campaign_completed);
   }
 
+  const messageLeadIds = leads.map((lead) => lead.id).filter(Boolean);
+  if (messageLeadIds.length) {
+    const recentMessages = await sql`
+      WITH ranked AS (
+        SELECT
+          a.id,
+          a.crm_lead_id,
+          a.activity_type,
+          a.description,
+          a.is_from_customer,
+          a.created_by,
+          a.created_at,
+          ROW_NUMBER() OVER (PARTITION BY a.crm_lead_id ORDER BY a.created_at DESC, a.id DESC) AS rn
+        FROM crm_activity a
+        WHERE a.crm_lead_id = ANY(${messageLeadIds})
+          AND a.activity_type IN ('sms', 'email')
+      )
+      SELECT id, crm_lead_id, activity_type, description, is_from_customer, created_by, created_at
+      FROM ranked
+      WHERE rn <= 8
+      ORDER BY crm_lead_id, created_at DESC, id DESC
+    `;
+    const messagesByLeadId = new Map<number, any[]>();
+    for (const msg of recentMessages) {
+      const list = messagesByLeadId.get(msg.crm_lead_id) || [];
+      list.push(msg);
+      messagesByLeadId.set(msg.crm_lead_id, list);
+    }
+    leads = leads.map((lead) => ({ ...lead, recent_messages: messagesByLeadId.get(lead.id) || [] }));
+  }
+
   const leadIds = leads.map((lead) => lead.id);
   if (leadIds.length) {
     const activeEvents = await sql`

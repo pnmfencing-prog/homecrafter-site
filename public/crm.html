@@ -122,6 +122,17 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .lead-card .name { font-weight: 600; font-size: 0.82rem; color: var(--midnight); margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lead-card .message-time { font-size: 0.62rem; color: var(--text-muted); margin-top: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lead-card .message-preview { font-size: 0.78rem; color: var(--midnight); font-weight: 700; line-height: 1.4; margin-top: 0.45rem; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+.tile-message-history { margin-top: 0.45rem; max-height: 116px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #f0ede6; border-radius: 9px; background: #fffdfa; padding: 0.35rem; display: grid; gap: 0.32rem; cursor: default; scrollbar-width: thin; scrollbar-color: rgba(30,24,69,0.35) transparent; }
+.tile-message-history::-webkit-scrollbar { width: 5px; }
+.tile-message-history::-webkit-scrollbar-thumb { background: rgba(30,24,69,0.28); border-radius: 999px; }
+.tile-message-row { border-radius: 8px; padding: 0.32rem 0.42rem; background: #fff; border: 1px solid #f3efe7; }
+.tile-message-row.customer { background: rgba(176,58,46,0.055); border-color: rgba(176,58,46,0.12); }
+.tile-message-row.you { background: rgba(46,125,50,0.055); border-color: rgba(46,125,50,0.12); }
+.tile-message-head { display: flex; justify-content: space-between; gap: 0.35rem; align-items: baseline; font-size: 0.52rem; font-weight: 850; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.16rem; }
+.tile-message-row.customer .tile-message-head { color: var(--red); }
+.tile-message-row.you .tile-message-head { color: var(--green); }
+.tile-message-body { color: var(--midnight); font-size: 0.68rem; line-height: 1.35; font-weight: 650; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+.tile-message-empty { color: var(--text-muted); font-size: 0.62rem; font-weight: 700; padding: 0.25rem; }
 .lead-card .service { font-size: 0.65rem; color: var(--gold); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
 .lead-card .meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.3rem; }
 .lead-card .amount { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 700; color: var(--green); margin-top: 0.3rem; }
@@ -268,6 +279,8 @@ body.lead-modal-open > .portal-home { display: none; }
   .lead-card { width: 100%; max-width: 100%; overflow: hidden; }
   .lead-card .name, .lead-card .message-time, .lead-card .service, .lead-card .meta, .lead-card .date { max-width: 100%; }
   .lead-card .message-preview { -webkit-line-clamp: 6; font-size: 0.86rem; line-height: 1.42; }
+  .tile-message-history { max-height: 132px; }
+  .tile-message-body { font-size: 0.72rem; }
   .tile-reply-row { flex-wrap: wrap; }
   .tile-reply-input { flex: 1 1 100%; min-height: 58px; max-height: 220px; font-size: 16px; line-height: 1.45; }
   .tile-send-btn { flex: 0 0 auto; min-height: 34px; }
@@ -757,6 +770,38 @@ function messageAuthor(l) {
   if (l.latest_message_created_by && l.latest_message_created_by !== 'admin') return l.latest_message_created_by;
   return leadProfileConfig(l).label;
 }
+function tileHistoryAuthor(l, msg) {
+  if (msg.is_from_customer) return l.customer_name || 'Customer';
+  if (msg.created_by && msg.created_by !== 'admin') return msg.created_by;
+  return leadProfileConfig(l).label;
+}
+function tileMessageHistoryHtml(l) {
+  var messages = Array.isArray(l.recent_messages) ? l.recent_messages.slice() : [];
+  if (!messages.length && l.latest_message_preview) {
+    messages = [{
+      description: l.latest_message_preview,
+      created_at: l.latest_message_at,
+      is_from_customer: l.latest_message_from_customer,
+      created_by: l.latest_message_created_by,
+      activity_type: l.latest_message_type
+    }];
+  }
+  if (!messages.length) return '';
+  messages.sort(function(a, b) { return new Date(b.created_at || 0) - new Date(a.created_at || 0); });
+  return '<div class="tile-message-history" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onwheel="event.stopPropagation()" aria-label="Recent message history">' +
+    messages.slice(0, 8).map(function(msg) {
+      var fromCustomer = msg.is_from_customer === true;
+      var cls = fromCustomer ? 'customer' : 'you';
+      var label = fromCustomer ? 'Customer' : 'You';
+      var body = shortMessage(msg.description || '', 700);
+      if (!body) body = msg.activity_type === 'email' ? 'Email activity' : 'Message activity';
+      return '<div class="tile-message-row ' + cls + '">' +
+        '<div class="tile-message-head"><span>' + label + ' · ' + esc(tileHistoryAuthor(l, msg)) + '</span><span>' + esc(formatMessageDate(msg.created_at)) + '</span></div>' +
+        '<div class="tile-message-body">' + esc(body) + '</div>' +
+      '</div>';
+    }).join('') +
+  '</div>';
+}
 
 function loadCampaigns() {
   if (campaignsLoadPromise) return campaignsLoadPromise;
@@ -1032,11 +1077,7 @@ function renderBoard() {
       var lastMsgTag = l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '">' + (l.last_message_by === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '';
       var unreadBadge = !l.is_read ? '<span class="unread-badge">Unread</span>' : '';
       var unreadDot = !l.is_read ? '<span class="unread-dot" aria-hidden="true"></span>' : '';
-      var msgTime = formatMessageDate(l.latest_message_at);
-      var msgPreview = shortMessage(l.latest_message_preview, 320);
-      var msgSummary = msgPreview ?
-        '<div class="message-time">' + esc(msgTime) + ' by ' + esc(messageAuthor(l)) + '</div>' +
-        '<div class="message-preview">' + esc(msgPreview) + '</div>' : '';
+      var msgSummary = tileMessageHistoryHtml(l);
       var calendarBadge = tileCalendarBadge(l);
       var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="openTileChat(event,' + l.id + ',\'' + escAttr(l.chat_token) + '\')" title="Open chat thread">💬 Chat</a>' : '';
       var tileSendButton = tileSendButtonHtml(l);
