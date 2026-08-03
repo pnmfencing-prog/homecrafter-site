@@ -646,7 +646,7 @@ export async function GET(request: NextRequest) {
           a.id,
           a.crm_lead_id,
           a.activity_type,
-          a.description,
+          LEFT(COALESCE(a.description, ''), 900) AS description,
           a.is_from_customer,
           a.created_by,
           a.created_at
