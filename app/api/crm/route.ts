@@ -629,7 +629,19 @@ export async function GET(request: NextRequest) {
   const messageLeadIds = leads.map((lead) => lead.id).filter(Boolean);
   if (messageLeadIds.length) {
     const recentMessages = await sql`
-      WITH ranked AS (
+      WITH lead_ids AS (
+        SELECT unnest(${messageLeadIds}::int[]) AS lead_id
+      )
+      SELECT
+        recent.id,
+        recent.crm_lead_id,
+        recent.activity_type,
+        recent.description,
+        recent.is_from_customer,
+        recent.created_by,
+        recent.created_at
+      FROM lead_ids li
+      CROSS JOIN LATERAL (
         SELECT
           a.id,
           a.crm_lead_id,
@@ -637,16 +649,14 @@ export async function GET(request: NextRequest) {
           a.description,
           a.is_from_customer,
           a.created_by,
-          a.created_at,
-          ROW_NUMBER() OVER (PARTITION BY a.crm_lead_id ORDER BY a.created_at DESC, a.id DESC) AS rn
+          a.created_at
         FROM crm_activity a
-        WHERE a.crm_lead_id = ANY(${messageLeadIds})
+        WHERE a.crm_lead_id = li.lead_id
           AND a.activity_type IN ('sms', 'email')
-      )
-      SELECT id, crm_lead_id, activity_type, description, is_from_customer, created_by, created_at
-      FROM ranked
-      WHERE rn <= 8
-      ORDER BY crm_lead_id, created_at DESC, id DESC
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT 8
+      ) recent
+      ORDER BY recent.crm_lead_id, recent.created_at DESC, recent.id DESC
     `;
     const messagesByLeadId = new Map<number, any[]>();
     for (const msg of recentMessages) {
@@ -750,7 +760,7 @@ export async function GET(request: NextRequest) {
           AND (${messageFilter || 'all'} = 'all' OR (${messageFilter || 'all'} = 'you' AND latest.is_from_customer IS FALSE) OR (${messageFilter || 'all'} = 'customer' AND latest.is_from_customer IS TRUE))
           AND (${flaggedOnly} = false OR flagged IS TRUE)
           AND (${includeOptOuts} = true OR lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
-          AND (${validSinceFilter} = false OR COALESCE(latest.created_at, last_message_at, updated_at, created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
+          AND (${validSinceFilter} = false OR COALESCE(latest.created_at, crm_leads.last_message_at, crm_leads.updated_at, crm_leads.created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
       `
     : [];
 
