@@ -157,14 +157,28 @@ export async function GET(request: NextRequest) {
           l.customer_responded,
           l.outreach_paused,
           l.effective_campaign_id AS campaign_id,
+          reply_after_start.last_customer_reply_at,
           (
             l.effective_campaign_id IS NOT NULL
-            AND (COALESCE(steps.sms_steps, 0) > 0 OR COALESCE(steps.email_steps, 0) > 0)
-            AND COALESCE(l.outreach_count, 0) >= COALESCE(steps.sms_steps, 0)
-            AND COALESCE(l.email_outreach_count, 0) >= COALESCE(steps.email_steps, 0)
+            AND (
+              (
+                (COALESCE(steps.sms_steps, 0) > 0 OR COALESCE(steps.email_steps, 0) > 0)
+                AND COALESCE(l.outreach_count, 0) >= COALESCE(steps.sms_steps, 0)
+                AND COALESCE(l.email_outreach_count, 0) >= COALESCE(steps.email_steps, 0)
+              )
+              OR reply_after_start.last_customer_reply_at IS NOT NULL
+            )
           ) AS campaign_completed
         FROM lead_base l
         LEFT JOIN campaign_steps steps ON steps.campaign_id = l.effective_campaign_id
+        LEFT JOIN LATERAL (
+          SELECT MAX(a.created_at) AS last_customer_reply_at
+          FROM crm_activity a
+          WHERE a.crm_lead_id = l.id
+            AND a.is_from_customer = true
+            AND a.activity_type IN ('sms', 'email', 'customer_message')
+            AND a.created_at >= COALESCE(l.campaign_started_at, l.created_at)
+        ) reply_after_start ON true
       )
       SELECT
         SUM(status_count)::int AS total,
@@ -179,7 +193,7 @@ export async function GET(request: NextRequest) {
         SELECT
           COALESCE(status, 'new') AS status,
           COUNT(*)::int AS status_count,
-          COUNT(*) FILTER (WHERE campaign_id IS NOT NULL AND NOT campaign_completed AND customer_responded = false AND outreach_paused = false)::int AS active_campaign_count,
+          COUNT(*) FILTER (WHERE campaign_id IS NOT NULL AND NOT campaign_completed AND outreach_paused = false)::int AS active_campaign_count,
           COUNT(*) FILTER (WHERE campaign_completed AND COALESCE(status, 'new') <> 'lost')::int AS campaign_completed_count,
           COUNT(*) FILTER (WHERE NOT campaign_completed AND campaign_id IS NULL)::int AS no_campaign_count
         FROM enriched
@@ -217,17 +231,31 @@ export async function GET(request: NextRequest) {
         l.id, l.lead_code, l.customer_name, l.customer_phone, l.customer_email, l.source, l.status,
         l.effective_campaign_id AS campaign_id, l.outreach_count, l.email_outreach_count, l.customer_responded, l.outreach_paused, l.created_at,
         camp.name AS campaign_name,
+        reply_after_start.last_customer_reply_at AS campaign_customer_reply_at,
         COALESCE(steps.sms_steps, 0)::int AS campaign_sms_steps,
         COALESCE(steps.email_steps, 0)::int AS campaign_email_steps,
         (
           l.effective_campaign_id IS NOT NULL
-          AND (COALESCE(steps.sms_steps, 0) > 0 OR COALESCE(steps.email_steps, 0) > 0)
-          AND COALESCE(l.outreach_count, 0) >= COALESCE(steps.sms_steps, 0)
-          AND COALESCE(l.email_outreach_count, 0) >= COALESCE(steps.email_steps, 0)
+          AND (
+            (
+              (COALESCE(steps.sms_steps, 0) > 0 OR COALESCE(steps.email_steps, 0) > 0)
+              AND COALESCE(l.outreach_count, 0) >= COALESCE(steps.sms_steps, 0)
+              AND COALESCE(l.email_outreach_count, 0) >= COALESCE(steps.email_steps, 0)
+            )
+            OR reply_after_start.last_customer_reply_at IS NOT NULL
+          )
         ) AS campaign_completed
       FROM lead_base l
       LEFT JOIN crm_campaigns camp ON camp.id = l.effective_campaign_id
       LEFT JOIN campaign_steps steps ON steps.campaign_id = l.effective_campaign_id
+      LEFT JOIN LATERAL (
+        SELECT MAX(a.created_at) AS last_customer_reply_at
+        FROM crm_activity a
+        WHERE a.crm_lead_id = l.id
+          AND a.is_from_customer = true
+          AND a.activity_type IN ('sms', 'email', 'customer_message')
+          AND a.created_at >= COALESCE(l.campaign_started_at, l.created_at)
+      ) reply_after_start ON true
       ORDER BY
         (l.campaign_id = ANY(${campaignIds})) DESC,
         campaign_completed DESC,

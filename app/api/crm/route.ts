@@ -145,22 +145,32 @@ async function enrichCampaignStatus(leads: any[]) {
     const hasCampaign = Boolean(campaignId);
     const hasSteps = smsSteps > 0 || emailSteps > 0;
     const customerRepliedDuringCampaign = Boolean(row.campaign_customer_reply_at);
+    const campaignMatured = hasSteps && smsSent >= smsSteps && emailSent >= emailSteps;
     const campaignCompleted = hasCampaign && (
-      (hasSteps && smsSent >= smsSteps && emailSent >= emailSteps)
+      campaignMatured
       || customerRepliedDuringCampaign
     );
-    const campaignActiveNow = hasCampaign && row.campaign_is_active === true && !campaignCompleted && !customerRepliedDuringCampaign && !lead.outreach_paused;
+    const campaignStartedAt = row.campaign_started_at || lead.campaign_started_at || null;
+    const campaignHasStarted = !campaignStartedAt || new Date(campaignStartedAt).getTime() <= Date.now();
+    const campaignAssigned = hasCampaign && row.campaign_is_active === true && !campaignCompleted && !customerRepliedDuringCampaign && !lead.outreach_paused;
+    const campaignActiveNow = campaignAssigned && campaignHasStarted;
     return {
       ...lead,
       campaign_id: campaignId,
-      campaign_started_at: row.campaign_started_at || lead.campaign_started_at || null,
+      campaign_started_at: campaignStartedAt,
       campaign_name: row.campaign_name || null,
       campaign_is_active: row.campaign_is_active ?? null,
       campaign_sms_sent: smsSent,
       campaign_email_sent: emailSent,
       campaign_sms_steps: smsSteps,
       campaign_email_steps: emailSteps,
+      campaign_assigned: campaignAssigned,
+      campaign_pending_start: campaignAssigned && !campaignHasStarted,
       campaign_completed: campaignCompleted,
+      campaign_completion_reason: campaignCompleted
+        ? (customerRepliedDuringCampaign ? 'customer_replied' : 'matured')
+        : null,
+      campaign_customer_reply_at: row.campaign_customer_reply_at || null,
       campaign_active_now: campaignActiveNow,
     };
   });
@@ -644,9 +654,9 @@ export async function GET(request: NextRequest) {
     // Campaign filters cover the full lead lifecycle, matching the Campaigns page.
     leads = leads.filter((lead) => lead.campaign_completed);
   } else if (campaignFilter === 'campaign_assigned') {
-    // Currently live campaign only: assigned/effective campaign, campaign is
-    // active, not completed, and follow-up has not been stopped by reply/pause.
-    leads = leads.filter((lead) => lead.campaign_active_now === true);
+    // Assigned/current campaign run: campaign exists and is not completed.
+    // It may be scheduled to start in the future (Assigned) or already running (Active).
+    leads = leads.filter((lead) => lead.campaign_assigned === true);
   } else if (campaignFilter === 'no_campaign') {
     // Unassigned only. Completed campaign leads must not fall into this bucket.
     // Campaign filters cover the full lead lifecycle, matching the Campaigns page.
@@ -757,8 +767,87 @@ export async function GET(request: NextRequest) {
     WHERE COALESCE(crm_profile, 'fencecrafters') = ${profileFilter}
   `;
 
-  const exactStats = !search && (campaignFilter || 'all') === 'all'
+  const exactStats = !search
     ? await sql`
+        WITH latest_by_lead AS (
+          SELECT DISTINCT ON (crm_lead_id)
+            crm_lead_id,
+            created_at,
+            is_from_customer
+          FROM crm_activity
+          WHERE activity_type IN ('sms', 'email')
+          ORDER BY crm_lead_id, created_at DESC, id DESC
+        ), filtered AS (
+          SELECT crm_leads.*
+          FROM crm_leads
+          LEFT JOIN latest_by_lead latest ON latest.crm_lead_id = crm_leads.id
+          LEFT JOIN LATERAL (
+            SELECT CASE
+              WHEN crm_leads.campaign_id IS NOT NULL THEN crm_leads.campaign_id
+              WHEN crm_leads.source = 'angi' THEN (
+                SELECT id FROM crm_campaigns
+                WHERE source = 'angi'
+                  AND is_default = true
+                  AND is_active = true
+                  AND COALESCE(crm_profile, 'fencecrafters') = COALESCE(crm_leads.crm_profile, 'fencecrafters')
+                ORDER BY id ASC
+                LIMIT 1
+              )
+              ELSE NULL
+            END AS effective_campaign_id
+          ) ec ON true
+          LEFT JOIN LATERAL (
+            SELECT
+              COALESCE(MAX(step_number) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
+              COALESCE(MAX(step_number) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
+            FROM crm_campaign_messages
+            WHERE campaign_id = ec.effective_campaign_id
+          ) cm ON true
+          LEFT JOIN crm_campaigns camp_filter ON camp_filter.id = ec.effective_campaign_id
+          LEFT JOIN LATERAL (
+            SELECT MAX(reply.created_at) AS last_customer_reply_at
+            FROM crm_activity reply
+            WHERE reply.crm_lead_id = crm_leads.id
+              AND reply.is_from_customer = true
+              AND reply.activity_type IN ('sms', 'email', 'customer_message')
+              AND reply.created_at >= COALESCE(crm_leads.campaign_started_at, crm_leads.created_at)
+          ) campaign_reply ON true
+          LEFT JOIN LATERAL (
+            SELECT (
+              ec.effective_campaign_id IS NOT NULL
+              AND (
+                (
+                  (COALESCE(cm.sms_steps, 0) > 0 OR COALESCE(cm.email_steps, 0) > 0)
+                  AND COALESCE(crm_leads.outreach_count, 0) >= COALESCE(cm.sms_steps, 0)
+                  AND COALESCE(crm_leads.email_outreach_count, 0) >= COALESCE(cm.email_steps, 0)
+                )
+                OR campaign_reply.last_customer_reply_at IS NOT NULL
+              )
+            ) AS campaign_completed
+          ) campaign_state ON true
+          WHERE COALESCE(crm_leads.crm_profile, 'fencecrafters') = ${profileFilter}
+            AND (${status || 'all'} = 'all' OR crm_leads.status = ${status || 'all'})
+            AND (${source || 'all'} = 'all' OR crm_leads.source = ${source || 'all'})
+            AND (${readFilter || 'all'} = 'all'
+              OR (${readFilter || 'all'} = 'unread' AND crm_leads.is_read IS NOT TRUE)
+              OR (${readFilter || 'all'} = 'read' AND crm_leads.is_read IS TRUE))
+            AND (${messageFilter || 'all'} = 'all'
+              OR (${messageFilter || 'all'} = 'you' AND latest.is_from_customer IS FALSE)
+              OR (${messageFilter || 'all'} = 'customer' AND latest.is_from_customer IS TRUE))
+            AND (${flaggedOnly} = false OR crm_leads.flagged IS TRUE)
+            AND (${includeOptOuts} = true OR crm_leads.lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
+            AND (${validSinceFilter} = false OR COALESCE(latest.created_at, crm_leads.last_message_at, crm_leads.updated_at, crm_leads.created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
+            AND (${campaignFilter || 'all'} = 'all'
+              OR (${campaignFilter || 'all'} = 'campaign_assigned'
+                AND ec.effective_campaign_id IS NOT NULL
+                AND camp_filter.is_active IS TRUE
+                AND campaign_state.campaign_completed IS NOT TRUE
+                AND crm_leads.outreach_paused IS NOT TRUE)
+              OR (${campaignFilter || 'all'} = 'campaign_completed'
+                AND campaign_state.campaign_completed IS TRUE)
+              OR (${campaignFilter || 'all'} IN ('no_campaign', 'no_active')
+                AND ec.effective_campaign_id IS NULL))
+        )
         SELECT
           count(*) FILTER (WHERE status = 'new')::int as new_count,
           count(*) FILTER (WHERE status = 'promising_reply')::int as promising_reply_count,
@@ -775,22 +864,7 @@ export async function GET(request: NextRequest) {
           count(*)::int as total,
           coalesce(sum(job_value) FILTER (WHERE status IN ('won', 'sold')), 0)::numeric as total_revenue,
           coalesce(sum(quoted_amount) FILTER (WHERE status IN ('quoted','scheduled')), 0)::numeric as pipeline_value
-        FROM crm_leads
-        LEFT JOIN LATERAL (
-          SELECT created_at, is_from_customer
-          FROM crm_activity
-          WHERE crm_lead_id = crm_leads.id AND activity_type IN ('sms', 'email')
-          ORDER BY created_at DESC
-          LIMIT 1
-        ) latest ON true
-        WHERE COALESCE(crm_profile, 'fencecrafters') = ${profileFilter}
-          AND (${status || 'all'} = 'all' OR status = ${status || 'all'})
-          AND (${source || 'all'} = 'all' OR source = ${source || 'all'})
-          AND (${readFilter || 'all'} = 'all' OR (${readFilter || 'all'} = 'unread' AND is_read IS NOT TRUE) OR (${readFilter || 'all'} = 'read' AND is_read IS TRUE))
-          AND (${messageFilter || 'all'} = 'all' OR (${messageFilter || 'all'} = 'you' AND latest.is_from_customer IS FALSE) OR (${messageFilter || 'all'} = 'customer' AND latest.is_from_customer IS TRUE))
-          AND (${flaggedOnly} = false OR flagged IS TRUE)
-          AND (${includeOptOuts} = true OR lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
-          AND (${validSinceFilter} = false OR COALESCE(latest.created_at, crm_leads.last_message_at, crm_leads.updated_at, crm_leads.created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
+        FROM filtered
       `
     : [];
 
