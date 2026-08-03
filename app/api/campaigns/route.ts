@@ -359,30 +359,50 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === 'assign_lead') {
-    const leadId = Number(body.lead_id);
-    const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
-    if (!leadId) return NextResponse.json({ error: 'Lead id required' }, { status: 400 });
-    const campaignRows = campaignId ? await sql`SELECT name, source FROM crm_campaigns WHERE id = ${campaignId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1` : [];
-    if (campaignId && !campaignRows.length) return NextResponse.json({ error: 'Campaign not found in this profile' }, { status: 404 });
-    const campaign = campaignRows[0] || null;
-    const campaignName = campaign?.name || null;
-    const campaignStartAt = await nextCampaignStartExpression(campaignId, campaign);
-    await sql`
-      UPDATE crm_leads
-      SET campaign_id = ${campaignId}, campaign_started_at = ${campaignStartAt},
-          outreach_count = 0,
-          email_outreach_count = 0,
-          last_outreach_at = NULL,
-          customer_responded = CASE WHEN ${campaignId} IS NOT NULL THEN false ELSE customer_responded END,
-          outreach_paused = CASE WHEN ${campaignId} IS NOT NULL THEN false ELSE outreach_paused END,
-          updated_at = NOW()
-      WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
-    `;
-    await sql`
-      INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
-      VALUES (${leadId}, 'status_change', ${campaignId ? `Assigned to campaign: ${campaignName || `Campaign #${campaignId}`}` : 'Campaign assignment removed'}, false, 'campaign_system')
-    `;
-    return NextResponse.json({ success: true, campaign_name: campaignName });
+    try {
+      const leadId = Number(body.lead_id);
+      const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
+      if (!leadId) return NextResponse.json({ error: 'Lead id required' }, { status: 400 });
+      const leadRows = await sql`SELECT id FROM crm_leads WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1`;
+      if (!leadRows.length) return NextResponse.json({ error: 'Lead not found in this profile' }, { status: 404 });
+      const campaignRows = campaignId ? await sql`SELECT name, source FROM crm_campaigns WHERE id = ${campaignId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1` : [];
+      if (campaignId && !campaignRows.length) return NextResponse.json({ error: 'Campaign not found in this profile' }, { status: 404 });
+      const campaign = campaignRows[0] || null;
+      const campaignName = campaign?.name || null;
+      const campaignStartAt = await nextCampaignStartExpression(campaignId, campaign);
+      const description = campaignId ? `Assigned to campaign: ${campaignName || `Campaign #${campaignId}`}` : 'Campaign assignment removed';
+      if (campaignId) {
+        await sql`
+          UPDATE crm_leads
+          SET campaign_id = ${campaignId}, campaign_started_at = ${campaignStartAt},
+              outreach_count = 0,
+              email_outreach_count = 0,
+              last_outreach_at = NULL,
+              customer_responded = false,
+              outreach_paused = false,
+              updated_at = NOW()
+          WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
+        `;
+      } else {
+        await sql`
+          UPDATE crm_leads
+          SET campaign_id = NULL, campaign_started_at = NULL,
+              outreach_count = 0,
+              email_outreach_count = 0,
+              last_outreach_at = NULL,
+              updated_at = NOW()
+          WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
+        `;
+      }
+      await sql`
+        INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+        VALUES (${leadId}, 'status_change', ${description}, false, 'campaign_system')
+      `;
+      return NextResponse.json({ success: true, campaign_name: campaignName });
+    } catch (error: any) {
+      console.error('assign_lead failed', error);
+      return NextResponse.json({ error: error?.message || 'Could not assign campaign' }, { status: 500 });
+    }
   }
 
   if (action === 'bulk_assign') {
