@@ -787,9 +787,14 @@ function tileMessageHistoryHtml(l) {
     }];
   }
   if (!messages.length) return '';
-  messages.sort(function(a, b) { return new Date(b.created_at || 0) - new Date(a.created_at || 0); });
+  // API sends the most recent messages. Display them like a chat thread:
+  // oldest at the top, newest at the bottom.
+  messages = messages
+    .sort(function(a, b) { return new Date(b.created_at || 0) - new Date(a.created_at || 0); })
+    .slice(0, 8)
+    .sort(function(a, b) { return new Date(a.created_at || 0) - new Date(b.created_at || 0); });
   return '<div class="tile-message-history" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onwheel="event.stopPropagation()" aria-label="Recent message history">' +
-    messages.slice(0, 8).map(function(msg) {
+    messages.map(function(msg) {
       var fromCustomer = msg.is_from_customer === true;
       var cls = fromCustomer ? 'customer' : 'you';
       var label = fromCustomer ? 'Customer' : 'You';
@@ -1100,7 +1105,16 @@ function renderBoard() {
     html += '</div>';
   });
   document.getElementById('board').innerHTML = html;
+  scrollTileHistoriesToBottom();
   initSwipeDots();
+}
+
+function scrollTileHistoriesToBottom() {
+  requestAnimationFrame(function() {
+    document.querySelectorAll('.tile-message-history').forEach(function(el) {
+      el.scrollTop = el.scrollHeight;
+    });
+  });
 }
 
 function setReadFilter(filter) {
