@@ -736,6 +736,10 @@ function tileActivityTime(l) {
   var d = new Date(tileActivityAt(l));
   return isNaN(d.getTime()) ? 0 : d.getTime();
 }
+function latestMessageDirection(l) {
+  if (l && l.latest_message_at) return l.latest_message_from_customer ? 'customer' : 'you';
+  return (l && l.last_message_by) || '';
+}
 
 function leadFullAddress(l) {
   return [l.customer_address, l.customer_city, l.customer_state, l.customer_zip].filter(Boolean).join(', ');
@@ -982,8 +986,8 @@ function visibleLeadsForBoard() {
   var leads = allLeads.slice();
   if (readFilter === 'unread') leads = leads.filter(function(l) { return !l.is_read; });
   if (readFilter === 'read') leads = leads.filter(function(l) { return l.is_read; });
-  if (messageFilter === 'customer') leads = leads.filter(function(l) { return l.last_message_by === 'customer'; });
-  if (messageFilter === 'you') leads = leads.filter(function(l) { return l.last_message_by === 'you' || l.last_message_by === 'company'; });
+  if (messageFilter === 'customer') leads = leads.filter(function(l) { return latestMessageDirection(l) === 'customer'; });
+  if (messageFilter === 'you') leads = leads.filter(function(l) { return latestMessageDirection(l) === 'you' || latestMessageDirection(l) === 'company'; });
   return leads;
 }
 
@@ -1079,7 +1083,8 @@ function renderBoard() {
       var amount = l.status === 'won' && l.job_value ? '<div class="amount">$' + Number(l.job_value).toLocaleString() + '</div>' : 
                    l.quoted_amount ? '<div class="amount" style="color:#7c3aed">$' + Number(l.quoted_amount).toLocaleString() + '</div>' : '';
       var activityDate = formatMessageDate(tileActivityAt(l)) || new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      var lastMsgTag = l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '">' + (l.last_message_by === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '';
+      var direction = latestMessageDirection(l);
+      var lastMsgTag = direction ? '<span class="last-msg-tag ' + direction + '">' + (direction === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '';
       var unreadBadge = !l.is_read ? '<span class="unread-badge">Unread</span>' : '';
       var unreadDot = !l.is_read ? '<span class="unread-dot" aria-hidden="true"></span>' : '';
       var msgSummary = tileMessageHistoryHtml(l);
@@ -1089,7 +1094,7 @@ function renderBoard() {
       var campaignBadge = campaignTileBadge(l);
       var quickReply = tileQuickReplyHtml(l);
       
-      html += '<div class="lead-card ' + sourceClass + unreadClass + flaggedClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + (l.last_message_by || '') + '" onclick="onLeadCardClick(event,' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" ontouchstart="onTouchDragStart(event)" ontouchmove="onTouchDragMove(event)" ontouchend="onTouchDragEnd(event)" ontouchcancel="onTouchDragEnd(event)">' +
+      html += '<div class="lead-card ' + sourceClass + unreadClass + flaggedClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + direction + '" onclick="onLeadCardClick(event,' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" ontouchstart="onTouchDragStart(event)" ontouchmove="onTouchDragMove(event)" ontouchend="onTouchDragEnd(event)" ontouchcancel="onTouchDragEnd(event)">' +
         '<div class="name">' + flagBadge + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
         msgSummary +
         '<div class="service">' + esc(l.service_type || '') + '</div>' +
@@ -1380,7 +1385,7 @@ function openLeadDetail(id, skipHistory) {
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +
           '<span class="status-badge ' + l.status + '" style="font-size:0.7rem">' + l.status.toUpperCase() + '</span>' +
           '<div style="display:flex;gap:0.5rem;align-items:center">' +
-            (l.last_message_by ? '<span class="last-msg-tag ' + l.last_message_by + '" style="font-size:0.6rem">' + (l.last_message_by === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '') +
+            (latestMessageDirection(l) ? '<span class="last-msg-tag ' + latestMessageDirection(l) + '" style="font-size:0.6rem">' + (latestMessageDirection(l) === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '') +
             '<button class="btn btn-outline flag-toggle ' + (l.flagged ? 'active' : '') + '" style="font-size:0.6rem;padding:0.25rem 0.5rem" onclick="toggleFlag(event,' + l.id + ',' + (l.flagged ? 'false' : 'true') + ')">' + (l.flagged ? '🚩 Flagged' : '🚩 Flag') + '</button>' +
             unreadButtonHtml(l) +
             '<span style="font-size:0.7rem;color:#bbb">' + (l.source || 'manual') + '</span>' +

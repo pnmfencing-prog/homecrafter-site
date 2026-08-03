@@ -265,7 +265,7 @@ export async function GET(request: NextRequest) {
 
   // Build filtered query using tagged templates.
   // Include latest SMS/email preview so customer cards show the message at a glance.
-  let leads;
+  let leads: any[];
   if (hasWorkflowRequest) {
     const perStatusLimit = resultLimit || (validSinceFilter ? 250 : 100);
     leads = await sql`
@@ -321,8 +321,8 @@ export async function GET(request: NextRequest) {
             OR (${readFilter || 'all'} = 'read' AND l.is_read IS TRUE)
             OR (${readFilter || 'all'} = 'unread' AND l.is_read IS NOT TRUE))
           AND (${messageFilter || 'all'} = 'all'
-            OR (${messageFilter || 'all'} = 'you' AND l.last_message_by IN ('you', 'company'))
-            OR (${messageFilter || 'all'} = 'customer' AND l.last_message_by = 'customer'))
+            OR (${messageFilter || 'all'} = 'you' AND latest.is_from_customer IS FALSE)
+            OR (${messageFilter || 'all'} = 'customer' AND latest.is_from_customer IS TRUE))
           AND (${flaggedOnly} = false OR l.flagged IS TRUE)
           AND (${includeOptOuts} = true OR l.lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
           AND (${validSinceFilter} = false OR COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
@@ -498,7 +498,7 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-        AND l.last_message_by IN ('you', 'company')
+        AND latest.is_from_customer IS FALSE
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${workflowLimit}`;
   } else if (messageFilter === 'customer') {
@@ -516,7 +516,7 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-        AND l.last_message_by = 'customer'
+        AND latest.is_from_customer IS TRUE
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${workflowLimit}`;
   } else if (maxPerStatus) {
@@ -572,10 +572,17 @@ export async function GET(request: NextRequest) {
 
   leads = leads.filter((lead) => normalizeCrmProfile(lead.crm_profile) === profileFilter);
 
+  leads = leads.map((lead) => ({
+    ...lead,
+    last_message_by: lead.latest_message_at
+      ? (lead.latest_message_from_customer ? 'customer' : 'you')
+      : lead.last_message_by,
+  }));
+
   if (messageFilter === 'customer') {
-    leads = leads.filter((lead) => lead.last_message_by === 'customer');
+    leads = leads.filter((lead) => lead.latest_message_from_customer === true);
   } else if (messageFilter === 'you') {
-    leads = leads.filter((lead) => lead.last_message_by === 'you' || lead.last_message_by === 'company');
+    leads = leads.filter((lead) => lead.latest_message_from_customer === false);
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(sinceFilter)) {
@@ -729,14 +736,21 @@ export async function GET(request: NextRequest) {
           coalesce(sum(job_value) FILTER (WHERE status IN ('won', 'sold')), 0)::numeric as total_revenue,
           coalesce(sum(quoted_amount) FILTER (WHERE status IN ('quoted','scheduled')), 0)::numeric as pipeline_value
         FROM crm_leads
+        LEFT JOIN LATERAL (
+          SELECT created_at, is_from_customer
+          FROM crm_activity
+          WHERE crm_lead_id = crm_leads.id AND activity_type IN ('sms', 'email')
+          ORDER BY created_at DESC
+          LIMIT 1
+        ) latest ON true
         WHERE COALESCE(crm_profile, 'fencecrafters') = ${profileFilter}
           AND (${status || 'all'} = 'all' OR status = ${status || 'all'})
           AND (${source || 'all'} = 'all' OR source = ${source || 'all'})
           AND (${readFilter || 'all'} = 'all' OR (${readFilter || 'all'} = 'unread' AND is_read IS NOT TRUE) OR (${readFilter || 'all'} = 'read' AND is_read IS TRUE))
-          AND (${messageFilter || 'all'} = 'all' OR (${messageFilter || 'all'} = 'you' AND last_message_by IN ('you', 'company')) OR (${messageFilter || 'all'} = 'customer' AND last_message_by = 'customer'))
+          AND (${messageFilter || 'all'} = 'all' OR (${messageFilter || 'all'} = 'you' AND latest.is_from_customer IS FALSE) OR (${messageFilter || 'all'} = 'customer' AND latest.is_from_customer IS TRUE))
           AND (${flaggedOnly} = false OR flagged IS TRUE)
           AND (${includeOptOuts} = true OR lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
-          AND (${validSinceFilter} = false OR COALESCE(last_message_at, updated_at, created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
+          AND (${validSinceFilter} = false OR COALESCE(latest.created_at, last_message_at, updated_at, created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
       `
     : [];
 
