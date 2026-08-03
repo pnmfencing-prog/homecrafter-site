@@ -849,12 +849,15 @@ function campaignTileBadge(l) {
   var assigned = !!(l && l.campaign_assigned);
   var active = !!(l && l.campaign_active_now);
   var pending = !!(l && l.campaign_pending_start);
-  var label = active ? 'Active Campaign' : pending ? 'Campaign Assigned' : 'No Active Campaign';
-  var bg = assigned ? '#ecfdf5' : '#f3f4f6';
-  var color = assigned ? '#047857' : '#6b7280';
+  var completed = !!(l && l.campaign_completed);
+  var paused = !!(l && l.outreach_paused && l.campaign_id && !completed);
+  var label = completed ? 'Campaign Completed' : active ? 'Active Campaign' : pending || assigned ? 'Campaign Assigned' : paused ? 'Campaign Paused' : 'No Campaign Assigned';
+  var bg = (assigned || completed) ? '#ecfdf5' : paused ? '#fff7ed' : '#f3f4f6';
+  var color = (assigned || completed) ? '#047857' : paused ? '#d97706' : '#6b7280';
   var detail = '';
   if (assigned && (l.campaign_name || l.campaign_id)) detail = (pending ? 'Starts ' + formatMessageDate(l.campaign_started_at) + ' · ' : '') + (l.campaign_name || ('Campaign #' + l.campaign_id));
-  if (!assigned && l) {
+  if (completed && l) detail = campaignStatusLabel(l);
+  else if (!assigned && l) {
     if (l.campaign_completed) detail = campaignStatusLabel(l);
     else if (l.outreach_paused) detail = 'Paused';
     else if (l.campaign_id && l.campaign_is_active === false) detail = 'Campaign inactive';
