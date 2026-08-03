@@ -378,6 +378,7 @@ body.lead-modal-open > .portal-home { display: none; }
       <button class="btn" data-rf="read" onclick="setReadFilter('read')">Read</button>
     </div>
     <div class="read-filter secondary-filter-row">
+      <button class="btn" data-cf="campaign_assigned" onclick="setCampaignFilter('campaign_assigned')">Campaign Assigned</button>
       <button class="btn" data-cf="campaign_completed" onclick="setCampaignFilter('campaign_completed')">Campaign Completed</button>
       <button class="btn" data-cf="no_campaign" onclick="setCampaignFilter('no_campaign')">No Campaign Assigned</button>
       <button class="btn" id="flaggedFilterBtn" onclick="setFlaggedFilter()">🚩 Flagged</button>
@@ -456,7 +457,7 @@ var currentFilter = 'all';
 var currentSource = 'all';
 var readFilter = 'all';
 var messageFilter = 'all'; // global: 'all', 'you' (msg sent), 'customer' (msg rcvd)
-var campaignFilter = 'all'; // 'all', 'campaign_completed', or 'no_campaign'
+var campaignFilter = 'all'; // 'all', 'campaign_assigned', 'campaign_completed', or 'no_campaign'
 var flaggedFilter = false;
 var lastMessageSince = ''; // yyyy-mm-dd; filters by latest message/activity date
 var colMsgFilters = {}; // per-column: 'all', 'you' (msg sent), 'customer' (msg rcvd)

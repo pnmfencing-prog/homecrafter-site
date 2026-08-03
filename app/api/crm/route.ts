@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
   const hasWorkflowRequest = !search && (
     readFilter === 'read' || readFilter === 'unread' ||
     messageFilter === 'you' || messageFilter === 'customer' ||
-    campaignFilter === 'campaign_completed' || campaignFilter === 'no_campaign' || campaignFilter === 'no_active' ||
+    campaignFilter === 'campaign_assigned' || campaignFilter === 'campaign_completed' || campaignFilter === 'no_campaign' || campaignFilter === 'no_active' ||
     flaggedOnly || validSinceFilter
   );
 
@@ -313,6 +313,7 @@ export async function GET(request: NextRequest) {
           FROM crm_campaign_messages
           WHERE campaign_id = ec.effective_campaign_id
         ) cm ON true
+        LEFT JOIN crm_campaigns camp_filter ON camp_filter.id = ec.effective_campaign_id
         WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
           AND (${status || 'all'} = 'all' OR l.status = ${status || 'all'})
           AND (${source || 'all'} = 'all' OR l.source = ${source || 'all'})
@@ -326,6 +327,16 @@ export async function GET(request: NextRequest) {
           AND (${includeOptOuts} = true OR l.lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
           AND (${validSinceFilter} = false OR COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
           AND (${campaignFilter || 'all'} = 'all'
+            OR (${campaignFilter || 'all'} = 'campaign_assigned'
+              AND ec.effective_campaign_id IS NOT NULL
+              AND camp_filter.is_active IS TRUE
+              AND NOT (
+                (COALESCE(cm.sms_steps, 0) > 0 OR COALESCE(cm.email_steps, 0) > 0)
+                AND COALESCE(l.outreach_count, 0) >= COALESCE(cm.sms_steps, 0)
+                AND COALESCE(l.email_outreach_count, 0) >= COALESCE(cm.email_steps, 0)
+              )
+              AND l.customer_responded IS NOT TRUE
+              AND l.outreach_paused IS NOT TRUE)
             OR (${campaignFilter || 'all'} = 'campaign_completed'
               AND ec.effective_campaign_id IS NOT NULL
               AND (COALESCE(cm.sms_steps, 0) > 0 OR COALESCE(cm.email_steps, 0) > 0)
@@ -595,6 +606,10 @@ export async function GET(request: NextRequest) {
   if (campaignFilter === 'campaign_completed') {
     // Campaign filters cover the full lead lifecycle, matching the Campaigns page.
     leads = leads.filter((lead) => lead.campaign_completed);
+  } else if (campaignFilter === 'campaign_assigned') {
+    // Currently live campaign only: assigned/effective campaign, campaign is
+    // active, not completed, and follow-up has not been stopped by reply/pause.
+    leads = leads.filter((lead) => lead.campaign_active_now === true);
   } else if (campaignFilter === 'no_campaign') {
     // Unassigned only. Completed campaign leads must not fall into this bucket.
     // Campaign filters cover the full lead lifecycle, matching the Campaigns page.
