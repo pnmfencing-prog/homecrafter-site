@@ -1048,6 +1048,17 @@ function renderStats(s) {
 
 function exactCountForStatus(statusKey, fallback) {
   if (!exactBoardStats) return fallback;
+  // In the All read/unread tile filter, derive the displayed badge from the
+  // same read partition used by the Read and Unread filters. This keeps the
+  // invariant visible to Dan: All must equal Read + Unread for the same
+  // message/campaign/source/status filters.
+  if (readFilter === 'all') {
+    var readKey = statusKey + '_read_count';
+    var unreadKey = statusKey + '_unread_count';
+    if (Object.prototype.hasOwnProperty.call(exactBoardStats, readKey) && Object.prototype.hasOwnProperty.call(exactBoardStats, unreadKey)) {
+      return Number(exactBoardStats[readKey] || 0) + Number(exactBoardStats[unreadKey] || 0);
+    }
+  }
   return Number(exactBoardStats[statusKey + '_count'] || 0);
 }
 
