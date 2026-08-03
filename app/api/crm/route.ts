@@ -283,7 +283,7 @@ export async function GET(request: NextRequest) {
       ), filtered AS (
         SELECT
           l.*,
-          latest.description AS latest_message_preview,
+          LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview,
           latest.created_at AS latest_message_at,
           latest.is_from_customer AS latest_message_from_customer,
           latest.created_by AS latest_message_created_by,
@@ -357,7 +357,7 @@ export async function GET(request: NextRequest) {
     const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
     const searchPat = `%${normalizedSearch}%`;
     leads = await sql`
-      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+      SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
              latest.activity_type AS latest_message_type
       FROM crm_leads l
@@ -388,7 +388,7 @@ export async function GET(request: NextRequest) {
       ORDER BY l.created_at DESC`;
   } else if (status && status !== 'all') {
     leads = await sql`
-      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+      SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
              latest.activity_type AS latest_message_type
       FROM crm_leads l
@@ -406,7 +406,7 @@ export async function GET(request: NextRequest) {
     const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
     const searchPat = `%${normalizedSearch}%`;
     leads = await sql`
-      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+      SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
              latest.activity_type AS latest_message_type
       FROM crm_leads l
@@ -437,7 +437,7 @@ export async function GET(request: NextRequest) {
       ORDER BY l.created_at DESC`;
   } else if (source && source !== 'all') {
     leads = await sql`
-      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+      SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
              latest.activity_type AS latest_message_type
       FROM crm_leads l
@@ -455,7 +455,7 @@ export async function GET(request: NextRequest) {
     const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
     const searchPat = `%${normalizedSearch}%`;
     leads = await sql`
-      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+      SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
              latest.activity_type AS latest_message_type
       FROM crm_leads l
@@ -486,7 +486,7 @@ export async function GET(request: NextRequest) {
   } else if (messageFilter === 'you') {
     const workflowLimit = resultLimit || 250;
     leads = await sql`
-      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+      SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
              latest.activity_type AS latest_message_type
       FROM crm_leads l
@@ -504,7 +504,7 @@ export async function GET(request: NextRequest) {
   } else if (messageFilter === 'customer') {
     const workflowLimit = resultLimit || 250;
     leads = await sql`
-      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+      SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
              latest.activity_type AS latest_message_type
       FROM crm_leads l
@@ -533,7 +533,7 @@ export async function GET(request: NextRequest) {
         WHERE activity_type IN ('sms', 'email')
         ORDER BY crm_lead_id, created_at DESC
       ), lead_rows AS (
-        SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+        SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
                latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
                latest.activity_type AS latest_message_type,
                ROW_NUMBER() OVER (
@@ -549,7 +549,7 @@ export async function GET(request: NextRequest) {
       ORDER BY created_at DESC`;
   } else {
     leads = await sql`
-      SELECT l.*, latest.description AS latest_message_preview, latest.created_at AS latest_message_at,
+      SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
              latest.activity_type AS latest_message_type
       FROM crm_leads l
@@ -646,7 +646,7 @@ export async function GET(request: NextRequest) {
           a.id,
           a.crm_lead_id,
           a.activity_type,
-          LEFT(COALESCE(a.description, ''), 900) AS description,
+          LEFT(COALESCE(a.description, ''), 500) AS description,
           a.is_from_customer,
           a.created_by,
           a.created_at
@@ -654,7 +654,7 @@ export async function GET(request: NextRequest) {
         WHERE a.crm_lead_id = li.lead_id
           AND a.activity_type IN ('sms', 'email')
         ORDER BY a.created_at DESC, a.id DESC
-        LIMIT 8
+        LIMIT 5
       ) recent
       ORDER BY recent.crm_lead_id, recent.created_at DESC, recent.id DESC
     `;

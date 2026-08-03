@@ -795,14 +795,14 @@ function tileMessageHistoryHtml(l) {
   // oldest at the top, newest at the bottom.
   messages = messages
     .sort(function(a, b) { return new Date(b.created_at || 0) - new Date(a.created_at || 0); })
-    .slice(0, 8)
+    .slice(0, 5)
     .sort(function(a, b) { return new Date(a.created_at || 0) - new Date(b.created_at || 0); });
   return '<div class="tile-message-history" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onwheel="event.stopPropagation()" aria-label="Recent message history">' +
     messages.map(function(msg) {
       var fromCustomer = msg.is_from_customer === true;
       var cls = fromCustomer ? 'customer' : 'you';
       var label = fromCustomer ? 'Customer' : 'You';
-      var body = shortMessage(msg.description || '', 700);
+      var body = shortMessage(msg.description || '', 500);
       if (!body) body = msg.activity_type === 'email' ? 'Email activity' : 'Message activity';
       return '<div class="tile-message-row ' + cls + '">' +
         '<div class="tile-message-head"><span>' + label + ' · ' + esc(tileHistoryAuthor(l, msg)) + '</span><span>' + esc(formatMessageDate(msg.created_at)) + '</span></div>' +
