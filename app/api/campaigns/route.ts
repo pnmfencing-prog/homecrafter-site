@@ -342,7 +342,11 @@ export async function POST(request: NextRequest) {
     await sql`
       UPDATE crm_leads
       SET campaign_id = ${campaignId}, campaign_started_at = ${campaignStartAt},
-          outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
+          outreach_count = 0,
+          last_outreach_at = NULL,
+          customer_responded = CASE WHEN status = 'new' THEN false ELSE customer_responded END,
+          outreach_paused = CASE WHEN status = 'new' THEN false ELSE outreach_paused END,
+          updated_at = NOW()
       WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
     `;
     await sql`
@@ -364,7 +368,11 @@ export async function POST(request: NextRequest) {
     await sql`
       UPDATE crm_leads
       SET campaign_id = ${campaignId}, campaign_started_at = ${campaignStartAt},
-          outreach_count = 0, last_outreach_at = NULL, customer_responded = false, outreach_paused = false, updated_at = NOW()
+          outreach_count = 0,
+          last_outreach_at = NULL,
+          customer_responded = CASE WHEN status = 'new' THEN false ELSE customer_responded END,
+          outreach_paused = CASE WHEN status = 'new' THEN false ELSE outreach_paused END,
+          updated_at = NOW()
       WHERE id = ANY(${leadIds}) AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
     `;
     await sql`
