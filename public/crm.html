@@ -2160,6 +2160,8 @@ function assignLeadCampaign(id) {
         lead.campaign_name = campaignId ? campaignName(campaignId) : null;
         lead.campaign_completed = false;
         lead.campaign_active_now = !!campaignId;
+        lead.customer_responded = campaignId ? false : lead.customer_responded;
+        lead.outreach_paused = campaignId ? false : lead.outreach_paused;
         lead.campaign_sms_sent = 0;
         lead.campaign_email_sent = 0;
       }

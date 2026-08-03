@@ -105,6 +105,7 @@ async function enrichCampaignStatus(leads: any[]) {
       camp.name AS campaign_name,
       camp.is_active AS campaign_is_active,
       COALESCE(l.campaign_started_at, inferred_start.started_at) AS campaign_started_at,
+      reply_after_start.last_customer_reply_at AS campaign_customer_reply_at,
       COALESCE(l.outreach_count, 0)::int AS campaign_sms_sent,
       COALESCE(l.email_outreach_count, 0)::int AS campaign_email_sent,
       COALESCE(MAX(m.step_number) FILTER (WHERE m.channel IN ('sms', 'both') AND COALESCE(m.sms_body, '') <> ''), 0)::int AS campaign_sms_steps,
@@ -123,7 +124,15 @@ async function enrichCampaignStatus(leads: any[]) {
           OR a.description ILIKE '⚠️ SMS outreach #%'
         )
     ) inferred_start ON true
-    GROUP BY l.id, l.effective_campaign_id, camp.name, camp.is_active, l.campaign_started_at, inferred_start.started_at, l.outreach_count, l.email_outreach_count
+    LEFT JOIN LATERAL (
+      SELECT MAX(a.created_at) AS last_customer_reply_at
+      FROM crm_activity a
+      WHERE a.crm_lead_id = l.id
+        AND a.is_from_customer = true
+        AND a.activity_type IN ('sms', 'email', 'customer_message')
+        AND a.created_at >= COALESCE(l.campaign_started_at, inferred_start.started_at, l.created_at)
+    ) reply_after_start ON true
+    GROUP BY l.id, l.effective_campaign_id, camp.name, camp.is_active, l.campaign_started_at, inferred_start.started_at, reply_after_start.last_customer_reply_at, l.outreach_count, l.email_outreach_count
   `;
   const byLeadId = new Map(rows.map((row) => [row.lead_id, row]));
   return leads.map((lead) => {
@@ -135,12 +144,12 @@ async function enrichCampaignStatus(leads: any[]) {
     const campaignId = row.campaign_id || lead.campaign_id || null;
     const hasCampaign = Boolean(campaignId);
     const hasSteps = smsSteps > 0 || emailSteps > 0;
+    const customerRepliedDuringCampaign = Boolean(row.campaign_customer_reply_at);
     const campaignCompleted = hasCampaign && (
       (hasSteps && smsSent >= smsSteps && emailSent >= emailSteps)
-      || lead.customer_responded === true
-      || lead.outreach_paused === true
+      || customerRepliedDuringCampaign
     );
-    const campaignActiveNow = hasCampaign && row.campaign_is_active === true && !campaignCompleted && !lead.customer_responded && !lead.outreach_paused;
+    const campaignActiveNow = hasCampaign && row.campaign_is_active === true && !campaignCompleted && !customerRepliedDuringCampaign && !lead.outreach_paused;
     return {
       ...lead,
       campaign_id: campaignId,
@@ -339,7 +348,13 @@ export async function GET(request: NextRequest) {
                 AND COALESCE(l.outreach_count, 0) >= COALESCE(cm.sms_steps, 0)
                 AND COALESCE(l.email_outreach_count, 0) >= COALESCE(cm.email_steps, 0)
               )
-              AND l.customer_responded IS NOT TRUE
+              AND NOT EXISTS (
+                SELECT 1 FROM crm_activity reply
+                WHERE reply.crm_lead_id = l.id
+                  AND reply.is_from_customer = true
+                  AND reply.activity_type IN ('sms', 'email', 'customer_message')
+                  AND reply.created_at >= COALESCE(l.campaign_started_at, l.created_at)
+              )
               AND l.outreach_paused IS NOT TRUE)
             OR (${campaignFilter || 'all'} = 'campaign_completed'
               AND ec.effective_campaign_id IS NOT NULL
@@ -349,8 +364,13 @@ export async function GET(request: NextRequest) {
                   AND COALESCE(l.outreach_count, 0) >= COALESCE(cm.sms_steps, 0)
                   AND COALESCE(l.email_outreach_count, 0) >= COALESCE(cm.email_steps, 0)
                 )
-                OR l.customer_responded IS TRUE
-                OR l.outreach_paused IS TRUE
+                OR EXISTS (
+                  SELECT 1 FROM crm_activity reply
+                  WHERE reply.crm_lead_id = l.id
+                    AND reply.is_from_customer = true
+                    AND reply.activity_type IN ('sms', 'email', 'customer_message')
+                    AND reply.created_at >= COALESCE(l.campaign_started_at, l.created_at)
+                )
               ))
             OR (${campaignFilter || 'all'} IN ('no_campaign', 'no_active') AND ec.effective_campaign_id IS NULL))
       ), ranked AS (
