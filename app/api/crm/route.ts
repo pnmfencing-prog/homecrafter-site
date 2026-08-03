@@ -135,7 +135,11 @@ async function enrichCampaignStatus(leads: any[]) {
     const campaignId = row.campaign_id || lead.campaign_id || null;
     const hasCampaign = Boolean(campaignId);
     const hasSteps = smsSteps > 0 || emailSteps > 0;
-    const campaignCompleted = hasCampaign && hasSteps && smsSent >= smsSteps && emailSent >= emailSteps;
+    const campaignCompleted = hasCampaign && (
+      (hasSteps && smsSent >= smsSteps && emailSent >= emailSteps)
+      || lead.customer_responded === true
+      || lead.outreach_paused === true
+    );
     const campaignActiveNow = hasCampaign && row.campaign_is_active === true && !campaignCompleted && !lead.customer_responded && !lead.outreach_paused;
     return {
       ...lead,
@@ -339,9 +343,15 @@ export async function GET(request: NextRequest) {
               AND l.outreach_paused IS NOT TRUE)
             OR (${campaignFilter || 'all'} = 'campaign_completed'
               AND ec.effective_campaign_id IS NOT NULL
-              AND (COALESCE(cm.sms_steps, 0) > 0 OR COALESCE(cm.email_steps, 0) > 0)
-              AND COALESCE(l.outreach_count, 0) >= COALESCE(cm.sms_steps, 0)
-              AND COALESCE(l.email_outreach_count, 0) >= COALESCE(cm.email_steps, 0))
+              AND (
+                (
+                  (COALESCE(cm.sms_steps, 0) > 0 OR COALESCE(cm.email_steps, 0) > 0)
+                  AND COALESCE(l.outreach_count, 0) >= COALESCE(cm.sms_steps, 0)
+                  AND COALESCE(l.email_outreach_count, 0) >= COALESCE(cm.email_steps, 0)
+                )
+                OR l.customer_responded IS TRUE
+                OR l.outreach_paused IS TRUE
+              ))
             OR (${campaignFilter || 'all'} IN ('no_campaign', 'no_active') AND ec.effective_campaign_id IS NULL))
       ), ranked AS (
         SELECT *, ROW_NUMBER() OVER (
