@@ -15,19 +15,26 @@ export const revalidate = 0;
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
 const TWILIO_FROM = process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '';
+const PNM_TWILIO_FROM = process.env.PNM_TWILIO_FROM || process.env.PNM_TWILIO_NUMBER || '+19083173444';
+
+function twilioFromForProfile(profileValue: unknown): string {
+  const profile = normalizeCrmProfile(profileValue);
+  return profile === 'pnm_fencing' ? PNM_TWILIO_FROM : TWILIO_FROM;
+}
 
 function normalizePhone(phone: string): string {
   return normalizeSmsPhone(phone);
 }
 
-async function sendTwilioSms(to: string, body: string, mediaUrls: string[] = []): Promise<string | null> {
-  if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
+async function sendTwilioSms(to: string, body: string, mediaUrls: string[] = [], profileValue?: unknown): Promise<string | null> {
+  const fromNumber = twilioFromForProfile(profileValue);
+  if (!TWILIO_SID || !TWILIO_TOKEN || !fromNumber) {
     throw new Error('Twilio environment variables are not configured');
   }
   const cleanTo = await assertSmsCapable(to);
 
   const params = new URLSearchParams();
-  params.append('From', TWILIO_FROM);
+  params.append('From', fromNumber);
   params.append('To', cleanTo);
   params.append('Body', body);
   for (const mediaUrl of mediaUrls.slice(0, 5)) {
@@ -1048,11 +1055,13 @@ export async function POST(request: NextRequest) {
 
     let outboundSmsTo = '';
     let outboundSmsBody = '';
+    let outboundSmsProfile = 'fencecrafters';
     let outboundEmailTo = '';
     let outboundEmailName = '';
     if (activity_type === 'sms' && !isFromCustomer) {
       const leads = await sql`SELECT customer_phone, crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
       outboundSmsTo = leads[0]?.customer_phone || '';
+      outboundSmsProfile = normalizeCrmProfile(leads[0]?.crm_profile);
       outboundSmsBody = normalizeText(description || '').replace(/^(📤|📥)\s*/, '');
       if (!outboundSmsTo) return NextResponse.json({ error: 'Customer phone is missing' }, { status: 400 });
       if (!outboundSmsBody) return NextResponse.json({ error: 'SMS body is missing' }, { status: 400 });
@@ -1092,7 +1101,7 @@ export async function POST(request: NextRequest) {
     if (activity_type === 'sms' && !isFromCustomer) {
       const mediaUrls = attachmentIds.map((attachmentId) => `${publicBaseUrl(request)}/api/crm-attachments/${attachmentId}`);
       try {
-        await sendTwilioSms(outboundSmsTo, outboundSmsBody, mediaUrls);
+        await sendTwilioSms(outboundSmsTo, outboundSmsBody, mediaUrls, outboundSmsProfile);
       } catch (err: unknown) {
         await sql`DELETE FROM crm_activity WHERE id = ${activityId}`;
         const message = err instanceof Error ? err.message : 'SMS/MMS send failed';

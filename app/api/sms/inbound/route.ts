@@ -18,6 +18,30 @@ function profileFromTwilioTo(to: string): 'fencecrafters' | 'pnm_fencing' {
   return 'fencecrafters';
 }
 
+async function inferInboundProfile(from: string, twilioProfile: 'fencecrafters' | 'pnm_fencing'): Promise<'fencecrafters' | 'pnm_fencing'> {
+  if (twilioProfile === 'pnm_fencing') return 'pnm_fencing';
+
+  // Legacy guard: some PNM-profile CRM texts were historically sent from the
+  // default FenceCrafters Twilio number. If the customer's latest CRM outbound
+  // SMS was from a PNM lead, keep the reply in the PNM profile instead of
+  // creating/using a duplicate FenceCrafters thread.
+  const normalized = normalizePhone(from);
+  const rows = await sql`
+    SELECT COALESCE(l.crm_profile, 'fencecrafters') AS crm_profile, MAX(a.created_at) AS last_outbound_at
+    FROM crm_leads l
+    JOIN crm_activity a ON a.crm_lead_id = l.id
+    WHERE regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g') IN (${normalized}, ${`1${normalized}`})
+      AND a.is_from_customer = false
+      AND a.activity_type = 'sms'
+      AND COALESCE(a.description, '') LIKE '📤%'
+      AND a.created_at > NOW() - INTERVAL '45 days'
+    GROUP BY COALESCE(l.crm_profile, 'fencecrafters')
+    ORDER BY MAX(a.created_at) DESC
+    LIMIT 1
+  `;
+  return rows[0]?.crm_profile === 'pnm_fencing' ? 'pnm_fencing' : twilioProfile;
+}
+
 function normalizePhone(phone: string): string {
   const digits = (phone || '').replace(/\D/g, '');
   if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
@@ -209,7 +233,7 @@ export async function POST(request: NextRequest) {
   const form = await request.formData();
   const from = String(form.get('From') || '');
   const to = String(form.get('To') || '');
-  const inboundProfile = profileFromTwilioTo(to);
+  const inboundProfile = await inferInboundProfile(from, profileFromTwilioTo(to));
   const body = String(form.get('Body') || '').trim();
 
   // Prevent CRM-owned Twilio numbers from auto-replying to each other and creating loops.
