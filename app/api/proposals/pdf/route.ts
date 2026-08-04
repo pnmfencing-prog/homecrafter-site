@@ -9,6 +9,15 @@ function isAdmin(request: NextRequest): boolean {
   return token === (process.env.ADMIN_TOKEN || 'hc-admin-2026');
 }
 
+function escapeHtml(value: unknown): string {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   
@@ -153,9 +162,10 @@ ${p.redacted ? `
   <p>${isLaborOnly ? 'Payment terms: three equal installments. First installment due in advance:' : 'Payment terms: deposit paid in advance:'} $${Number(p.deposit || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}${spot > 0 ? ` ($${Number(spot).toFixed(2)} spot holding fee supplied and applied to grand total)` : ''}</p>
   <p>By supplying the initial deposit above, the customer understands and agrees to abide by all of the terms and conditions set forth in this agreement.</p>
   <p>${isLaborOnly ? 'Second installment due during installation in the amount of:' : 'Second installment due upon material delivery to above referenced job site address in the amount of:'} $${Number(p.installment_2 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
-  <p>Remaining balance due upon day of installation completion in the amount of: $${Number(p.installment_3 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+  <p>Third installment due upon day of installation completion in the amount of: $${Number(p.installment_3 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
   ${isLaborOnly ? '' : '<p>All materials remain property of ' + companyName + ' until final payment has been satisfied. If final payment is not satisfied upon install completion, ' + companyName + ' reserves the right to remove provided materials at customer\'s expense.</p>'}
   <p>All past due balances will be assessed with a penalty interest rate of 28% APR.</p>
+  ${p.notes ? `<p>${escapeHtml(normalizeText(p.notes)).replace(/\n/g, '<br>')}</p>` : ''}
   <p style="margin-top:10px">Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete. Utility mark-out Included.</p>
   <p>${companyName} not responsible for unmarked sprinkler lines and miscellaneous pipes.</p>
   <p>Fence to follow grade of ground. Footing soil dispersed around posts/sections. ${companyName} not responsible for earth settling.</p>
