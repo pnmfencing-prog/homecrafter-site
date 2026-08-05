@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { normalizeCrmProfile } from '@/lib/email-policy';
 
+const PNM_ALERT_PHONE = process.env.PNM_CRM_ALERT_PHONE || '+19086924847';
+const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
+const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
+const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
+const TWILIO_FROM = process.env.PNM_TWILIO_FROM || process.env.PNM_TWILIO_NUMBER || process.env.TWILIO_FROM || '+19083173444';
+
 function normalizePhone(value: any): string | null {
   if (!value) return null;
   const s = String(value).trim();
@@ -89,6 +95,47 @@ function profileFromRequest(request: NextRequest, body: any) {
   return 'fencecrafters';
 }
 
+async function sendPnmNewLeadNotification(lead: any) {
+  if (!TWILIO_SID || !TWILIO_TOKEN || !PNM_ALERT_PHONE) {
+    console.warn('[angi-leads] Missing Twilio env; skipping PNM alert SMS');
+    return;
+  }
+
+  const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}&profile=pnm_fencing`;
+  const parts = [
+    `New PNM Fencing Angi lead: ${lead.customer_name || 'Unknown'}`,
+    lead.customer_phone ? `Phone: ${lead.customer_phone}` : '',
+    lead.customer_city ? `City: ${lead.customer_city}${lead.customer_state ? `, ${lead.customer_state}` : ''}` : '',
+    lead.service_type ? `Service: ${lead.service_type}` : '',
+    `Open thread: ${threadUrl}`,
+  ].filter(Boolean);
+
+  const params = new URLSearchParams();
+  params.set('From', TWILIO_FROM);
+  params.set('To', PNM_ALERT_PHONE);
+  params.set('Body', parts.join('\n'));
+
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: params.toString(),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error(`[angi-leads] PNM alert SMS failed (${res.status}): ${errorText}`);
+    return;
+  }
+
+  await sql`
+    INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+    VALUES (${lead.id}, 'note', ${`PNM Angi lead notification sent to ${PNM_ALERT_PHONE}`}, false, 'angi_webhook')
+  `;
+}
+
 export async function POST(request: NextRequest) {
   let body: any;
   try {
@@ -167,6 +214,10 @@ export async function POST(request: NextRequest) {
   // This is lead intake, not a customer message/reply. Do not set last_message_by here;
   // the Msg Sent / Msg Rcvd filters should only reflect actual SMS/email messages.
   await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${result[0].id}, 'status_change', 'Angi lead received via API integration', false)`;
+
+  if (crmProfile === 'pnm_fencing') {
+    await sendPnmNewLeadNotification(result[0]);
+  }
 
   return NextResponse.json({ success: true, created: true, lead: result[0] });
 }
