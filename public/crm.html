@@ -974,8 +974,7 @@ function loadLeads() {
   // Keep mobile usable while still showing normal filtered workflows completely.
   // Counts come from exactStats; this only caps rendered cards for very large sets.
   if (!search && hasWorkflowFilter) params += '&limit=' + CRM_FILTERED_LIMIT;
-  // Keep board tiles light. Lead detail/chat still loads the full thread on demand.
-  if (!search) params += '&recent_messages=0';
+  // Keep board tile history available while board card limits keep rendering manageable.
 
   return fetch('/api/crm' + params, api('GET'))
     .then(function(r) { return r.json(); })
