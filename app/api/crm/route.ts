@@ -434,6 +434,7 @@ export async function GET(request: NextRequest) {
       )
       ORDER BY l.created_at DESC`;
   } else if (status && status !== 'all') {
+    const queryLimit = resultLimit || 500;
     leads = await sql`
       SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
@@ -448,7 +449,8 @@ export async function GET(request: NextRequest) {
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
         AND l.status = ${status}
-      ORDER BY l.created_at DESC`;
+      ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
+      LIMIT ${queryLimit}`;
   } else if (source && source !== 'all' && search) {
     const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
     const searchPat = `%${normalizedSearch}%`;
@@ -483,6 +485,7 @@ export async function GET(request: NextRequest) {
       )
       ORDER BY l.created_at DESC`;
   } else if (source && source !== 'all') {
+    const queryLimit = resultLimit || 500;
     leads = await sql`
       SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
              latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
@@ -497,7 +500,8 @@ export async function GET(request: NextRequest) {
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
         AND l.source = ${source}
-      ORDER BY l.created_at DESC`;
+      ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
+      LIMIT ${queryLimit}`;
   } else if (search) {
     const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
     const searchPat = `%${normalizedSearch}%`;
