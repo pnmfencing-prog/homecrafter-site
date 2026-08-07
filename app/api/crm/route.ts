@@ -197,6 +197,7 @@ export async function GET(request: NextRequest) {
   const profileFilter = normalizeCrmProfile(searchParams.get('profile'));
   const readFilter = searchParams.get('read');
   const messageFilter = searchParams.get('message');
+  const includeRecentMessages = searchParams.get('recent_messages') !== '0';
   const flaggedOnly = searchParams.get('flagged') === '1';
   const includeOptOuts = searchParams.get('include_optouts') === '1';
   const sinceFilter = searchParams.get('since') || '';
@@ -677,7 +678,7 @@ export async function GET(request: NextRequest) {
     leads = leads.filter((lead) => !lead.campaign_id || lead.campaign_completed);
   }
 
-  const messageLeadIds = leads.map((lead) => lead.id).filter(Boolean);
+  const messageLeadIds = includeRecentMessages ? leads.map((lead) => lead.id).filter(Boolean) : [];
   if (messageLeadIds.length) {
     const recentMessages = await sql`
       WITH lead_ids AS (

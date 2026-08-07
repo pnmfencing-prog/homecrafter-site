@@ -478,6 +478,8 @@ var activeLeadId = null;
 var activeLeadDetail = null;
 var activeLeadEmail = '';
 var CRM_REFRESH_MS = 30000; // light polling only while CRM tab is open
+var CRM_BOARD_DEFAULT_PER_STATUS = window.innerWidth <= 768 ? 15 : 25;
+var CRM_FILTERED_LIMIT = window.innerWidth <= 768 ? 100 : 150;
 var PNM_EMAIL_SENDING_PAUSED = false;
 var THREAD_EMAIL_SENDER = 'fencecrafters@homecrafter.ai';
 var THREAD_EMAIL_SUBJECT = 'Following up from FenceCrafters';
@@ -916,7 +918,7 @@ function markLeadReadLocally(id, isRead) {
   });
   if (changed) {
     renderBoard();
-    renderList();
+    if (currentView === 'list') renderList();
   }
 }
 
@@ -938,7 +940,7 @@ function consumeReadSignals() {
   } catch (e) {}
   if (changed) {
     renderBoard();
-    renderList();
+    if (currentView === 'list') renderList();
   }
   return changed;
 }
@@ -966,11 +968,13 @@ function loadLeads() {
   if (!search && messageFilter !== 'all') params += '&message=' + encodeURIComponent(messageFilter);
   if (!search && lastMessageSince) params += '&since=' + encodeURIComponent(lastMessageSince);
   var hasWorkflowFilter = readFilter !== 'all' || messageFilter !== 'all' || campaignFilter !== 'all' || flaggedFilter || !!lastMessageSince;
-  if (!search && !hasWorkflowFilter && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=50';
-  if (!search && !hasWorkflowFilter && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=500';
+  if (!search && !hasWorkflowFilter && effectiveStatus === 'all' && currentSource === 'all') params += '&max_per_status=' + CRM_BOARD_DEFAULT_PER_STATUS;
+  if (!search && !hasWorkflowFilter && !(effectiveStatus === 'all' && currentSource === 'all')) params += '&limit=' + CRM_FILTERED_LIMIT;
   // Keep mobile usable while still showing normal filtered workflows completely.
   // Counts come from exactStats; this only caps rendered cards for very large sets.
-  if (!search && hasWorkflowFilter) params += '&limit=250';
+  if (!search && hasWorkflowFilter) params += '&limit=' + CRM_FILTERED_LIMIT;
+  // Keep board tiles light. Lead detail/chat still loads the full thread on demand.
+  if (!search) params += '&recent_messages=0';
 
   return fetch('/api/crm' + params, api('GET'))
     .then(function(r) { return r.json(); })
@@ -981,7 +985,7 @@ function loadLeads() {
         console.info('CRM loaded a capped board slice:', allLeads.length, 'of', data.stats.total, 'leads. Use search or a status filter for specific records.');
       }
       renderBoard();
-      renderList();
+      if (currentView === 'list') renderList();
       return allLeads;
     });
 }
@@ -1187,7 +1191,7 @@ function setMessageFilter(filter) {
   }
   saveCrmFilterState();
   renderBoard();
-  renderList();
+  if (currentView === 'list') renderList();
 }
 
 function resetCrmFilters() {
@@ -1254,6 +1258,7 @@ function setView(view) {
   document.querySelectorAll('.view-toggle .btn').forEach(function(b) {
     b.classList.toggle('active', b.dataset.view === view);
   });
+  if (view === 'list') renderList();
   saveCrmFilterState();
 }
 
@@ -1632,7 +1637,7 @@ function toggleFlag(e, id, flagged, fromTile) {
       allLeads.forEach(function(l) { if (String(l.id) === String(id)) l.flagged = flagged; });
       if (fromTile) {
         renderBoard();
-        renderList();
+        if (currentView === 'list') renderList();
       } else {
         openLeadDetail(id, true);
         loadLeads();
@@ -2212,7 +2217,7 @@ function toggleRead(id) {
       if (d.error) throw new Error(d.error);
       markLeadReadLocally(id, newRead);
       renderBoard();
-      renderList();
+      if (currentView === 'list') renderList();
       updateUnreadButtonVisual(newRead);
     })
     .catch(function() {
