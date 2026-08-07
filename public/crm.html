@@ -478,8 +478,9 @@ var activeLeadId = null;
 var activeLeadDetail = null;
 var activeLeadEmail = '';
 var CRM_REFRESH_MS = 30000; // light polling only while CRM tab is open
-var CRM_BOARD_DEFAULT_PER_STATUS = window.innerWidth <= 768 ? 15 : 25;
+var CRM_BOARD_DEFAULT_PER_STATUS = window.innerWidth <= 768 ? 12 : 15;
 var CRM_FILTERED_LIMIT = window.innerWidth <= 768 ? 100 : 150;
+var CRM_INLINE_REPLY_MAX_CARDS = window.innerWidth <= 768 ? 40 : 80;
 var PNM_EMAIL_SENDING_PAUSED = false;
 var THREAD_EMAIL_SENDER = 'fencecrafters@homecrafter.ai';
 var THREAD_EMAIL_SUBJECT = 'Following up from FenceCrafters';
@@ -1084,6 +1085,7 @@ function renderBoard() {
   renderActiveFilterPill();
   var html = '';
   var visible = visibleLeadsForBoard();
+  var showInlineReplies = visible.length <= CRM_INLINE_REPLY_MAX_CARDS;
   renderStatsFromLeads(visible);
   renderRcvdCounts(visible);
   boardColumns().forEach(function(col) {
@@ -1109,9 +1111,9 @@ function renderBoard() {
       var msgSummary = tileMessageHistoryHtml(l);
       var calendarBadge = tileCalendarBadge(l);
       var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="openTileChat(event,' + l.id + ',\'' + escAttr(l.chat_token) + '\')" title="Open chat thread">💬 Chat</a>' : '';
-      var tileSendButton = tileSendButtonHtml(l);
+      var tileSendButton = showInlineReplies ? tileSendButtonHtml(l) : '';
       var campaignBadge = campaignTileBadge(l);
-      var quickReply = tileQuickReplyHtml(l);
+      var quickReply = showInlineReplies ? tileQuickReplyHtml(l) : '';
       
       html += '<div class="lead-card ' + sourceClass + unreadClass + flaggedClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + direction + '" onclick="onLeadCardClick(event,' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" ontouchstart="onTouchDragStart(event)" ontouchmove="onTouchDragMove(event)" ontouchend="onTouchDragEnd(event)" ontouchcancel="onTouchDragEnd(event)">' +
         '<div class="name">' + flagBadge + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
