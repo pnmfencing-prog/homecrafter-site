@@ -14,15 +14,22 @@ export const revalidate = 0;
 
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
-const TWILIO_FROM = process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '';
+const FENCECRAFTERS_TWILIO_NUMBER = process.env.FENCECRAFTERS_TWILIO_NUMBER || process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '';
+const PNM_TWILIO_NUMBER = process.env.PNM_TWILIO_NUMBER || process.env.PNM_TWILIO_FROM || '+19083173444';
 
-async function sendTwilioSms(to: string, body: string): Promise<string | null> {
-  if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
+function twilioFromForProfile(profileValue: unknown): string {
+  const profile = crmProfileConfig(profileValue);
+  return profile.key === 'pnm_fencing' ? PNM_TWILIO_NUMBER : FENCECRAFTERS_TWILIO_NUMBER;
+}
+
+async function sendTwilioSms(to: string, body: string, profileValue?: unknown): Promise<string | null> {
+  const fromNumber = twilioFromForProfile(profileValue);
+  if (!TWILIO_SID || !TWILIO_TOKEN || !fromNumber) {
     throw new Error('Twilio environment variables are not configured');
   }
   const cleanTo = await assertSmsCapable(to);
   const params = new URLSearchParams();
-  params.append('From', TWILIO_FROM);
+  params.append('From', fromNumber);
   params.append('To', cleanTo);
   params.append('Body', body);
 
@@ -191,7 +198,7 @@ export async function POST(request: NextRequest) {
     if (!leads[0].customer_phone) return NextResponse.json({ error: 'Customer phone missing' }, { status: 400 });
     if (attachments.length) return NextResponse.json({ error: 'Text attachments are saved to CRM, but MMS sending is not enabled yet. Send photos by email for now.' }, { status: 400 });
     try {
-      await sendTwilioSms(leads[0].customer_phone, text);
+      await sendTwilioSms(leads[0].customer_phone, text, leads[0].crm_profile);
     } catch (err: unknown) {
       return NextResponse.json({ error: err instanceof Error ? err.message : 'SMS send failed' }, { status: 502 });
     }
