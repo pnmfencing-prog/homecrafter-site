@@ -252,6 +252,7 @@ export async function POST(request: NextRequest) {
   const expectedMediaCount = Math.min(Number(form.get('NumMedia') || 0) || 0, 10);
   const inboundAttachments = await collectTwilioMedia(form);
   let notificationText = '';
+  let notificationProfile: 'fencecrafters' | 'pnm_fencing' = inboundProfile;
   let newLeadAutoReply = '';
   let suppressAnyReply = false;
   let lead: any = null;
@@ -355,6 +356,7 @@ export async function POST(request: NextRequest) {
     if (normalizePhone(from) !== DAN_PHONE) {
       const name = lead.customer_name || `Unknown texter ${formatPhone(from)}`;
       const profile = crmProfileConfig(lead.crm_profile || inboundProfile);
+      notificationProfile = profile.key;
       const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}&profile=${profile.key}`;
       notificationText = `New ${profile.label} text from ${name} (${formatPhone(from)}): ${body || '[attachment]'}${inboundAttachments.length ? `\n📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : ''}\n\nOpen thread: ${threadUrl}`;
 
@@ -390,7 +392,7 @@ export async function POST(request: NextRequest) {
   let twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
 
   if (notificationText) {
-    const notificationFrom = notificationFromForProfile(inboundProfile);
+    const notificationFrom = notificationFromForProfile(notificationProfile);
     twiml += `<Message from="${escapeXml(notificationFrom)}" to="${DAN_PHONE_E164}">${escapeXml(notificationText.slice(0, 1200))}</Message>`;
   }
 

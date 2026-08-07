@@ -6,7 +6,9 @@ const PNM_ALERT_PHONE = process.env.PNM_CRM_ALERT_PHONE || '+19086924847';
 const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
-const TWILIO_FROM = process.env.PNM_TWILIO_FROM || process.env.PNM_TWILIO_NUMBER || process.env.TWILIO_FROM || '+19083173444';
+const FENCECRAFTERS_TWILIO_NUMBER = process.env.FENCECRAFTERS_TWILIO_NUMBER || process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '+19085035473';
+const PNM_TWILIO_NUMBER = process.env.PNM_TWILIO_NUMBER || process.env.PNM_TWILIO_FROM || '+19083173444';
+const ANGI_IMPORT_PROFILES = ['pnm_fencing', 'fencecrafters'] as const;
 
 function normalizePhone(value: any): string | null {
   if (!value) return null;
@@ -95,15 +97,23 @@ function profileFromRequest(request: NextRequest, body: any) {
   return 'fencecrafters';
 }
 
-async function sendPnmNewLeadNotification(lead: any) {
+function twilioFromForProfile(profile: 'pnm_fencing' | 'fencecrafters'): string {
+  return profile === 'pnm_fencing' ? PNM_TWILIO_NUMBER : FENCECRAFTERS_TWILIO_NUMBER;
+}
+
+async function sendNewLeadNotification(lead: any) {
   if (!TWILIO_SID || !TWILIO_TOKEN || !PNM_ALERT_PHONE) {
-    console.warn('[angi-leads] Missing Twilio env; skipping PNM alert SMS');
+    console.warn('[angi-leads] Missing Twilio env; skipping alert SMS');
     return;
   }
 
-  const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}&profile=pnm_fencing`;
+  const profile = normalizeCrmProfile(lead.crm_profile);
+  const profileConfig = profile === 'pnm_fencing'
+    ? { label: 'PNM Fencing', key: 'pnm_fencing' as const }
+    : { label: 'FenceCrafters', key: 'fencecrafters' as const };
+  const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}&profile=${profileConfig.key}`;
   const parts = [
-    `New PNM Fencing Angi lead: ${lead.customer_name || 'Unknown'}`,
+    `New ${profileConfig.label} Angi lead: ${lead.customer_name || 'Unknown'}`,
     lead.customer_phone ? `Phone: ${lead.customer_phone}` : '',
     lead.customer_city ? `City: ${lead.customer_city}${lead.customer_state ? `, ${lead.customer_state}` : ''}` : '',
     lead.service_type ? `Service: ${lead.service_type}` : '',
@@ -111,7 +121,7 @@ async function sendPnmNewLeadNotification(lead: any) {
   ].filter(Boolean);
 
   const params = new URLSearchParams();
-  params.set('From', TWILIO_FROM);
+  params.set('From', twilioFromForProfile(profile));
   params.set('To', PNM_ALERT_PHONE);
   params.set('Body', parts.join('\n'));
 
@@ -126,14 +136,32 @@ async function sendPnmNewLeadNotification(lead: any) {
 
   if (!res.ok) {
     const errorText = await res.text();
-    console.error(`[angi-leads] PNM alert SMS failed (${res.status}): ${errorText}`);
+    console.error(`[angi-leads] ${profileConfig.label} alert SMS failed (${res.status}): ${errorText}`);
     return;
   }
 
   await sql`
     INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
-    VALUES (${lead.id}, 'note', ${`PNM Angi lead notification sent to ${PNM_ALERT_PHONE}`}, false, 'angi_webhook')
+    VALUES (${lead.id}, 'note', ${`${profileConfig.label} Angi lead notification sent to ${PNM_ALERT_PHONE} from ${twilioFromForProfile(profile)}`}, false, 'angi_webhook')
   `;
+}
+
+async function nextLeadCode(): Promise<string> {
+  const maxCode = await sql`SELECT COALESCE(MAX(CAST(lead_code AS INTEGER)), 99) + 1 as next_code FROM crm_leads WHERE lead_code ~ '^[0-9]+$'`;
+  return String(maxCode[0].next_code);
+}
+
+async function defaultCampaignIdForProfile(crmProfile: 'pnm_fencing' | 'fencecrafters') {
+  const defaultCampaign = await sql`
+    SELECT id FROM crm_campaigns
+    WHERE source = 'angi'
+      AND is_default = true
+      AND is_active = true
+      AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile}
+    ORDER BY id ASC
+    LIMIT 1
+  `;
+  return defaultCampaign[0]?.id || null;
 }
 
 export async function POST(request: NextRequest) {
@@ -157,69 +185,82 @@ export async function POST(request: NextRequest) {
   const state = str(body.stateProvince || body.state || 'NJ');
   const zip = str(body.postalCode || body.zip);
   const service = str(body.taskName) || 'Fencing';
-  const crmProfile = profileFromRequest(request, body);
-  let notes = buildNotes(body);
-  notes = `${notes}${notes ? '\n' : ''}CRM profile: ${crmProfile}`;
-  if (secondaryPhone) notes = `${notes}${notes ? '\n' : ''}Secondary phone: ${secondaryPhone}`;
+  const requestedProfile = profileFromRequest(request, body);
+  const importProfiles = [requestedProfile, ...ANGI_IMPORT_PROFILES.filter((profile) => profile !== requestedProfile)];
+  const baseNotes = buildNotes(body);
 
   if (!name && !phone && !email) {
     return NextResponse.json({ error: 'Missing customer identity' }, { status: 400 });
   }
 
   const leadOid = str(body.leadOid);
-  if (leadOid) {
-    const existingByOid = await sql`SELECT * FROM crm_leads WHERE source = 'angi' AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} AND notes ILIKE ${`%Angi leadOid: ${leadOid}%`} LIMIT 1`;
-    if (existingByOid.length) {
-      return NextResponse.json({ success: true, created: false, duplicate: true, lead: existingByOid[0] });
+  const leads: any[] = [];
+  const createdLeads: any[] = [];
+  const duplicateLeads: any[] = [];
+
+  for (const crmProfile of importProfiles) {
+    let notes = baseNotes;
+    notes = `${notes}${notes ? '\n' : ''}CRM profile: ${crmProfile}`;
+    notes = `${notes}\nDual Angi import: mirrored into both PNM Fencing and FenceCrafters CRM profiles so each company can compete independently.`;
+    if (secondaryPhone) notes = `${notes}${notes ? '\n' : ''}Secondary phone: ${secondaryPhone}`;
+
+    if (leadOid) {
+      const existingByOid = await sql`SELECT * FROM crm_leads WHERE source = 'angi' AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} AND notes ILIKE ${`%Angi leadOid: ${leadOid}%`} LIMIT 1`;
+      if (existingByOid.length) {
+        duplicateLeads.push(existingByOid[0]);
+        leads.push(existingByOid[0]);
+        continue;
+      }
     }
-  }
 
-  if (phone) {
-    const existing = await sql`SELECT * FROM crm_leads WHERE customer_phone = ${phone} AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
-    if (existing.length) {
-      await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${existing[0].id}, 'note', ${`Duplicate Angi lead received${leadOid ? ` (leadOid ${leadOid})` : ''}.`}, true)`;
-      return NextResponse.json({ success: true, created: false, duplicate: true, lead: existing[0] });
+    if (phone) {
+      const existing = await sql`SELECT * FROM crm_leads WHERE customer_phone = ${phone} AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
+      if (existing.length) {
+        await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${existing[0].id}, 'note', ${`Duplicate Angi lead received for ${crmProfile}${leadOid ? ` (leadOid ${leadOid})` : ''}.`}, false)`;
+        duplicateLeads.push(existing[0]);
+        leads.push(existing[0]);
+        continue;
+      }
     }
-  }
 
-  if (email) {
-    const existing = await sql`SELECT * FROM crm_leads WHERE customer_email = ${email} AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
-    if (existing.length) {
-      await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${existing[0].id}, 'note', ${`Duplicate Angi lead received${leadOid ? ` (leadOid ${leadOid})` : ''}.`}, true)`;
-      return NextResponse.json({ success: true, created: false, duplicate: true, lead: existing[0] });
+    if (email) {
+      const existing = await sql`SELECT * FROM crm_leads WHERE customer_email = ${email} AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
+      if (existing.length) {
+        await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${existing[0].id}, 'note', ${`Duplicate Angi lead received for ${crmProfile}${leadOid ? ` (leadOid ${leadOid})` : ''}.`}, false)`;
+        duplicateLeads.push(existing[0]);
+        leads.push(existing[0]);
+        continue;
+      }
     }
+
+    const chatToken = [...Array(16)].map(() => Math.random().toString(36)[2]).join('');
+    const leadCode = await nextLeadCode();
+    const campaignId = await defaultCampaignIdForProfile(crmProfile);
+
+    const result = await sql`
+      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, status, chat_token, lead_code, is_read, campaign_id, campaign_started_at, crm_profile)
+      VALUES (${name}, ${phone}, ${email}, ${address}, ${city}, ${state}, ${zip}, ${service}, ${notes || null}, 'angi', 'new', ${chatToken}, ${leadCode}, false, ${campaignId}, NOW(), ${crmProfile})
+      RETURNING *
+    `;
+
+    // This is lead intake, not a customer message/reply. Do not set last_message_by here;
+    // the Msg Sent / Msg Rcvd filters should only reflect actual SMS/email messages.
+    await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${result[0].id}, 'status_change', ${`Angi lead received via API integration for ${crmProfile}`}, false)`;
+    createdLeads.push(result[0]);
+    leads.push(result[0]);
+
+    await sendNewLeadNotification(result[0]);
   }
 
-  const chatToken = [...Array(16)].map(() => Math.random().toString(36)[2]).join('');
-  const maxCode = await sql`SELECT COALESCE(MAX(CAST(lead_code AS INTEGER)), 99) + 1 as next_code FROM crm_leads WHERE lead_code ~ '^[0-9]+$'`;
-  const leadCode = String(maxCode[0].next_code);
-
-  const defaultCampaign = await sql`
-    SELECT id FROM crm_campaigns
-    WHERE source = 'angi'
-      AND is_default = true
-      AND is_active = true
-      AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile}
-    ORDER BY id ASC
-    LIMIT 1
-  `;
-  const campaignId = defaultCampaign[0]?.id || null;
-
-  const result = await sql`
-    INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, status, chat_token, lead_code, is_read, campaign_id, campaign_started_at, crm_profile)
-    VALUES (${name}, ${phone}, ${email}, ${address}, ${city}, ${state}, ${zip}, ${service}, ${notes || null}, 'angi', 'new', ${chatToken}, ${leadCode}, false, ${campaignId}, NOW(), ${crmProfile})
-    RETURNING *
-  `;
-
-  // This is lead intake, not a customer message/reply. Do not set last_message_by here;
-  // the Msg Sent / Msg Rcvd filters should only reflect actual SMS/email messages.
-  await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${result[0].id}, 'status_change', 'Angi lead received via API integration', false)`;
-
-  if (crmProfile === 'pnm_fencing') {
-    await sendPnmNewLeadNotification(result[0]);
-  }
-
-  return NextResponse.json({ success: true, created: true, lead: result[0] });
+  return NextResponse.json({
+    success: true,
+    created: createdLeads.length > 0,
+    duplicate: createdLeads.length === 0 && duplicateLeads.length > 0,
+    lead: leads.find((lead) => normalizeCrmProfile(lead.crm_profile) === requestedProfile) || leads[0] || null,
+    leads,
+    created_leads: createdLeads,
+    duplicate_leads: duplicateLeads,
+  });
 }
 
 export async function GET() {
