@@ -1114,8 +1114,9 @@ function renderBoard() {
       var campaignBadge = campaignTileBadge(l);
       var quickReply = showInlineReplies ? tileQuickReplyHtml(l) : '';
       
+      var leadHref = '/crm.html?lead=' + encodeURIComponent(l.id) + '&profile=' + encodeURIComponent(profileKey(l.crm_profile));
       html += '<div class="lead-card ' + sourceClass + unreadClass + flaggedClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + direction + '" onclick="onLeadCardClick(event,' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" ontouchstart="onTouchDragStart(event)" ontouchmove="onTouchDragMove(event)" ontouchend="onTouchDragEnd(event)" ontouchcancel="onTouchDragEnd(event)">' +
-        '<div class="name">' + flagBadge + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="/crm.html?lead=' + l.id + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
+        '<div class="name">' + flagBadge + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="' + leadHref + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
         msgSummary +
         '<div class="service">' + esc(l.service_type || '') + '</div>' +
         campaignBadge +
@@ -1345,13 +1346,26 @@ function openLeadDetail(id, skipHistory) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       var l = data.lead;
+      var actualProfile = profileKey(l.crm_profile);
+      if (currentCrmProfile !== actualProfile) {
+        currentCrmProfile = actualProfile;
+        campaigns = [];
+        campaignsLoaded = false;
+        campaignsLoadPromise = null;
+        applyCrmProfileUi();
+        saveCrmFilterState();
+        history.replaceState(null, '', '/crm.html?lead=' + encodeURIComponent(l.id) + '&profile=' + encodeURIComponent(actualProfile));
+        loadCampaigns().then(function() { openLeadDetail(id, true); });
+        return;
+      }
       var detailProfile = leadProfileConfig(l);
       THREAD_EMAIL_SENDER = detailProfile.senderEmail;
       THREAD_EMAIL_SUBJECT = detailProfile.subject;
       activeLeadDetail = l;
       var act = (data.activity || []).sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); });
 
-      var crmProfileHref = '/crm.html?lead=' + encodeURIComponent(l.id);
+      history.replaceState(null, '', '/crm.html?lead=' + encodeURIComponent(l.id) + '&profile=' + encodeURIComponent(actualProfile));
+      var crmProfileHref = '/crm.html?lead=' + encodeURIComponent(l.id) + '&profile=' + encodeURIComponent(actualProfile);
       document.getElementById('modalTitle').innerHTML = '<span class="lead-modal-title">' + (l.flagged ? '<span class="flag-badge">🚩 Flagged</span>' : '') + '<a class="lead-code-badge lead-title-link" href="' + crmProfileHref + '" title="Open CRM profile">#' + esc(l.lead_code || l.id) + '</a><a class="lead-title-name lead-title-link" href="' + crmProfileHref + '" title="Open CRM profile">' + esc(l.customer_name || 'Lead') + '</a></span>';
       
       // Auto-mark as read when opening
