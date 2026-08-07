@@ -6,6 +6,8 @@ const DAN_PHONE = '9086924847';
 const DAN_PHONE_E164 = '+19086924847';
 const INTERNAL_TWILIO_NUMBERS = new Set(['9085035473', '9083173444']);
 const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
+const FENCECRAFTERS_TWILIO_NUMBER = process.env.FENCECRAFTERS_TWILIO_NUMBER || process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '+19085035473';
+const PNM_TWILIO_NUMBER = process.env.PNM_TWILIO_NUMBER || process.env.PNM_TWILIO_FROM || '+19083173444';
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
 const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
@@ -16,6 +18,10 @@ function profileFromTwilioTo(to: string): 'fencecrafters' | 'pnm_fencing' {
   // +1 908-317-3444 is the newer Twilio number Dan assigned to PNM Fencing.
   if (digits === '9083173444') return 'pnm_fencing';
   return 'fencecrafters';
+}
+
+function notificationFromForProfile(profile: 'fencecrafters' | 'pnm_fencing'): string {
+  return profile === 'pnm_fencing' ? PNM_TWILIO_NUMBER : FENCECRAFTERS_TWILIO_NUMBER;
 }
 
 async function inferInboundProfile(from: string, twilioProfile: 'fencecrafters' | 'pnm_fencing'): Promise<'fencecrafters' | 'pnm_fencing'> {
@@ -384,7 +390,8 @@ export async function POST(request: NextRequest) {
   let twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
 
   if (notificationText) {
-    twiml += `<Message to="${DAN_PHONE_E164}">${escapeXml(notificationText.slice(0, 1200))}</Message>`;
+    const notificationFrom = notificationFromForProfile(inboundProfile);
+    twiml += `<Message from="${escapeXml(notificationFrom)}" to="${DAN_PHONE_E164}">${escapeXml(notificationText.slice(0, 1200))}</Message>`;
   }
 
   if (newLeadAutoReply) {
