@@ -2,12 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { normalizeCrmProfile } from '@/lib/email-policy';
 
-const PNM_ALERT_PHONE = process.env.PNM_CRM_ALERT_PHONE || '+19086924847';
-const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
-const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
-const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
-const FENCECRAFTERS_TWILIO_NUMBER = process.env.FENCECRAFTERS_TWILIO_NUMBER || process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '+19085035473';
-const PNM_TWILIO_NUMBER = process.env.PNM_TWILIO_NUMBER || process.env.PNM_TWILIO_FROM || '+19083173444';
 const ANGI_IMPORT_PROFILES = ['pnm_fencing', 'fencecrafters'] as const;
 
 function normalizePhone(value: any): string | null {
@@ -95,55 +89,6 @@ function profileFromRequest(request: NextRequest, body: any) {
   const company = String(body?.spCompanyName || body?.company || body?.brand || '').toLowerCase();
   if (company.includes('pnm')) return 'pnm_fencing';
   return 'fencecrafters';
-}
-
-function twilioFromForProfile(profile: 'pnm_fencing' | 'fencecrafters'): string {
-  return profile === 'pnm_fencing' ? PNM_TWILIO_NUMBER : FENCECRAFTERS_TWILIO_NUMBER;
-}
-
-async function sendNewLeadNotification(lead: any) {
-  if (!TWILIO_SID || !TWILIO_TOKEN || !PNM_ALERT_PHONE) {
-    console.warn('[angi-leads] Missing Twilio env; skipping alert SMS');
-    return;
-  }
-
-  const profile = normalizeCrmProfile(lead.crm_profile);
-  const profileConfig = profile === 'pnm_fencing'
-    ? { label: 'PNM Fencing', key: 'pnm_fencing' as const }
-    : { label: 'FenceCrafters', key: 'fencecrafters' as const };
-  const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}&profile=${profileConfig.key}`;
-  const parts = [
-    `New ${profileConfig.label} Angi lead: ${lead.customer_name || 'Unknown'}`,
-    lead.customer_phone ? `Phone: ${lead.customer_phone}` : '',
-    lead.customer_city ? `City: ${lead.customer_city}${lead.customer_state ? `, ${lead.customer_state}` : ''}` : '',
-    lead.service_type ? `Service: ${lead.service_type}` : '',
-    `Open thread: ${threadUrl}`,
-  ].filter(Boolean);
-
-  const params = new URLSearchParams();
-  params.set('From', twilioFromForProfile(profile));
-  params.set('To', PNM_ALERT_PHONE);
-  params.set('Body', parts.join('\n'));
-
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64')}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: params.toString(),
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error(`[angi-leads] ${profileConfig.label} alert SMS failed (${res.status}): ${errorText}`);
-    return;
-  }
-
-  await sql`
-    INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
-    VALUES (${lead.id}, 'note', ${`${profileConfig.label} Angi lead notification sent to ${PNM_ALERT_PHONE} from ${twilioFromForProfile(profile)}`}, false, 'angi_webhook')
-  `;
 }
 
 async function nextLeadCode(): Promise<string> {
@@ -249,7 +194,8 @@ export async function POST(request: NextRequest) {
     createdLeads.push(result[0]);
     leads.push(result[0]);
 
-    await sendNewLeadNotification(result[0]);
+    // Dan does not want PNM/FenceCrafters notification texts for lead imports.
+    // Customer replies/inbound messages are still notified through the SMS inbound flow.
   }
 
   return NextResponse.json({
