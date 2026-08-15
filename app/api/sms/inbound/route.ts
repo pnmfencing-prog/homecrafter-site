@@ -101,6 +101,7 @@ function classifyCustomerReply(body: string, attachmentCount = 0): 'large_promis
   const text = (body || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
   if (attachmentCount > 0) return 'promising_reply';
   if (!text) return 'neutral_reply';
+  if (/\bcancel\b.{0,40}\bappointment\b|\bappointment\b.{0,40}\bcancel\b/.test(text) && !/\breschedule|another\s+(day|time)|new\s+(day|time)\b/.test(text)) return 'neutral_reply';
 
   const promisingPatterns = [
     /\bsurvey\b/,
