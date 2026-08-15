@@ -78,7 +78,26 @@ function isHardOptOutReply(body: string): boolean {
   return HARD_OPTOUT_RE.test(body.trim());
 }
 
-function classifyCustomerReply(body: string, attachmentCount = 0): 'promising_reply' | 'neutral_reply' {
+function isLargePromisingReply(body: string): boolean {
+  const text = (body || '').toLowerCase().replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) return false;
+
+  const largeFootagePattern = /\b(\d{2,4})\s*(?:linear\s*)?(?:feet|foot|ft|lf)\b/g;
+  let match: RegExpExecArray | null;
+  while ((match = largeFootagePattern.exec(text)) !== null) {
+    if (Number(match[1]) > 140) return true;
+  }
+
+  const largePanelPattern = /\b(\d{1,3})\s*(?:panels?|sections?)\b/g;
+  while ((match = largePanelPattern.exec(text)) !== null) {
+    if (Number(match[1]) > 17) return true;
+  }
+
+  return false;
+}
+
+function classifyCustomerReply(body: string, attachmentCount = 0): 'large_promising_reply' | 'promising_reply' | 'neutral_reply' {
+  if (isLargePromisingReply(body)) return 'large_promising_reply';
   const text = (body || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
   if (attachmentCount > 0) return 'promising_reply';
   if (!text) return 'neutral_reply';
@@ -118,10 +137,11 @@ function classifyCustomerReply(body: string, attachmentCount = 0): 'promising_re
   return promisingPatterns.some((pattern) => pattern.test(text)) ? 'promising_reply' : 'neutral_reply';
 }
 
-function routeReplyStatus(baseStatus: 'promising_reply' | 'neutral_reply', lead: any): 'promising_reply' | 'neutral_reply' | 'real_estate_promising' | 'real_estate_neutral' {
+function routeReplyStatus(baseStatus: 'large_promising_reply' | 'promising_reply' | 'neutral_reply', lead: any): 'large_promising_reply' | 'promising_reply' | 'neutral_reply' | 'real_estate_promising' | 'real_estate_neutral' {
   const source = String(lead?.source || '').toLowerCase();
   // Real-estate reply columns are only for real-estate agent upload leads.
   // County/homeowner imports should stay in the normal Promising/Neutral flow.
+  if (baseStatus === 'large_promising_reply') return source === 'batchleads_agents' ? 'real_estate_promising' : 'large_promising_reply';
   if (source !== 'batchleads_agents') return baseStatus;
   return baseStatus === 'promising_reply' ? 'real_estate_promising' : 'real_estate_neutral';
 }
@@ -339,8 +359,8 @@ export async function POST(request: NextRequest) {
             last_message_at = NOW(),
             updated_at = NOW(),
             status = CASE
-              WHEN status IN ('promising_reply', 'real_estate_promising') AND ${replyStatus} IN ('neutral_reply', 'real_estate_neutral') THEN status
-              WHEN status IN ('new', 'real_estate_new', 'contacted', 'promising_reply', 'neutral_reply', 'real_estate_promising', 'real_estate_neutral') THEN ${replyStatus}
+              WHEN status IN ('large_promising_reply', 'promising_reply', 'real_estate_promising') AND ${replyStatus} IN ('neutral_reply', 'real_estate_neutral') THEN status
+              WHEN status IN ('new', 'real_estate_new', 'contacted', 'large_promising_reply', 'promising_reply', 'neutral_reply', 'real_estate_promising', 'real_estate_neutral') THEN ${replyStatus}
               ELSE status
             END
         WHERE id = ${lead.id}

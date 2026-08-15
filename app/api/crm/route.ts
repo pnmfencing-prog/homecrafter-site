@@ -761,6 +761,7 @@ export async function GET(request: NextRequest) {
   const stats = await sql`
     SELECT 
       count(*) FILTER (WHERE status = 'new')::int as new_count,
+      count(*) FILTER (WHERE status = 'large_promising_reply')::int as large_promising_reply_count,
       count(*) FILTER (WHERE status = 'promising_reply')::int as promising_reply_count,
       count(*) FILTER (WHERE status = 'neutral_reply')::int as neutral_reply_count,
       count(*) FILTER (WHERE status = 'real_estate_new')::int as real_estate_new_count,
@@ -864,6 +865,9 @@ export async function GET(request: NextRequest) {
           count(*) FILTER (WHERE status = 'new')::int as new_count,
           count(*) FILTER (WHERE status = 'new' AND is_read IS TRUE)::int as new_read_count,
           count(*) FILTER (WHERE status = 'new' AND is_read IS NOT TRUE)::int as new_unread_count,
+          count(*) FILTER (WHERE status = 'large_promising_reply')::int as large_promising_reply_count,
+          count(*) FILTER (WHERE status = 'large_promising_reply' AND is_read IS TRUE)::int as large_promising_reply_read_count,
+          count(*) FILTER (WHERE status = 'large_promising_reply' AND is_read IS NOT TRUE)::int as large_promising_reply_unread_count,
           count(*) FILTER (WHERE status = 'promising_reply')::int as promising_reply_count,
           count(*) FILTER (WHERE status = 'promising_reply' AND is_read IS TRUE)::int as promising_reply_read_count,
           count(*) FILTER (WHERE status = 'promising_reply' AND is_read IS NOT TRUE)::int as promising_reply_unread_count,
