@@ -1087,7 +1087,7 @@ function renderBoard() {
   renderActiveFilterPill();
   var html = '';
   var visible = visibleLeadsForBoard();
-  var showInlineReplies = visible.length <= CRM_INLINE_REPLY_MAX_CARDS;
+  var showInlineReplies = true;
   renderStatsFromLeads(visible);
   renderRcvdCounts(visible);
   boardColumns().forEach(function(col) {
