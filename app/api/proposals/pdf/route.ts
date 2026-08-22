@@ -60,10 +60,7 @@ ${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type
   const isMaterialOnly = /material[-\s]?only|materials only|no labor or installation included/i.test(descriptionText)
     || /material[-\s]?only/i.test(String(p.material || ''));
   const removalIncluded = Number(p.removal_footage || 0) > 0 || /removal of existing|removal included|remove existing/i.test(descriptionText || '');
-  const standardTerms = isMaterialOnly ? `Material only.
-No labor or installation included.
-No removal of existing fencing.
-No disposal included.`
+  const standardTerms = isMaterialOnly ? ''
     : isLaborOnly ? `Labor only. Customer to supply all materials, including posts, panels/sections, gates, hardware, concrete, and any miscellaneous materials required.
 No removal of existing fencing.
 No disposal included.
@@ -132,8 +129,8 @@ Fence to follow grade of ground. Footing soil dispersed around posts/sections. $
     <div class="for-label">Proposal For:</div>
     <div class="client-info">
       <strong>${p.client_name || ''}</strong><br>
-      ${p.client_email || ''}<br>
-      ${[p.client_address, p.client_city, p.client_state, p.client_zip].filter(Boolean).join(', ')}
+      ${p.client_email ? `${escapeHtml(p.client_email)}<br>` : ''}
+      ${[p.client_address, p.client_city, p.client_state, p.client_zip].filter(Boolean).map(escapeHtml).join(', ')}
     </div>
   </div>
   <div class="est-info">
@@ -155,7 +152,7 @@ ${p.redacted ? `
 
 <div class="description">${descriptionText}</div>
 
-<div class="description" style="margin-top:12px">${normalizeText(standardTerms)}</div>
+${standardTerms ? `<div class="description" style="margin-top:12px">${normalizeText(standardTerms)}</div>` : ''}
 
 <div class="amount">$${Number(p.total).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
 
