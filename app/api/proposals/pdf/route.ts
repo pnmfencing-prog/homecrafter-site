@@ -57,8 +57,14 @@ ${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type
   const plusAmount = pricingBreakdownMatch ? Number(pricingBreakdownMatch[2].replace(/,/g, '')) : null;
   const isLaborOnly = /labor[-\s]?only|customer(?:s)?\s+(?:to\s+)?supply|customer(?:s)?\s+supplies|supply all materials/i.test(descriptionText)
     || /labor/i.test(String(p.material || ''));
+  const isMaterialOnly = /material[-\s]?only|materials only|no labor or installation included/i.test(descriptionText)
+    || /material[-\s]?only/i.test(String(p.material || ''));
   const removalIncluded = Number(p.removal_footage || 0) > 0 || /removal of existing|removal included|remove existing/i.test(descriptionText || '');
-  const standardTerms = isLaborOnly ? `Labor only. Customer to supply all materials, including posts, panels/sections, gates, hardware, concrete, and any miscellaneous materials required.
+  const standardTerms = isMaterialOnly ? `Material only.
+No labor or installation included.
+No removal of existing fencing.
+No disposal included.`
+    : isLaborOnly ? `Labor only. Customer to supply all materials, including posts, panels/sections, gates, hardware, concrete, and any miscellaneous materials required.
 No removal of existing fencing.
 No disposal included.
 No material delivery included.
@@ -163,18 +169,18 @@ ${p.redacted ? `
 
 <div class="notes">
   <h3>Notes</h3>
-  <p>${isLaborOnly ? 'Payment terms: three equal installments. First installment due in advance:' : 'Payment terms: deposit paid in advance:'} $${Number(p.deposit || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}${spot > 0 ? ` ($${Number(spot).toFixed(2)} spot holding fee supplied and applied to grand total)` : ''}</p>
+  <p>${isMaterialOnly ? 'Payment terms: COD or paid upfront:' : isLaborOnly ? 'Payment terms: three equal installments. First installment due in advance:' : 'Payment terms: deposit paid in advance:'} $${Number(p.deposit || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}${spot > 0 ? ` ($${Number(spot).toFixed(2)} spot holding fee supplied and applied to grand total)` : ''}</p>
   <p>By supplying the initial deposit above, the customer understands and agrees to abide by all of the terms and conditions set forth in this agreement.</p>
   ${paymentTermsOverride
     ? paymentTermsOverride.split(/\n+/).filter(Boolean).map((line: string) => `<p>${escapeHtml(line)}</p>`).join('')
     : `<p>${isLaborOnly ? 'Second installment due during installation in the amount of:' : 'Second installment due upon material delivery to above referenced job site address in the amount of:'} $${Number(p.installment_2 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
   <p>${p.notes && /Fourth\s*&\s*final installment due upon day of installation completion/i.test(normalizeText(p.notes)) ? 'Third installment due upon garbage/junk pickup in the amount of:' : 'Third installment due upon day of installation completion in the amount of:'} $${Number(p.installment_3 || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
   ${p.notes ? `<p>${escapeHtml(normalizeText(p.notes)).replace(/\n/g, '<br>')}</p>` : ''}`}
-  ${isLaborOnly ? '' : '<p>All materials remain property of ' + companyName + ' until final payment has been satisfied. If final payment is not satisfied upon install completion, ' + companyName + ' reserves the right to remove provided materials at customer\'s expense.</p>'}
+  ${isLaborOnly || isMaterialOnly ? '' : '<p>All materials remain property of ' + companyName + ' until final payment has been satisfied. If final payment is not satisfied upon install completion, ' + companyName + ' reserves the right to remove provided materials at customer\'s expense.</p>'}
   <p>All past due balances will be assessed with a penalty interest rate of 28% APR.</p>
-  <p style="margin-top:10px">Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete. Utility mark-out Included.</p>
+  ${isMaterialOnly ? '' : `<p style="margin-top:10px">Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete. Utility mark-out Included.</p>
   <p>${companyName} not responsible for unmarked sprinkler lines and miscellaneous pipes.</p>
-  <p>Fence to follow grade of ground. Footing soil dispersed around posts/sections. ${companyName} not responsible for earth settling.</p>
+  <p>Fence to follow grade of ground. Footing soil dispersed around posts/sections. ${companyName} not responsible for earth settling.</p>`}
 </div>
 `}
 
