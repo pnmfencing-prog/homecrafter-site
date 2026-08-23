@@ -60,7 +60,10 @@ ${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type
   const isMaterialOnly = /material[-\s]?only|materials only|no labor or installation included/i.test(descriptionText)
     || /material[-\s]?only/i.test(String(p.material || ''));
   const removalIncluded = Number(p.removal_footage || 0) > 0 || /removal of existing|removal included|remove existing/i.test(descriptionText || '');
-  const standardTerms = isMaterialOnly ? ''
+  const notesText = normalizeText(p.notes || '');
+  const standardTermsOverride = notesText.match(/STANDARD_TERMS_OVERRIDE:\s*([\s\S]*?)(?=\n[A-Z_]+_OVERRIDE:|$)/i)?.[1]?.trim();
+  const standardTerms = standardTermsOverride !== undefined ? standardTermsOverride
+    : isMaterialOnly ? ''
     : isLaborOnly ? `Labor only. Customer to supply all materials, including posts, panels/sections, gates, hardware, concrete, and any miscellaneous materials required.
 No removal of existing fencing.
 No disposal included.
@@ -84,9 +87,8 @@ Utility mark-out Included.
 ${companyName} not responsible for unmarked sprinkler lines and miscellaneous pipes.
 
 Fence to follow grade of ground. Footing soil dispersed around posts/sections. ${companyName} not responsible for earth settling.`;
-  const notesText = normalizeText(p.notes || '');
   const paymentTermsOverride = notesText.startsWith('PAYMENT_TERMS_OVERRIDE:')
-    ? notesText.replace(/^PAYMENT_TERMS_OVERRIDE:\s*/i, '')
+    ? notesText.replace(/^PAYMENT_TERMS_OVERRIDE:\s*/i, '').replace(/\nSTANDARD_TERMS_OVERRIDE:[\s\S]*$/i, '').trim()
     : '';
   
   const html = `<!DOCTYPE html>
