@@ -31,6 +31,32 @@ export async function POST(request: NextRequest) {
     ? String(p.description_override).replace(/\s+/g, ' ').trim()
     : `${p.footage || ''} LF of ${p.height || ''} ${(p.color || 'white').toUpperCase()} ${p.material || 'vinyl'} privacy fence, ${gateText}`.replace(/\s+/g, ' ').trim();
   const companyName = body.company_name || profile.label;
+  const notesText = String(p.notes || '').replace(/\r\n/g, '\n');
+  const paymentTermsOverride = notesText.startsWith('PAYMENT_TERMS_OVERRIDE:')
+    ? notesText.replace(/^PAYMENT_TERMS_OVERRIDE:\s*/i, '').replace(/\nSTANDARD_TERMS_OVERRIDE:[\s\S]*$/i, '').trim()
+    : '';
+  const paymentRowsHtml = paymentTermsOverride
+    ? paymentTermsOverride.split(/\n+/).filter(Boolean).map((line: string, index: number) => `
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;${index % 2 ? '' : 'background:#faf9f6;'}" colspan="2">${line}</td>
+    </tr>`).join('')
+    : `
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;">Spot Holding Fee <span style="color:#999;font-size:11px;">(applied to total)</span></td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">$${Number(spot).toFixed(2)}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;background:#faf9f6;">Deposit <span style="color:#999;font-size:11px;">(50%)</span></td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;background:#faf9f6;text-align:right;font-weight:600;">$${Number(p.deposit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;">Material Delivery <span style="color:#999;font-size:11px;">(25%)</span></td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">$${Number(p.installment_2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;background:#faf9f6;">Completion <span style="color:#999;font-size:11px;">(25%)</span></td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;background:#faf9f6;text-align:right;font-weight:600;">$${Number(p.installment_3 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+    </tr>`;
 
   const emailHtml = `
 <!DOCTYPE html>
@@ -76,24 +102,9 @@ export async function POST(request: NextRequest) {
   </div>
 
   <!-- Payment Breakdown -->
-  <div style="font-size:13px;font-weight:bold;color:#1e1845;margin-bottom:10px;">Payment Schedule</div>
+  <div style="font-size:13px;font-weight:bold;color:#1e1845;margin-bottom:10px;">Payment Terms</div>
   <table width="100%" style="border-collapse:collapse;font-size:13px;">
-    <tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;">Spot Holding Fee <span style="color:#999;font-size:11px;">(applied to total)</span></td>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">$${Number(spot).toFixed(2)}</td>
-    </tr>
-    <tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;background:#faf9f6;">Deposit <span style="color:#999;font-size:11px;">(50%)</span></td>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;background:#faf9f6;text-align:right;font-weight:600;">$${Number(p.deposit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-    </tr>
-    <tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;">Material Delivery <span style="color:#999;font-size:11px;">(25%)</span></td>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">$${Number(p.installment_2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-    </tr>
-    <tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;background:#faf9f6;">Completion <span style="color:#999;font-size:11px;">(25%)</span></td>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;background:#faf9f6;text-align:right;font-weight:600;">$${Number(p.installment_3 || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-    </tr>
+    ${paymentRowsHtml}
   </table>
 
   <div style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:20px;margin:25px 0;text-align:center;">
@@ -110,7 +121,11 @@ export async function POST(request: NextRequest) {
   </div>
 
   <p style="font-size:13px;color:#333;">
-    To lock in your pricing and reserve your spot on the calendar, simply sign online above or call us at <strong>1-(908)-692-4847</strong>.
+    To lock in your pricing and reserve your spot on the calendar, simply sign online above.
+  </p>
+  <p style="font-size:13px;color:#333;margin-top:18px;">
+    Trent<br>
+    PNM Fencing
   </p>
 </td></tr>
 
@@ -118,7 +133,7 @@ export async function POST(request: NextRequest) {
 <tr><td style="background:#faf9f6;padding:20px 40px;text-align:center;border-top:1px solid #eee;">
   <div style="font-size:11px;color:#999;">
     ${companyName} · PO Box 437 Oakhurst, NJ 07712<br>
-    1-(908)-692-4847 · ${profile.senderEmail}
+    ${profile.senderEmail}
   </div>
 </td></tr>
 
