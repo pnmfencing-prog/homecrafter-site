@@ -124,7 +124,7 @@ Fence to follow grade of ground. Footing soil dispersed around posts/sections. $
 <button class="print-btn" onclick="window.print()">🖨 Print / Save PDF</button>
 
 <div class="company">${companyNameCaps}</div>
-<div class="company-sub">PO Box 437 Oakhurst, NJ 07712 | 1-(908)-692-4847</div>
+<div class="company-sub">PO Box 437 Oakhurst, NJ 07712</div>
 
 <div class="header">
   <div>
