@@ -103,6 +103,9 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .unread-toggle.active:hover { background:#a93226 !important;border-color:#a93226 !important; }
 .unread-dot { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--red); vertical-align: 1px; box-shadow: 0 0 0 3px rgba(176,58,46,0.12); }
 .unread-badge { float: right; margin-left: 0.35rem; font-size: 0.52rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.12rem 0.42rem; border-radius: 999px; background: var(--red); color: #fff; }
+.unread-badge-btn { border: 1px solid var(--red); cursor: pointer; font-family: 'Montserrat', sans-serif; line-height: 1.2; transition: all 0.15s; }
+.unread-badge-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(176,58,46,0.18); }
+.unread-badge-btn.read { background: #fff; color: var(--green); border-color: rgba(45,138,78,0.35); }
 .lead-card.source-angi:not(.unread) { border-left-color: #ff6b35; }
 .lead-card.source-website:not(.unread) { border-left-color: var(--gold); }
 .lead-card.source-referral:not(.unread) { border-left-color: var(--green); }
@@ -949,6 +952,19 @@ function consumeReadSignals() {
   return changed;
 }
 
+function tileReadButtonHtml(l) {
+  var isRead = !!l.is_read;
+  return '<button type="button" class="unread-badge unread-badge-btn ' + (isRead ? 'read' : 'active') + '" aria-pressed="' + (!isRead ? 'true' : 'false') + '" title="' + (isRead ? 'Marked read. Tap to mark unread.' : 'Marked unread. Tap to mark read.') + '" onclick="toggleTileRead(event,' + l.id + ')">' + (isRead ? 'Read' : 'Unread') + '</button>';
+}
+
+function toggleTileRead(event, id) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  toggleRead(id);
+}
+
 function openTileChat(event, id, token) {
   event.preventDefault();
   event.stopPropagation();
@@ -1108,7 +1124,7 @@ function renderBoard() {
       var activityDate = formatMessageDate(tileActivityAt(l)) || new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       var direction = latestMessageDirection(l);
       var lastMsgTag = direction ? '<span class="last-msg-tag ' + direction + '">' + (direction === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '';
-      var unreadBadge = !l.is_read ? '<span class="unread-badge">Unread</span>' : '';
+      var unreadBadge = tileReadButtonHtml(l);
       var unreadDot = !l.is_read ? '<span class="unread-dot" aria-hidden="true"></span>' : '';
       var msgSummary = tileMessageHistoryHtml(l);
       var calendarBadge = tileCalendarBadge(l);
