@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Operations — PNM Fencing CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --midnight: #1e1845; --midnight-light: #2a2260; --gold: #c4aa6a; --gold-light: #d4c394;
+  --cream: #faf9f6; --cream-dark: #f0ede6; --text: #2d2d2d; --text-muted: #6b6b6b;
+  --green: #2d8a4e; --green-bg: #f0fdf4; --red: #c0392b; --red-bg: #fef2f2;
+  --blue: #2563eb; --blue-bg: #eff6ff; --orange: #d97706; --orange-bg: #fffbeb;
+}
+html { width: 100%; overflow-x: hidden; }
+body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--text); line-height: 1.5; width: 100%; overflow-x: hidden; }
+.header { background: linear-gradient(135deg, var(--midnight), var(--midnight-light)); padding: 1.5rem; text-align: center; position: relative; }
+.logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 1.8rem; letter-spacing: 0.2em; color: var(--gold); }
+.header-sub { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-top: 0.2rem; }
+.portal-home { position: fixed; top: 0.85rem; left: 0.9rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(196,170,106,0.35); border-radius: 999px; color: var(--gold); text-decoration: none; font-size: 1rem; background: rgba(255,255,255,0.06); transition: all 0.2s; z-index: 9999; }
+.portal-home:hover { background: rgba(196,170,106,0.16); transform: translateY(-1px); }
+.header-nav { display: flex; gap: 1rem 1.25rem; justify-content: center; align-items: center; margin-top: 0.75rem; flex-wrap: wrap; }
+.header-nav a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; transition: color 0.2s; white-space: nowrap; }
+.header-nav a:hover, .header-nav a.active { color: var(--gold); }
+.profile-switcher { display: inline-flex; gap: 0.35rem; margin-top: 0.75rem; padding: 0.22rem; border: 1px solid rgba(196,170,106,0.28); border-radius: 999px; background: rgba(255,255,255,0.06); }
+.profile-btn { border: 0; border-radius: 999px; padding: 0.42rem 0.8rem; background: transparent; color: rgba(255,255,255,0.7); font: 800 0.65rem 'Montserrat', sans-serif; letter-spacing: 0.07em; text-transform: uppercase; cursor: pointer; }
+.profile-btn.active { background: var(--gold); color: var(--midnight); }
+.profile-meta { margin-top: 0.35rem; font-size: 0.6rem; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.06em; }
+.toolbar { display: flex; gap: 0.75rem; padding: 1rem 1.25rem 0.75rem; max-width: 1600px; margin: 0 auto; align-items: center; flex-wrap: wrap; }
+.search-box { flex: 1; min-width: 200px; padding: 0.6rem 1rem; border: 1px solid #e0ddd6; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; background: #fff; outline: none; }
+.search-box:focus { border-color: var(--gold); }
+.btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em; }
+.btn-primary { background: var(--midnight); color: var(--gold); }
+.btn-primary:hover { background: var(--midnight-light); }
+.btn-outline { background: #fff; color: var(--midnight); border: 1px solid #e0ddd6; }
+.btn-outline:hover { border-color: var(--gold); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.board { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 0 1.25rem 1rem; max-width: 1600px; margin: 0 auto; min-height: 40vh; }
+.column { background: var(--cream-dark); border-radius: 12px; padding: 0.75rem; min-height: 300px; }
+.column-header { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); padding: 0.5rem 0.5rem 0.75rem; display: flex; justify-content: space-between; align-items: center; }
+.column-count { background: var(--midnight); color: var(--gold); font-size: 0.55rem; padding: 0.15rem 0.5rem; border-radius: 10px; }
+.vendor-card { position: relative; background: #fff; border-radius: 10px; padding: 0.85rem; margin-bottom: 0.6rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; }
+.vendor-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,24,69,0.1); }
+.vendor-card.active { outline: 2px solid var(--gold); outline-offset: -2px; }
+.vendor-card.unread { border-left-color: var(--red); border-left-width: 4px; background: linear-gradient(90deg, rgba(176,58,46,0.08) 0%, #fff 24%); }
+.vendor-card .name { font-weight: 700; color: var(--midnight); font-size: 0.85rem; }
+.vendor-card .meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.25rem; }
+.vendor-card .status { display: inline-block; margin-top: 0.4rem; font-size: 0.55rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.15rem 0.45rem; border-radius: 999px; background: var(--green-bg); color: var(--green); }
+.vendor-card .status.inactive, .vendor-card .status.archived { background: var(--red-bg); color: var(--red); }
+.unread-badge { position: absolute; top: 0.65rem; right: 0.65rem; background: var(--red); color: #fff; font-size: 0.55rem; font-weight: 800; min-width: 18px; height: 18px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; padding: 0 0.3rem; }
+.empty { padding: 1.5rem 0.75rem; text-align: center; color: var(--text-muted); font-size: 0.75rem; }
+.detail { display: none; max-width: 1600px; margin: 0 auto 2rem; padding: 0 1.25rem; }
+.detail.open { display: grid; grid-template-columns: 320px 1fr; gap: 1rem; }
+.panel { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; min-height: 420px; display: flex; flex-direction: column; }
+.panel-head { padding: 0.9rem 1rem; border-bottom: 1px solid #eee; background: var(--cream-dark); }
+.panel-head h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.25rem; color: var(--midnight); }
+.panel-head .sub { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.2rem; }
+.thread-list { overflow-y: auto; flex: 1; }
+.thread-item { padding: 0.85rem 1rem; border-bottom: 1px solid #f0ede6; cursor: pointer; }
+.thread-item:hover, .thread-item.active { background: var(--blue-bg); }
+.thread-item .t-title { font-size: 0.78rem; font-weight: 700; color: var(--midnight); }
+.thread-item .t-preview { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.thread-item .t-meta { font-size: 0.58rem; color: var(--text-muted); margin-top: 0.25rem; display: flex; justify-content: space-between; gap: 0.5rem; }
+.messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.65rem; background: var(--cream); }
+.bubble { max-width: 78%; padding: 0.7rem 0.85rem; border-radius: 12px; font-size: 0.78rem; white-space: pre-wrap; word-break: break-word; }
+.bubble.staff { align-self: flex-end; background: var(--midnight); color: #fff; border-bottom-right-radius: 4px; }
+.bubble.vendor, .bubble.bot { align-self: flex-start; background: #fff; border: 1px solid #e8e4dc; border-bottom-left-radius: 4px; }
+.bubble .who { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.7; margin-bottom: 0.25rem; }
+.bubble .when { font-size: 0.55rem; opacity: 0.55; margin-top: 0.35rem; }
+.composer { display: flex; gap: 0.5rem; padding: 0.85rem; border-top: 1px solid #eee; background: #fff; }
+.composer textarea { flex: 1; min-height: 64px; resize: vertical; border: 1px solid #e0ddd6; border-radius: 8px; padding: 0.6rem 0.75rem; font: 0.8rem 'Montserrat', sans-serif; outline: none; }
+.composer textarea:focus { border-color: var(--gold); }
+@media (max-width: 980px) {
+  .board { grid-template-columns: 1fr; }
+  .detail.open { grid-template-columns: 1fr; }
+  .header-nav { display: grid; grid-template-columns: repeat(3, max-content); justify-content: center; gap: 0.55rem 1.05rem; }
+  .header-nav a { font-size: 0.66rem; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <a class="portal-home" href="/calendar.html" title="Portal home" aria-label="Portal home">&#8962;</a>
+  <div class="logo">PNM FENCING</div>
+  <div class="header-sub">Operations</div>
+  <div class="profile-switcher" aria-label="CRM profile switcher">
+    <button class="profile-btn active" data-profile="fencecrafters" onclick="setCrmProfile('fencecrafters')">FenceCrafters</button>
+    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button>
+  </div>
+  <div class="profile-meta" id="profileMeta">From: fencecrafters@homecrafter.ai · Signature: Scott / FenceCrafters</div>
+  <div class="header-nav">
+    <a data-profile-link="/crm.html" href="/crm.html">Sales Board</a>
+    <a data-profile-link="/calendar.html" href="/calendar.html">Calendar</a>
+    <a data-profile-link="/proposals.html" href="/proposals.html">Proposals</a>
+    <a data-profile-link="/operations.html" href="/operations.html" class="active">Operations</a>
+    <a href="/campaigns.html">Campaigns</a>
+    <a href="/imports.html">Imports</a>
+    <a href="/strategy.html">Strategy</a>
+  </div>
+</div>
+
+<div class="toolbar">
+  <input type="text" class="search-box" id="searchBox" placeholder="Search vendors by name, phone, email...">
+  <button class="btn btn-outline" onclick="loadVendors()">Refresh</button>
+</div>
+
+<div class="board">
+  <div class="column" id="materialsCol">
+    <div class="column-header"><span>Materials</span><span class="column-count" id="materialsCount">0</span></div>
+    <div id="materialsList"><div class="empty">Loading...</div></div>
+  </div>
+  <div class="column" id="junkCol">
+    <div class="column-header"><span>Junk</span><span class="column-count" id="junkCount">0</span></div>
+    <div id="junkList"><div class="empty">Loading...</div></div>
+  </div>
+</div>
+
+<div class="detail" id="detail">
+  <div class="panel">
+    <div class="panel-head">
+      <h2 id="vendorTitle">Vendor</h2>
+      <div class="sub" id="vendorSub"></div>
+    </div>
+    <div class="thread-list" id="threadList"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head">
+      <h2 id="threadTitle">Messages</h2>
+      <div class="sub" id="threadSub">Select a thread</div>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="composer">
+      <textarea id="composerBody" placeholder="Write a staff message..."></textarea>
+      <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var CRM_FILTER_STATE_KEY = 'pnm_crm_filter_state_v2';
+var CRM_PROFILES = {
+  fencecrafters: { label: 'FenceCrafters', senderEmail: 'fencecrafters@homecrafter.ai', signature: 'Scott / FenceCrafters' },
+  pnm_fencing: { label: 'PNM Fencing', senderEmail: 'pnmfencing@homecrafter.ai', signature: 'PNM Fencing' }
+};
+var currentCrmProfile = 'fencecrafters';
+var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
+var vendors = [];
+var selectedVendorId = null;
+var selectedThreadId = null;
+var searchTimer = null;
+
+function profileKey(v) { return v === 'pnm_fencing' ? 'pnm_fencing' : 'fencecrafters'; }
+function profileUrl(path) {
+  var u = new URL(path, window.location.origin);
+  u.searchParams.set('profile', profileKey(currentCrmProfile));
+  return u.pathname + u.search;
+}
+function loadCrmProfileFromState() {
+  var fromUrl = new URLSearchParams(window.location.search).get('profile');
+  if (fromUrl) return profileKey(fromUrl);
+  try {
+    var raw = localStorage.getItem(CRM_FILTER_STATE_KEY);
+    if (raw) {
+      var st = JSON.parse(raw);
+      if (st.crmProfile) return profileKey(st.crmProfile);
+    }
+  } catch (e) {}
+  return 'fencecrafters';
+}
+function saveCrmProfileToState() {
+  try {
+    var raw = localStorage.getItem(CRM_FILTER_STATE_KEY);
+    var st = raw ? JSON.parse(raw) : {};
+    st.crmProfile = profileKey(currentCrmProfile);
+    localStorage.setItem(CRM_FILTER_STATE_KEY, JSON.stringify(st));
+  } catch (e) {}
+}
+function applyCrmProfileUi() {
+  var p = CRM_PROFILES[profileKey(currentCrmProfile)];
+  document.title = 'Operations — ' + p.label + ' CRM';
+  var logo = document.querySelector('.logo');
+  if (logo) logo.textContent = p.label.toUpperCase();
+  var meta = document.getElementById('profileMeta');
+  if (meta) meta.textContent = 'From: ' + p.senderEmail + ' · Signature: ' + p.signature;
+  document.querySelectorAll('.profile-btn').forEach(function(btn) {
+    btn.classList.toggle('active', profileKey(btn.getAttribute('data-profile')) === profileKey(currentCrmProfile));
+  });
+  document.querySelectorAll('[data-profile-link]').forEach(function(a) {
+    a.href = profileUrl(a.getAttribute('href') || '/operations.html');
+  });
+}
+function setCrmProfile(profile) {
+  currentCrmProfile = profileKey(profile);
+  saveCrmProfileToState();
+  applyCrmProfileUi();
+}
+
+function api(method, body) {
+  var opts = { method: method || 'GET', headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  return opts;
+}
+function esc(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+function fmtWhen(value) {
+  if (!value) return '';
+  try {
+    return new Date(value).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  } catch (e) { return String(value); }
+}
+
+function renderVendors() {
+  var q = (document.getElementById('searchBox').value || '').trim().toLowerCase();
+  var materials = [];
+  var junk = [];
+  vendors.forEach(function(v) {
+    var hay = [v.display_name, v.company, v.phone || v.primary_phone, v.email || v.primary_email, v.status].join(' ').toLowerCase();
+    if (q && hay.indexOf(q) === -1) return;
+    if (v.profile_type === 'junk_sub') junk.push(v);
+    else if (v.profile_type === 'material_supplier') materials.push(v);
+  });
+  document.getElementById('materialsCount').textContent = String(materials.length);
+  document.getElementById('junkCount').textContent = String(junk.length);
+  document.getElementById('materialsList').innerHTML = materials.length ? materials.map(vendorCardHtml).join('') : '<div class="empty">No material suppliers</div>';
+  document.getElementById('junkList').innerHTML = junk.length ? junk.map(vendorCardHtml).join('') : '<div class="empty">No junk vendors yet</div>';
+}
+
+function vendorCardHtml(v) {
+  var unread = Number(v.unread_count || 0);
+  var phone = v.phone || v.primary_phone || '';
+  var email = v.email || v.primary_email || '';
+  var active = selectedVendorId === v.id ? ' active' : '';
+  var unreadCls = unread > 0 ? ' unread' : '';
+  return '<div class="vendor-card' + active + unreadCls + '" onclick="openVendor(\'' + esc(v.id) + '\')">' +
+    (unread > 0 ? '<span class="unread-badge">' + unread + '</span>' : '') +
+    '<div class="name">' + esc(v.display_name) + '</div>' +
+    '<div class="meta">' + esc(phone || 'No phone') + (email ? ' · ' + esc(email) : '') + '</div>' +
+    '<div class="meta">Last activity: ' + esc(fmtWhen(v.last_activity_at) || '—') + '</div>' +
+    '<span class="status ' + esc(v.status || '') + '">' + esc(v.status || 'active') + '</span>' +
+  '</div>';
+}
+
+function loadVendors() {
+  return fetch('/api/crm/vendors', api('GET'))
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+      if (!res.ok) throw new Error(res.d.error || 'Failed to load vendors');
+      vendors = res.d.vendors || [];
+      renderVendors();
+    })
+    .catch(function(err) {
+      document.getElementById('materialsList').innerHTML = '<div class="empty">' + esc(err.message) + '</div>';
+      document.getElementById('junkList').innerHTML = '<div class="empty">' + esc(err.message) + '</div>';
+    });
+}
+
+function openVendor(id) {
+  selectedVendorId = id;
+  selectedThreadId = null;
+  renderVendors();
+  var v = vendors.find(function(x) { return x.id === id; });
+  document.getElementById('detail').classList.add('open');
+  document.getElementById('vendorTitle').textContent = v ? v.display_name : 'Vendor';
+  document.getElementById('vendorSub').textContent = v ? ((v.phone || v.primary_phone || '') + (v.email || v.primary_email ? ' · ' + (v.email || v.primary_email) : '')) : '';
+  document.getElementById('threadTitle').textContent = 'Messages';
+  document.getElementById('threadSub').textContent = 'Select a thread';
+  document.getElementById('messages').innerHTML = '<div class="empty">Select a thread to view messages</div>';
+  document.getElementById('sendBtn').disabled = true;
+  document.getElementById('threadList').innerHTML = '<div class="empty">Loading threads...</div>';
+
+  fetch('/api/crm/vendors/' + encodeURIComponent(id) + '/threads', api('GET'))
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+      if (!res.ok) throw new Error(res.d.error || 'Failed to load threads');
+      var threads = res.d.threads || [];
+      if (!threads.length) {
+        document.getElementById('threadList').innerHTML = '<div class="empty">No threads yet.<br><button class="btn btn-primary" style="margin-top:0.75rem" onclick="startGeneralThread()">Start General thread</button></div>';
+        document.getElementById('threadTitle').textContent = 'Messages';
+        document.getElementById('threadSub').textContent = 'Start a thread to message this vendor';
+        document.getElementById('messages').innerHTML = '<div class="empty">No thread yet — click Start General thread, or type below and send.</div>';
+        document.getElementById('sendBtn').disabled = false;
+        selectedThreadId = null;
+        return;
+      }
+      document.getElementById('threadList').innerHTML = threads.map(function(t) {
+        var unread = Number(t.unread_count || 0);
+        return '<div class="thread-item" id="thread-' + esc(t.id) + '" onclick="openThread(\'' + esc(t.id) + '\')">' +
+          '<div class="t-title">' + esc(t.title || 'Thread') + (unread ? ' · ' + unread + ' unread' : '') + '</div>' +
+          '<div class="t-preview">' + esc(t.last_message_preview || 'No messages yet') + '</div>' +
+          '<div class="t-meta"><span>' + esc((t.channel || '').toUpperCase()) + '</span><span>' + esc(fmtWhen(t.last_message_at)) + '</span></div>' +
+        '</div>';
+      }).join('');
+      openThread(threads[0].id);
+    })
+    .catch(function(err) {
+      document.getElementById('threadList').innerHTML = '<div class="empty">' + esc(err.message) + '</div>';
+    });
+}
+
+function openThread(id) {
+  selectedThreadId = id;
+  document.querySelectorAll('.thread-item').forEach(function(el) { el.classList.remove('active'); });
+  var el = document.getElementById('thread-' + id);
+  if (el) el.classList.add('active');
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('messages').innerHTML = '<div class="empty">Loading messages...</div>';
+
+  fetch('/api/crm/threads/' + encodeURIComponent(id) + '/messages', api('GET'))
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+      if (!res.ok) throw new Error(res.d.error || 'Failed to load messages');
+      var msgs = res.d.messages || [];
+      document.getElementById('threadTitle').textContent = 'Messages';
+      document.getElementById('threadSub').textContent = msgs.length + ' message' + (msgs.length === 1 ? '' : 's');
+      if (!msgs.length) {
+        document.getElementById('messages').innerHTML = '<div class="empty">No messages yet — send the first staff note</div>';
+      } else {
+        document.getElementById('messages').innerHTML = msgs.map(function(m) {
+          var cls = m.actor_type === 'staff' ? 'staff' : (m.actor_type === 'vendor' ? 'vendor' : 'bot');
+          return '<div class="bubble ' + cls + '">' +
+            '<div class="who">' + esc(m.actor_label || m.actor_type) + '</div>' +
+            '<div>' + esc(m.body_text) + '</div>' +
+            '<div class="when">' + esc(fmtWhen(m.created_at)) + '</div>' +
+          '</div>';
+        }).join('');
+        var box = document.getElementById('messages');
+        box.scrollTop = box.scrollHeight;
+      }
+      return fetch('/api/crm/threads/' + encodeURIComponent(id) + '/read', api('POST', {}));
+    })
+    .then(function() { return loadVendors(); })
+    .catch(function(err) {
+      document.getElementById('messages').innerHTML = '<div class="empty">' + esc(err.message) + '</div>';
+    });
+}
+
+function startGeneralThread() {
+  var body = (document.getElementById('composerBody').value || '').trim() || 'Thread opened by staff';
+  document.getElementById('sendBtn').disabled = true;
+  fetch('/api/ops/comm/messages', api('POST', {
+    vendor_id: selectedVendorId,
+    channel: 'in_app',
+    title: 'General',
+    actor_type: 'staff',
+    actor_label: 'Staff',
+    body_text: body,
+    direction: 'outbound'
+  }))
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+      if (!res.ok) throw new Error(res.d.error || 'Could not start thread');
+      document.getElementById('composerBody').value = '';
+      return openVendor(selectedVendorId);
+    })
+    .catch(function(err) {
+      alert(err.message || 'Could not start thread');
+      document.getElementById('sendBtn').disabled = false;
+    });
+}
+
+function sendMessage() {
+  var body = (document.getElementById('composerBody').value || '').trim();
+  if (!body) return;
+  if (!selectedThreadId) {
+    startGeneralThread();
+    return;
+  }
+  document.getElementById('sendBtn').disabled = true;
+  fetch('/api/crm/threads/' + encodeURIComponent(selectedThreadId) + '/messages', api('POST', { body_text: body, actor_label: 'Staff' }))
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+      if (!res.ok) throw new Error(res.d.error || 'Send failed');
+      document.getElementById('composerBody').value = '';
+      return openThread(selectedThreadId);
+    })
+    .catch(function(err) {
+      alert(err.message || 'Send failed');
+      document.getElementById('sendBtn').disabled = false;
+    });
+}
+
+document.getElementById('searchBox').addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(renderVendors, 150);
+});
+document.getElementById('composerBody').addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') sendMessage();
+});
+
+currentCrmProfile = loadCrmProfileFromState();
+saveCrmProfileToState();
+applyCrmProfileUi();
+loadVendors();
+</script>
+</body>
+</html>

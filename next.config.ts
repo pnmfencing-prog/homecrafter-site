@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: '/operations.html',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, max-age=0, must-revalidate' },
+        ],
+      },
+      {
         source: '/api/crm',
         headers: [
           { key: 'Cache-Control', value: 'no-store, max-age=0, must-revalidate' },

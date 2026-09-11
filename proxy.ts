@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'pnm-fencing-session-secret-2026';
 
 // Pages that require login
-const PROTECTED_PAGES = ['/calendar.html', '/crm.html', '/proposals.html'];
+const PROTECTED_PAGES = ['/calendar.html', '/crm.html', '/proposals.html', '/operations.html'];
 
 // Public API routes (no auth needed)
 const PUBLIC_API = ['/api/auth', '/api/proposals/sign', '/api/proposals/pdf'];
@@ -51,7 +51,8 @@ export async function proxy(request: NextRequest) {
   const isProtectedApi = pathname.startsWith('/api/calendar') || 
                           pathname.startsWith('/api/crm') || 
                           pathname.startsWith('/api/proposals') ||
-                          pathname.startsWith('/api/customers');
+                          pathname.startsWith('/api/customers') ||
+                          pathname.startsWith('/api/ops');
   
   if (!isProtectedPage && !isProtectedApi) {
     return NextResponse.next();
@@ -86,9 +87,11 @@ export const config = {
     '/calendar.html',
     '/crm.html', 
     '/proposals.html',
+    '/operations.html',
     '/api/calendar/:path*',
     '/api/crm/:path*',
     '/api/proposals/:path*',
     '/api/customers/:path*',
+    '/api/ops/:path*',
   ]
 };
