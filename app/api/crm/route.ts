@@ -959,8 +959,8 @@ export async function POST(request: NextRequest) {
     const maxCode = await sql`SELECT COALESCE(MAX(CAST(lead_code AS INTEGER)), 99) + 1 as next_code FROM crm_leads WHERE lead_code ~ '^[0-9]+$'`;
     const leadCode = String(maxCode[0].next_code);
     const result = await sql`
-      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, chat_token, lead_code, crm_profile)
-      VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'}, ${chatToken}, ${leadCode}, ${crmProfile})
+      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, chat_token, lead_code, crm_profile, twister_work_order, lowes_store)
+      VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'}, ${chatToken}, ${leadCode}, ${crmProfile}, ${body.twister_work_order || null}, ${body.lowes_store || null})
       RETURNING *
     `;
     await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${result[0].id}, 'status_change', 'Lead created')`;
@@ -1001,7 +1001,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === 'update') {
-    const { id, quoted_amount, job_value, assigned_to, next_follow_up, notes, service_type, customer_email, customer_phone, customer_name, customer_address, customer_city, customer_state, customer_zip } = body;
+    const { id, quoted_amount, job_value, assigned_to, next_follow_up, notes, service_type, customer_email, customer_phone, customer_name, customer_address, customer_city, customer_state, customer_zip, twister_work_order, lowes_store, source } = body;
     if (quoted_amount !== undefined) await sql`UPDATE crm_leads SET quoted_amount = ${quoted_amount}, updated_at = NOW() WHERE id = ${id}`;
     if (job_value !== undefined) await sql`UPDATE crm_leads SET job_value = ${job_value}, updated_at = NOW() WHERE id = ${id}`;
     if (assigned_to !== undefined) await sql`UPDATE crm_leads SET assigned_to = ${assigned_to}, updated_at = NOW() WHERE id = ${id}`;
@@ -1018,6 +1018,9 @@ export async function POST(request: NextRequest) {
     if (customer_city !== undefined) await sql`UPDATE crm_leads SET customer_city = ${customer_city}, updated_at = NOW() WHERE id = ${id}`;
     if (customer_state !== undefined) await sql`UPDATE crm_leads SET customer_state = ${customer_state}, updated_at = NOW() WHERE id = ${id}`;
     if (customer_zip !== undefined) await sql`UPDATE crm_leads SET customer_zip = ${customer_zip}, updated_at = NOW() WHERE id = ${id}`;
+    if (twister_work_order !== undefined) await sql`UPDATE crm_leads SET twister_work_order = ${twister_work_order}, updated_at = NOW() WHERE id = ${id}`;
+    if (lowes_store !== undefined) await sql`UPDATE crm_leads SET lowes_store = ${lowes_store}, updated_at = NOW() WHERE id = ${id}`;
+    if (source !== undefined) await sql`UPDATE crm_leads SET source = ${source}, updated_at = NOW() WHERE id = ${id}`;
     return NextResponse.json({ success: true });
   }
 
