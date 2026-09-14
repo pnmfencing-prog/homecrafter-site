@@ -26,6 +26,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .profile-switcher { display: inline-flex; gap: 0.35rem; margin-top: 0.75rem; padding: 0.22rem; border: 1px solid rgba(196,170,106,0.28); border-radius: 999px; background: rgba(255,255,255,0.06); }
 .profile-btn { border: 0; border-radius: 999px; padding: 0.42rem 0.8rem; background: transparent; color: rgba(255,255,255,0.7); font: 800 0.65rem 'Montserrat', sans-serif; letter-spacing: 0.07em; text-transform: uppercase; cursor: pointer; }
 .profile-btn.active { background: var(--gold); color: var(--midnight); }
+a.profile-btn { text-decoration: none; display: inline-flex; align-items: center; }
 .profile-meta { margin-top: 0.35rem; font-size: 0.6rem; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.06em; }
 .toolbar { display: flex; gap: 0.75rem; padding: 1rem 1.25rem 0.75rem; max-width: 1600px; margin: 0 auto; align-items: center; flex-wrap: wrap; }
 .search-box { flex: 1; min-width: 200px; padding: 0.6rem 1rem; border: 1px solid #e0ddd6; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; background: #fff; outline: none; }
@@ -86,11 +87,12 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <div class="header-sub">Operations</div>
   <div class="profile-switcher" aria-label="CRM profile switcher">
     <button class="profile-btn active" data-profile="fencecrafters" onclick="setCrmProfile('fencecrafters')">FenceCrafters</button>
-    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button><button class="profile-btn" data-profile="lowes_fencing" onclick="setCrmProfile('lowes_fencing')">Lowes Fencing NJ</button>
+    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button><a class="profile-btn" href="/lowes-crm.html" title="Open dedicated Lowes board">Lowes Fencing NJ</a>
   </div>
   <div class="profile-meta" id="profileMeta">From: fencecrafters@homecrafter.ai · Signature: Scott / FenceCrafters</div>
   <div class="header-nav">
     <a data-profile-link="/crm.html" href="/crm.html">Sales Board</a>
+    <a href="/lowes-crm.html">Lowes Board</a>
     <a data-profile-link="/calendar.html" href="/calendar.html">Calendar</a>
     <a data-profile-link="/proposals.html" href="/proposals.html">Proposals</a>
     <a data-profile-link="/operations.html" href="/operations.html" class="active">Operations</a>

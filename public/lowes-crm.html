@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Sales Board — PNM Fencing CRM</title>
+<title>Sales Board — Lowes Fencing NJ CRM</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,7 +28,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .profile-switcher { display: inline-flex; gap: 0.35rem; margin-top: 0.75rem; padding: 0.22rem; border: 1px solid rgba(196,170,106,0.28); border-radius: 999px; background: rgba(255,255,255,0.06); }
 .profile-btn { border: 0; border-radius: 999px; padding: 0.42rem 0.8rem; background: transparent; color: rgba(255,255,255,0.7); font: 800 0.65rem 'Montserrat', sans-serif; letter-spacing: 0.07em; text-transform: uppercase; cursor: pointer; }
 .profile-btn.active { background: var(--gold); color: var(--midnight); }
-a.profile-btn { text-decoration: none; display: inline-flex; align-items: center; }
+.profile-btn:disabled { opacity: 1; cursor: default; }
 .profile-meta { margin-top: 0.35rem; font-size: 0.6rem; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.06em; }
 
 /* Top stats */
@@ -342,22 +342,21 @@ body.lead-modal-open > .portal-home { display: none; }
 
 <div class="header">
   <a class="portal-home" href="/calendar.html" title="Portal home" aria-label="Portal home">&#8962;</a>
-  <div class="logo">PNM FENCING</div>
+  <div class="logo">LOWES FENCING NJ</div>
   <div class="header-sub">Sales Board</div>
-  <div class="profile-switcher" aria-label="CRM profile switcher">
-    <button class="profile-btn active" data-profile="fencecrafters" onclick="setCrmProfile('fencecrafters')">FenceCrafters</button>
-    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button><a class="profile-btn" href="/lowes-crm.html" title="Open dedicated Lowes board">Lowes Fencing NJ</a>
+  <div class="profile-switcher" aria-label="CRM profile">
+    <button class="profile-btn active" data-profile="lowes_fencing" type="button" disabled title="Dedicated Lowes board">Lowes Fencing NJ</button>
   </div>
-  <div class="profile-meta" id="profileMeta">From: fencecrafters@homecrafter.ai · Signature: Scott / FenceCrafters</div>
+  <div class="profile-meta" id="profileMeta">From: lowesfencingnj@homecrafter.ai · Signature: Lowes Fencing NJ</div>
   <div class="header-nav">
-    <a data-profile-link="/crm.html" href="/crm.html" class="active">Sales Board</a>
-    <a href="/lowes-crm.html">Lowes Board</a>
-    <a data-profile-link="/calendar.html" href="/calendar.html">Calendar</a>
-    <a data-profile-link="/proposals.html" href="/proposals.html">Proposals</a>
-    <a data-profile-link="/operations.html" href="/operations.html">Operations</a>
-    <a href="/campaigns.html">Campaigns</a>
-    <a href="/imports.html">Imports</a>
-    <a href="/strategy.html">Strategy</a>
+    <a href="/crm.html">Sales Board</a>
+    <a href="/lowes-crm.html" class="active">Lowes Board</a>
+    <a href="/calendar.html?profile=lowes_fencing">Calendar</a>
+    <a href="/proposals.html?profile=lowes_fencing">Proposals</a>
+    <a href="/operations.html?profile=lowes_fencing">Operations</a>
+    <a href="/campaigns.html?profile=lowes_fencing">Campaigns</a>
+    <a href="/imports.html?profile=lowes_fencing">Imports</a>
+    <a href="/strategy.html?profile=lowes_fencing">Strategy</a>
     <a href="/gradmate-profile.html">GradMate</a>
   </div>
 </div>
@@ -473,7 +472,7 @@ var campaigns = [];
 var campaignsLoaded = false;
 var campaignsLoadPromise = null;
 var currentView = 'board';
-var currentCrmProfile = 'fencecrafters';
+var currentCrmProfile = 'lowes_fencing';
 var currentFilter = 'all';
 var currentSource = 'all';
 var readFilter = 'all';
@@ -490,9 +489,9 @@ var CRM_BOARD_DEFAULT_PER_STATUS = window.innerWidth <= 768 ? 12 : 15;
 var CRM_FILTERED_LIMIT = window.innerWidth <= 768 ? 100 : 150;
 var CRM_INLINE_REPLY_MAX_CARDS = window.innerWidth <= 768 ? 80 : 300;
 var PNM_EMAIL_SENDING_PAUSED = false;
-var THREAD_EMAIL_SENDER = 'fencecrafters@homecrafter.ai';
-var THREAD_EMAIL_SUBJECT = 'Following up from FenceCrafters';
-var CRM_FILTER_STATE_KEY = 'crm_dashboard_filter_state_v2';
+var THREAD_EMAIL_SENDER = 'lowesfencingnj@homecrafter.ai';
+var THREAD_EMAIL_SUBJECT = 'Following up from Lowes Fencing NJ';
+var CRM_FILTER_STATE_KEY = 'lowes_crm_dashboard_filter_state_v1';
 var PROFILE_SEND_HOLD_TIMER = null;
 var PROFILE_SEND_HOLD_OPENED = false;
 
@@ -510,39 +509,37 @@ var CRM_PROFILES = {
     subject: 'Following up from PNM Fencing',
     smsSignature: 'PNM Fencing',
     meta: 'From: pnmfencing@homecrafter.ai · Signature: PNM Fencing'
+  },
+  lowes_fencing: {
+    label: 'Lowes Fencing NJ',
+    senderEmail: 'lowesfencingnj@homecrafter.ai',
+    subject: 'Following up from Lowes Fencing NJ',
+    smsSignature: 'Lowes Fencing NJ',
+    meta: 'From: lowesfencingnj@homecrafter.ai · Signature: Lowes Fencing NJ'
   }
 };
 
-function profileKey(value) { if (value === 'pnm_fencing') return 'pnm_fencing'; if (value === 'lowes_fencing') return 'lowes_fencing'; return 'fencecrafters'; }
-function activeProfileConfig() { return CRM_PROFILES[profileKey(currentCrmProfile)]; }
-function leadProfileConfig(lead) { return CRM_PROFILES[profileKey(lead && lead.crm_profile)] || activeProfileConfig(); }
+function profileKey(value) { return 'lowes_fencing'; }
+function activeProfileConfig() { return CRM_PROFILES.lowes_fencing; }
+function leadProfileConfig(lead) { return CRM_PROFILES.lowes_fencing; }
 function applyCrmProfileUi() {
-  currentCrmProfile = profileKey(currentCrmProfile);
+  currentCrmProfile = 'lowes_fencing';
   var p = activeProfileConfig();
   THREAD_EMAIL_SENDER = p.senderEmail;
   THREAD_EMAIL_SUBJECT = p.subject;
-  document.querySelectorAll('.profile-btn').forEach(function(btn) { btn.classList.toggle('active', btn.dataset.profile === currentCrmProfile); });
+  document.querySelectorAll('.profile-btn').forEach(function(btn) { btn.classList.toggle('active', true); });
   var meta = document.getElementById('profileMeta');
   if (meta) meta.textContent = p.meta;
   var logo = document.querySelector('.logo');
-  if (logo) logo.textContent = p.label.toUpperCase();
-  document.querySelectorAll('[data-profile-link]').forEach(function(a) {
-    var base = a.dataset.profileLink || a.getAttribute('href') || '#';
-    a.href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'profile=' + encodeURIComponent(currentCrmProfile);
-  });
+  if (logo) logo.textContent = 'LOWES FENCING NJ';
+  document.title = 'Sales Board — Lowes Fencing NJ CRM';
 }
 
 function setCrmProfile(profile) {
-  currentCrmProfile = profileKey(profile);
-  activeLeadId = null;
-  activeLeadDetail = null;
-  campaigns = [];
-  campaignsLoaded = false;
-  campaignsLoadPromise = null;
-  closeModal();
+  // Dedicated Lowes board — profile is locked to lowes_fencing
+  currentCrmProfile = 'lowes_fencing';
   applyCrmProfileUi();
   saveCrmFilterState();
-  loadCampaigns().then(loadLeads);
 }
 
 function saveCrmFilterState() {
@@ -577,7 +574,7 @@ function restoreCrmFilterState() {
     var saved = JSON.parse(localStorage.getItem(CRM_FILTER_STATE_KEY) || '{}');
     if (!saved || !saved.savedAt) return;
     currentView = saved.currentView === 'list' ? 'list' : 'board';
-    currentCrmProfile = profileKey(saved.currentCrmProfile);
+    currentCrmProfile = 'lowes_fencing';
     currentFilter = saved.currentFilter || 'all';
     currentSource = saved.currentSource || 'all';
     readFilter = ['all', 'unread', 'read'].indexOf(saved.readFilter) >= 0 ? saved.readFilter : 'all';
@@ -629,7 +626,7 @@ var TILE_REPLY_TEMPLATES = {
   survey: 'If you have a survey or rough footage/section count, feel free to send it over and I can take a look.',
   call: 'No problem. What is a good day/time to quickly review the project over the phone?',
   pricing: 'Thanks, I’ll review this and get back to you with pricing shortly.',
-  who: 'Hi, this is Scott with FenceCrafters. I was reaching out regarding your fence project.',
+  who: 'Hi, this is Lowes Fencing NJ. I was reaching out regarding your fence project.',
   wrong: 'Sorry about that — I’ll remove this number from our follow-up list.'
 };
 
@@ -1136,7 +1133,7 @@ function renderBoard() {
       var campaignBadge = campaignTileBadge(l);
       var quickReply = showInlineReplies ? tileQuickReplyHtml(l) : '';
       
-      var leadHref = '/crm.html?lead=' + encodeURIComponent(l.id) + '&profile=' + encodeURIComponent(profileKey(l.crm_profile));
+      var leadHref = '/lowes-crm.html?lead=' + encodeURIComponent(l.id) + '&profile=lowes_fencing';
       html += '<div class="lead-card ' + sourceClass + unreadClass + flaggedClass + '" draggable="true" data-id="' + l.id + '" data-status="' + l.status + '" data-last-message-by="' + direction + '" onclick="onLeadCardClick(event,' + l.id + ')" ondragstart="onDragStart(event)" ondragend="onDragEnd(event)" ontouchstart="onTouchDragStart(event)" ontouchmove="onTouchDragMove(event)" ontouchend="onTouchDragEnd(event)" ontouchcancel="onTouchDragEnd(event)">' +
         '<div class="name">' + flagBadge + unreadBadge + lastMsgTag + unreadDot + '<span style="color:var(--gold);font-size:0.65rem;font-weight:700;margin-right:4px">#' + esc(l.lead_code || l.id) + '</span><a href="' + leadHref + '" style="color:var(--midnight);text-decoration:none" title="Open CRM profile" onclick="event.preventDefault();event.stopPropagation();openLeadDetail(' + l.id + ')">' + esc(l.customer_name || 'Unknown') + '</a></div>' +
         msgSummary +
@@ -1300,7 +1297,7 @@ function closeModal() {
   document.getElementById('leadModal').classList.remove('show');
   document.body.classList.remove('lead-modal-open');
   if (window.location.search.match(/[?&](lead|id)=/)) {
-    history.replaceState(null, '', '/crm.html');
+    history.replaceState(null, '', '/lowes-crm.html');
   }
 }
 
@@ -1362,32 +1359,23 @@ function openLeadDetail(id, skipHistory) {
   document.body.classList.add('lead-modal-open');
   if (!skipHistory) {
     var currentLeadParam = new URLSearchParams(window.location.search).get('lead');
-    if (String(currentLeadParam) !== String(id)) history.pushState(null, '', '/crm.html?lead=' + id);
+    if (String(currentLeadParam) !== String(id)) history.pushState(null, '', '/lowes-crm.html?lead=' + id + '&profile=lowes_fencing');
   }
   fetch('/api/crm?id=' + id, api('GET'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
       var l = data.lead;
-      var actualProfile = profileKey(l.crm_profile);
-      if (currentCrmProfile !== actualProfile) {
-        currentCrmProfile = actualProfile;
-        campaigns = [];
-        campaignsLoaded = false;
-        campaignsLoadPromise = null;
-        applyCrmProfileUi();
-        saveCrmFilterState();
-        history.replaceState(null, '', '/crm.html?lead=' + encodeURIComponent(l.id) + '&profile=' + encodeURIComponent(actualProfile));
-        loadCampaigns().then(function() { openLeadDetail(id, true); });
-        return;
-      }
+      // Dedicated board: always stay on lowes_fencing (ignore other lead profiles)
+      currentCrmProfile = 'lowes_fencing';
+      applyCrmProfileUi();
       var detailProfile = leadProfileConfig(l);
       THREAD_EMAIL_SENDER = detailProfile.senderEmail;
       THREAD_EMAIL_SUBJECT = detailProfile.subject;
       activeLeadDetail = l;
       var act = (data.activity || []).sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); });
 
-      history.replaceState(null, '', '/crm.html?lead=' + encodeURIComponent(l.id) + '&profile=' + encodeURIComponent(actualProfile));
-      var crmProfileHref = '/crm.html?lead=' + encodeURIComponent(l.id) + '&profile=' + encodeURIComponent(actualProfile);
+      history.replaceState(null, '', '/lowes-crm.html?lead=' + encodeURIComponent(l.id) + '&profile=lowes_fencing');
+      var crmProfileHref = '/lowes-crm.html?lead=' + encodeURIComponent(l.id) + '&profile=lowes_fencing';
       document.getElementById('modalTitle').innerHTML = '<span class="lead-modal-title">' + (l.flagged ? '<span class="flag-badge">🚩 Flagged</span>' : '') + '<a class="lead-code-badge lead-title-link" href="' + crmProfileHref + '" title="Open CRM profile">#' + esc(l.lead_code || l.id) + '</a><a class="lead-title-name lead-title-link" href="' + crmProfileHref + '" title="Open CRM profile">' + esc(l.customer_name || 'Lead') + '</a></span>';
       
       // Auto-mark as read when opening
@@ -1992,7 +1980,7 @@ function appendSignature(text, profile) {
   var body = normalizeText(text || '').trim();
   if (!body) return '';
   var sig = (profile || activeProfileConfig()).smsSignature;
-  var marker = sig === 'PNM Fencing' ? 'PNM Fencing' : 'FenceCrafters';
+  var marker = sig === 'PNM Fencing' ? 'PNM Fencing' : (sig === 'Lowes Fencing NJ' ? 'Lowes Fencing NJ' : 'FenceCrafters');
   if (sig && body.indexOf(sig) === -1 && !new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(body)) body += '\n\n' + sig;
   return body;
 }
