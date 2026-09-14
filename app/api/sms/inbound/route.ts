@@ -4,10 +4,11 @@ import { crmProfileConfig, type CrmProfileKey } from '@/lib/email-policy';
 
 const DAN_PHONE = '9086924847';
 const DAN_PHONE_E164 = '+19086924847';
-const INTERNAL_TWILIO_NUMBERS = new Set(['9085035473', '9083173444']);
+const INTERNAL_TWILIO_NUMBERS = new Set(['9085035473', '9083173444', '9086766984']);
 const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
 const FENCECRAFTERS_TWILIO_NUMBER = process.env.FENCECRAFTERS_TWILIO_NUMBER || process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '+19085035473';
 const PNM_TWILIO_NUMBER = process.env.PNM_TWILIO_NUMBER || process.env.PNM_TWILIO_FROM || '+19083173444';
+const LOWES_TWILIO_NUMBER = process.env.LOWES_TWILIO_NUMBER || process.env.LOWES_TWILIO_FROM || '+19086766984';
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
 const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
@@ -17,12 +18,15 @@ function profileFromTwilioTo(to: string): CrmProfileKey {
   const digits = normalizePhone(to);
   // +1 908-317-3444 is the newer Twilio number Dan assigned to PNM Fencing.
   if (digits === '9083173444') return 'pnm_fencing';
+  // +1 908-676-6984 is the dedicated Lowes Fencing NJ Twilio number.
+  if (digits === '9086766984') return 'lowes_fencing';
   return 'fencecrafters';
 }
 
 function notificationFromForProfile(profile: CrmProfileKey): string {
-  // Lowes shares FenceCrafters Twilio until a dedicated Lowes number is assigned.
-  return profile === 'pnm_fencing' ? PNM_TWILIO_NUMBER : FENCECRAFTERS_TWILIO_NUMBER;
+  if (profile === 'pnm_fencing') return PNM_TWILIO_NUMBER;
+  if (profile === 'lowes_fencing') return LOWES_TWILIO_NUMBER;
+  return FENCECRAFTERS_TWILIO_NUMBER;
 }
 
 async function inferInboundProfile(from: string, twilioProfile: CrmProfileKey): Promise<CrmProfileKey> {
