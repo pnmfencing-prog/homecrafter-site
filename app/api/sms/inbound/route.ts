@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { crmProfileConfig } from '@/lib/email-policy';
+import { crmProfileConfig, type CrmProfileKey } from '@/lib/email-policy';
 
 const DAN_PHONE = '9086924847';
 const DAN_PHONE_E164 = '+19086924847';
@@ -13,19 +13,19 @@ const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN |
 const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
 const ANGRY_OPTOUT_RE = /\b(fuck off|f off|leave me alone|do not text|dont text|don't text|remove me|wrong number|not interested|no thanks?|no thank you|i'?m good|im good|i am good|all set|we'?re good|were good)\b/i;
 
-function profileFromTwilioTo(to: string): 'fencecrafters' | 'pnm_fencing' | 'lowes_fencing' {
+function profileFromTwilioTo(to: string): CrmProfileKey {
   const digits = normalizePhone(to);
   // +1 908-317-3444 is the newer Twilio number Dan assigned to PNM Fencing.
   if (digits === '9083173444') return 'pnm_fencing';
   return 'fencecrafters';
 }
 
-function notificationFromForProfile(profile: 'fencecrafters' | 'pnm_fencing' | 'lowes_fencing'): string {
+function notificationFromForProfile(profile: CrmProfileKey): string {
   // Lowes shares FenceCrafters Twilio until a dedicated Lowes number is assigned.
   return profile === 'pnm_fencing' ? PNM_TWILIO_NUMBER : FENCECRAFTERS_TWILIO_NUMBER;
 }
 
-async function inferInboundProfile(from: string, twilioProfile: 'fencecrafters' | 'pnm_fencing' | 'lowes_fencing'): Promise<'fencecrafters' | 'pnm_fencing' | 'lowes_fencing'> {
+async function inferInboundProfile(from: string, twilioProfile: CrmProfileKey): Promise<CrmProfileKey> {
   if (twilioProfile === 'pnm_fencing') return 'pnm_fencing';
   if (twilioProfile === 'lowes_fencing') return 'lowes_fencing';
 
@@ -228,7 +228,7 @@ async function logContractorSmsReply(contractor: any, from: string, body: string
   `;
 }
 
-async function findOrCreateLead(from: string, crmProfile: 'fencecrafters' | 'pnm_fencing'): Promise<{ lead: any; created: boolean }> {
+async function findOrCreateLead(from: string, crmProfile: CrmProfileKey): Promise<{ lead: any; created: boolean }> {
   const normalized = normalizePhone(from);
   const matches = await sql`
     SELECT * FROM crm_leads
@@ -285,7 +285,7 @@ export async function POST(request: NextRequest) {
   const expectedMediaCount = Math.min(Number(form.get('NumMedia') || 0) || 0, 10);
   const inboundAttachments = await collectTwilioMedia(form);
   let notificationText = '';
-  let notificationProfile: 'fencecrafters' | 'pnm_fencing' = inboundProfile;
+  let notificationProfile: CrmProfileKey = inboundProfile;
   let newLeadAutoReply = '';
   let suppressAnyReply = false;
   let lead: any = null;

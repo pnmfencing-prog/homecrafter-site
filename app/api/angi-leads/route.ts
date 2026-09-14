@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
-import { normalizeCrmProfile } from '@/lib/email-policy';
+import { normalizeCrmProfile, type CrmProfileKey } from '@/lib/email-policy';
 
-const ANGI_IMPORT_PROFILES = ['pnm_fencing', 'fencecrafters'] as const;
+const ANGI_IMPORT_PROFILES = ['pnm_fencing', 'fencecrafters', 'lowes_fencing'] as const;
 
 function normalizePhone(value: any): string | null {
   if (!value) return null;
@@ -96,7 +96,7 @@ async function nextLeadCode(): Promise<string> {
   return String(maxCode[0].next_code);
 }
 
-async function defaultCampaignIdForProfile(crmProfile: 'pnm_fencing' | 'fencecrafters') {
+async function defaultCampaignIdForProfile(crmProfile: CrmProfileKey) {
   const defaultCampaign = await sql`
     SELECT id FROM crm_campaigns
     WHERE source = 'angi'
