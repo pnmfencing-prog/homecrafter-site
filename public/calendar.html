@@ -167,7 +167,7 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
   <div class="header-sub">Calendar & Tasks</div>
   <div class="profile-switcher" aria-label="CRM profile switcher">
     <button class="profile-btn active" data-profile="fencecrafters" onclick="setCrmProfile('fencecrafters')">FenceCrafters</button>
-    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button><a class="profile-btn" href="/lowes-crm.html" title="Open dedicated Lowes board">Lowes Fencing NJ</a>
+    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button><button class="profile-btn" data-profile="lowes_fencing" onclick="setCrmProfile('lowes_fencing')">Lowes Fencing NJ</button>
   </div>
   <div class="header-nav">
     <a data-profile-link="/crm.html" href="/crm.html">Sales Board</a>
@@ -317,7 +317,8 @@ var CRM_FILTER_STATE_KEY = 'pnm_crm_filter_state_v2';
 var currentCrmProfile = 'fencecrafters';
 var CRM_PROFILES = {
   fencecrafters: { label: 'FenceCrafters' },
-  pnm_fencing: { label: 'PNM Fencing' }
+  pnm_fencing: { label: 'PNM Fencing' },
+  lowes_fencing: { label: 'Lowes Fencing NJ' }
 };
 
 function profileKey(value) { if (value === 'pnm_fencing') return 'pnm_fencing'; if (value === 'lowes_fencing') return 'lowes_fencing'; return 'fencecrafters'; }

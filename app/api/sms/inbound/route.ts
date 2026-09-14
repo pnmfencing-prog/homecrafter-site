@@ -13,19 +13,21 @@ const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN |
 const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
 const ANGRY_OPTOUT_RE = /\b(fuck off|f off|leave me alone|do not text|dont text|don't text|remove me|wrong number|not interested|no thanks?|no thank you|i'?m good|im good|i am good|all set|we'?re good|were good)\b/i;
 
-function profileFromTwilioTo(to: string): 'fencecrafters' | 'pnm_fencing' {
+function profileFromTwilioTo(to: string): 'fencecrafters' | 'pnm_fencing' | 'lowes_fencing' {
   const digits = normalizePhone(to);
   // +1 908-317-3444 is the newer Twilio number Dan assigned to PNM Fencing.
   if (digits === '9083173444') return 'pnm_fencing';
   return 'fencecrafters';
 }
 
-function notificationFromForProfile(profile: 'fencecrafters' | 'pnm_fencing'): string {
+function notificationFromForProfile(profile: 'fencecrafters' | 'pnm_fencing' | 'lowes_fencing'): string {
+  // Lowes shares FenceCrafters Twilio until a dedicated Lowes number is assigned.
   return profile === 'pnm_fencing' ? PNM_TWILIO_NUMBER : FENCECRAFTERS_TWILIO_NUMBER;
 }
 
-async function inferInboundProfile(from: string, twilioProfile: 'fencecrafters' | 'pnm_fencing'): Promise<'fencecrafters' | 'pnm_fencing'> {
+async function inferInboundProfile(from: string, twilioProfile: 'fencecrafters' | 'pnm_fencing' | 'lowes_fencing'): Promise<'fencecrafters' | 'pnm_fencing' | 'lowes_fencing'> {
   if (twilioProfile === 'pnm_fencing') return 'pnm_fencing';
+  if (twilioProfile === 'lowes_fencing') return 'lowes_fencing';
 
   // Legacy guard: some PNM-profile CRM texts were historically sent from the
   // default FenceCrafters Twilio number. If the customer's latest CRM outbound
@@ -45,7 +47,10 @@ async function inferInboundProfile(from: string, twilioProfile: 'fencecrafters' 
     ORDER BY MAX(a.created_at) DESC
     LIMIT 1
   `;
-  return rows[0]?.crm_profile === 'pnm_fencing' ? 'pnm_fencing' : twilioProfile;
+  const latest = String(rows[0]?.crm_profile || '');
+  if (latest === 'pnm_fencing') return 'pnm_fencing';
+  if (latest === 'lowes_fencing') return 'lowes_fencing';
+  return twilioProfile;
 }
 
 function normalizePhone(phone: string): string {
@@ -248,11 +253,18 @@ async function findOrCreateLead(from: string, crmProfile: 'fencecrafters' | 'pnm
   return { lead: created[0], created: true };
 }
 
+function boardUrlForProfile(profileKey: string, leadId: number | string): string {
+  const base = profileKey === 'lowes_fencing' ? '/lowes-crm.html' : '/crm.html';
+  return `${CRM_BASE_URL}${base}?lead=${leadId}&profile=${profileKey}`;
+}
+
 function newLeadReplyForProfile(profileValue: unknown): string {
   const profile = crmProfileConfig(profileValue);
   const intro = profile.key === 'pnm_fencing'
     ? 'Hi, this is PNM Fencing. I was assigned as the estimator for your project.'
-    : 'Hi, this is Scott with FenceCrafters. I was assigned as the estimator for your project.';
+    : profile.key === 'lowes_fencing'
+      ? 'Hi, this is Lowes Fencing NJ. I was assigned as the estimator for your project.'
+      : 'Hi, this is Scott with FenceCrafters. I was assigned as the estimator for your project.';
   return `${intro}\n\nDid you by chance have a property survey or the total footage or section count?`;
 }
 
@@ -378,7 +390,7 @@ export async function POST(request: NextRequest) {
       const name = lead.customer_name || `Unknown texter ${formatPhone(from)}`;
       const profile = crmProfileConfig(lead.crm_profile || inboundProfile);
       notificationProfile = profile.key;
-      const threadUrl = `${CRM_BASE_URL}/crm.html?lead=${lead.id}&profile=${profile.key}`;
+      const threadUrl = boardUrlForProfile(profile.key, lead.id);
       notificationText = `New ${profile.label} text from ${name} (${formatPhone(from)}): ${body || '[attachment]'}${inboundAttachments.length ? `\n📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : ''}\n\nOpen thread: ${threadUrl}`;
 
       if (result.created && !suppressAnyReply) {

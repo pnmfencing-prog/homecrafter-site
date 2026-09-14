@@ -87,7 +87,7 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
   <div class="header-sub">Operations</div>
   <div class="profile-switcher" aria-label="CRM profile switcher">
     <button class="profile-btn active" data-profile="fencecrafters" onclick="setCrmProfile('fencecrafters')">FenceCrafters</button>
-    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button><a class="profile-btn" href="/lowes-crm.html" title="Open dedicated Lowes board">Lowes Fencing NJ</a>
+    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button><button class="profile-btn" data-profile="lowes_fencing" onclick="setCrmProfile('lowes_fencing')">Lowes Fencing NJ</button>
   </div>
   <div class="profile-meta" id="profileMeta">From: fencecrafters@homecrafter.ai · Signature: Scott / FenceCrafters</div>
   <div class="header-nav">
@@ -143,7 +143,8 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
 var CRM_FILTER_STATE_KEY = 'pnm_crm_filter_state_v2';
 var CRM_PROFILES = {
   fencecrafters: { label: 'FenceCrafters', senderEmail: 'fencecrafters@homecrafter.ai', signature: 'Scott / FenceCrafters' },
-  pnm_fencing: { label: 'PNM Fencing', senderEmail: 'pnmfencing@homecrafter.ai', signature: 'PNM Fencing' }
+  pnm_fencing: { label: 'PNM Fencing', senderEmail: 'pnmfencing@homecrafter.ai', signature: 'PNM Fencing' },
+  lowes_fencing: { label: 'Lowes Fencing NJ', senderEmail: 'lowesfencingnj@homecrafter.ai', signature: 'Lowes Fencing NJ' }
 };
 var currentCrmProfile = 'fencecrafters';
 var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
@@ -152,7 +153,7 @@ var selectedVendorId = null;
 var selectedThreadId = null;
 var searchTimer = null;
 
-function profileKey(v) { return v === 'pnm_fencing' ? 'pnm_fencing' : 'fencecrafters'; }
+function profileKey(v) { if (v === 'pnm_fencing') return 'pnm_fencing'; if (v === 'lowes_fencing') return 'lowes_fencing'; return 'fencecrafters'; }
 function profileUrl(path) {
   var u = new URL(path, window.location.origin);
   u.searchParams.set('profile', profileKey(currentCrmProfile));

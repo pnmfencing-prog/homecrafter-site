@@ -19,7 +19,9 @@ const PNM_TWILIO_FROM = process.env.PNM_TWILIO_FROM || process.env.PNM_TWILIO_NU
 
 function twilioFromForProfile(profileValue: unknown): string {
   const profile = normalizeCrmProfile(profileValue);
-  return profile === 'pnm_fencing' ? PNM_TWILIO_FROM : TWILIO_FROM;
+  if (profile === 'pnm_fencing') return PNM_TWILIO_FROM;
+  if (profile === 'lowes_fencing') return process.env.LOWES_TWILIO_NUMBER || process.env.LOWES_TWILIO_FROM || TWILIO_FROM;
+  return TWILIO_FROM;
 }
 
 function normalizePhone(phone: string): string {

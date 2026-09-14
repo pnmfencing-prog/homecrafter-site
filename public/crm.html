@@ -346,7 +346,7 @@ body.lead-modal-open > .portal-home { display: none; }
   <div class="header-sub">Sales Board</div>
   <div class="profile-switcher" aria-label="CRM profile switcher">
     <button class="profile-btn active" data-profile="fencecrafters" onclick="setCrmProfile('fencecrafters')">FenceCrafters</button>
-    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button><a class="profile-btn" href="/lowes-crm.html" title="Open dedicated Lowes board">Lowes Fencing NJ</a>
+    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button><button class="profile-btn" data-profile="lowes_fencing" onclick="setCrmProfile('lowes_fencing')">Lowes Fencing NJ</button>
   </div>
   <div class="profile-meta" id="profileMeta">From: fencecrafters@homecrafter.ai · Signature: Scott / FenceCrafters</div>
   <div class="header-nav">
@@ -510,6 +510,13 @@ var CRM_PROFILES = {
     subject: 'Following up from PNM Fencing',
     smsSignature: 'PNM Fencing',
     meta: 'From: pnmfencing@homecrafter.ai · Signature: PNM Fencing'
+  },
+  lowes_fencing: {
+    label: 'Lowes Fencing NJ',
+    senderEmail: 'lowesfencingnj@homecrafter.ai',
+    subject: 'Following up from Lowes Fencing NJ',
+    smsSignature: 'Lowes Fencing NJ',
+    meta: 'From: lowesfencingnj@homecrafter.ai · Signature: Lowes Fencing NJ'
   }
 };
 
@@ -1992,7 +1999,7 @@ function appendSignature(text, profile) {
   var body = normalizeText(text || '').trim();
   if (!body) return '';
   var sig = (profile || activeProfileConfig()).smsSignature;
-  var marker = sig === 'PNM Fencing' ? 'PNM Fencing' : 'FenceCrafters';
+  var marker = sig === 'PNM Fencing' ? 'PNM Fencing' : (sig === 'Lowes Fencing NJ' ? 'Lowes Fencing NJ' : 'FenceCrafters');
   if (sig && body.indexOf(sig) === -1 && !new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(body)) body += '\n\n' + sig;
   return body;
 }
