@@ -166,7 +166,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
   <div class="header-sub">Calendar & Tasks</div>
   <div class="profile-switcher" aria-label="CRM profile switcher">
     <button class="profile-btn active" data-profile="fencecrafters" onclick="setCrmProfile('fencecrafters')">FenceCrafters</button>
-    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button>
+    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button><button class="profile-btn" data-profile="lowes_fencing" onclick="setCrmProfile('lowes_fencing')">Lowes Fencing NJ</button>
   </div>
   <div class="header-nav">
     <a data-profile-link="/crm.html" href="/crm.html">Sales Board</a>
@@ -318,7 +318,7 @@ var CRM_PROFILES = {
   pnm_fencing: { label: 'PNM Fencing' }
 };
 
-function profileKey(value) { return value === 'pnm_fencing' ? 'pnm_fencing' : 'fencecrafters'; }
+function profileKey(value) { if (value === 'pnm_fencing') return 'pnm_fencing'; if (value === 'lowes_fencing') return 'lowes_fencing'; return 'fencecrafters'; }
 function profileQuerySep(url) { return url.indexOf('?') >= 0 ? '&' : '?'; }
 function profileUrl(url) { return url + profileQuerySep(url) + 'profile=' + encodeURIComponent(profileKey(currentCrmProfile)); }
 function withProfile(url) { return profileUrl(url); }

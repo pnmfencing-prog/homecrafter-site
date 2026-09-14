@@ -24,12 +24,23 @@ export const CRM_PROFILES = {
     defaultSubject: 'Following up from PNM Fencing',
     smsSignature: 'PNM Fencing',
   },
+  lowes_fencing: {
+    key: 'lowes_fencing',
+    label: 'Lowes Fencing NJ',
+    senderName: 'Lowes Fencing NJ',
+    senderEmail: 'lowesfencingnj@homecrafter.ai',
+    replyToEmail: 'lowesfencingnj@homecrafter.ai',
+    defaultSubject: 'Following up from Lowes Fencing NJ',
+    smsSignature: 'Lowes Fencing NJ',
+  },
 } as const;
 
 export type CrmProfileKey = keyof typeof CRM_PROFILES;
 
 export function normalizeCrmProfile(value: unknown): CrmProfileKey {
-  return value === 'pnm_fencing' ? 'pnm_fencing' : 'fencecrafters';
+  if (value === 'pnm_fencing') return 'pnm_fencing';
+  if (value === 'lowes_fencing') return 'lowes_fencing';
+  return 'fencecrafters';
 }
 
 export function crmProfileConfig(value: unknown) {
