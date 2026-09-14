@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { crmProfileConfig } from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
+import { notesForPdfDisplay } from '@/lib/proposal-notes';
 
 function isAdmin(request: NextRequest): boolean {
   const auth = request.headers.get('authorization') || '';
@@ -62,7 +63,7 @@ ${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type
   const removalIncluded = Number(p.removal_footage || 0) > 0 || /removal of existing|removal included|remove existing/i.test(descriptionText || '');
   const notesText = normalizeText(p.notes || '');
   const hidePoBox = /\bHIDE_PO_BOX\b/i.test(notesText);
-  const displayNotesText = normalizeText(notesText.replace(/\bHIDE_PO_BOX\b/gi, '').trim());
+  const displayNotesText = notesForPdfDisplay(notesText);
   const standardTermsOverride = notesText.match(/STANDARD_TERMS_OVERRIDE:\s*([\s\S]*?)(?=\n[A-Z_]+_OVERRIDE:|$)/i)?.[1]?.trim();
   const standardTerms = standardTermsOverride !== undefined ? standardTermsOverride
     : isMaterialOnly ? ''

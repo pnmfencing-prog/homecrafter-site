@@ -339,12 +339,13 @@ function renderProposalView(p) {
   
   // Notes
   html += '<div class="editable-text-row" data-field="notes" data-propid="' + p.id + '" style="margin-top:1rem;padding:0.75rem;background:var(--cream);border-radius:8px;font-size:0.8rem;border-left:3px solid var(--gold);cursor:pointer">' +
-    '<strong style="font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b">Notes ✎</strong><br>' +
+    '<strong style="font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b">Payment notes ✎</strong><br>' +
+    '<span style="font-size:0.65rem;color:#999">Installment / payment terms only — job scope goes in Description</span><br>' +
     '<span class="text-content" style="white-space:pre-line">' + (p.notes || '<em style="color:#ccc">No notes</em>') + '</span></div>';
   
   // Description
   html += '<div class="editable-text-row" data-field="description_override" data-propid="' + p.id + '" style="margin-top:0.5rem;padding:0.75rem;background:#f5f5f0;border-radius:8px;font-size:0.75rem;border-left:3px solid var(--midnight);cursor:pointer">' +
-    '<strong style="font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b">Description ✎</strong><br>' +
+    '<strong style="font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b">Job description ✎</strong><br>' +
     '<span class="text-content" style="white-space:pre-line">' + (p.description_override || '<em style="color:#ccc">No description</em>') + '</span></div>';
   
   var invoiceLinks = getInvoiceLinks(p);
@@ -418,10 +419,10 @@ function openEditProposal(id) {
   html += fld('Material', 'material', p.material);
   html += '</div>';
   
-  html += '<div style="margin-top:0.6rem"><label style="display:block;font-size:0.6rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b;margin-bottom:0.2rem">Notes</label>' +
+  html += '<div style="margin-top:0.6rem"><label style="display:block;font-size:0.6rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b;margin-bottom:0.2rem">Payment notes (installment / payment terms only)</label>' +
     '<textarea id="pe-notes" rows="3" style="width:100%;padding:0.5rem;border:1px solid #e0ddd6;border-radius:6px;font-size:14px;font-family:Montserrat;resize:vertical">' + (p.notes || '') + '</textarea></div>';
   
-  html += '<div style="margin-top:0.6rem"><label style="display:block;font-size:0.6rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b;margin-bottom:0.2rem">Description (shown on proposal)</label>' +
+  html += '<div style="margin-top:0.6rem"><label style="display:block;font-size:0.6rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b6b6b;margin-bottom:0.2rem">Job description (PDF body)</label>' +
     '<textarea id="pe-description_override" rows="4" style="width:100%;padding:0.5rem;border:1px solid #e0ddd6;border-radius:6px;font-size:14px;font-family:Montserrat;resize:vertical">' + (p.description_override || '') + '</textarea></div>';
   
   html += '<div style="display:flex;gap:0.5rem;margin-top:1rem">';
