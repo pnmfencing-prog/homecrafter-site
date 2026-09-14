@@ -4,7 +4,9 @@ import { crmProfileConfig, type CrmProfileKey } from '@/lib/email-policy';
 
 const DAN_PHONE = '9086924847';
 const DAN_PHONE_E164 = '+19086924847';
-const INTERNAL_TWILIO_NUMBERS = new Set(['9085035473', '9083173444', '9086766984']);
+const INTERNAL_TWILIO_NUMBERS = new Set(['9085035473', '9083173444', '9086766984', '8442123522']);
+const TWISTER_ASSIGN_FROM = '8442123522';
+const LOWES_TWILIO_DIGITS = '9086766984';
 const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
 const FENCECRAFTERS_TWILIO_NUMBER = process.env.FENCECRAFTERS_TWILIO_NUMBER || process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '+19085035473';
 const PNM_TWILIO_NUMBER = process.env.PNM_TWILIO_NUMBER || process.env.PNM_TWILIO_FROM || '+19083173444';
@@ -76,6 +78,89 @@ function escapeXml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+
+function isTwisterAssignSms(to: string, from: string, body: string): boolean {
+  const toDigits = normalizePhone(to);
+  const fromDigits = normalizePhone(from);
+  if (toDigits !== LOWES_TWILIO_DIGITS) return false;
+  if (fromDigits !== TWISTER_ASSIGN_FROM) return false;
+  if (!/you have been assigned/i.test(body || '')) return false;
+  if (!/WO#\s*\d+/i.test(body || '')) return false;
+  return true;
+}
+
+function parseTwisterAssignSms(body: string): {
+  work_order_number: string | null;
+  customer_name_guess: string | null;
+  detail_url: string | null;
+} {
+  const text = body || '';
+  const woMatch = text.match(/WO#\s*(\d+)/i);
+  const work_order_number = woMatch ? woMatch[1] : null;
+
+  let customer_name_guess: string | null = null;
+  const nameMatch = text.match(/WO#\s*\d+\s+for\s+([A-Za-z][A-Za-z0-9 .'\-]{1,80}?)(?:\.|$|\n)/i);
+  if (nameMatch) {
+    customer_name_guess = nameMatch[1].replace(/\s+/g, ' ').trim() || null;
+  }
+
+  let detail_url: string | null = null;
+  const urlMatch = text.match(/https?:\/\/[^\s<>"']+/i);
+  if (urlMatch) {
+    detail_url = urlMatch[0].replace(/[.,;:)\]}>]+$/g, '');
+  } else if (/apps\.trustedhomeservices\.com|micWoId=/i.test(text)) {
+    const loose = text.match(/(?:https?:\/\/)?(?:www\.)?apps\.trustedhomeservices\.com[^\s<>"']*/i);
+    if (loose) {
+      const raw = loose[0];
+      detail_url = raw.startsWith('http')
+        ? raw.replace(/[.,;:)\]}>]+$/g, '')
+        : `https://${raw.replace(/[.,;:)\]}>]+$/g, '')}`;
+    }
+  }
+
+  return { work_order_number, customer_name_guess, detail_url };
+}
+
+async function logAndNotifyTwisterAssign(from: string, to: string, body: string): Promise<NextResponse> {
+  const parsed = parseTwisterAssignSms(body);
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS twister_assign_sms (
+      id SERIAL PRIMARY KEY,
+      from_phone TEXT,
+      to_phone TEXT,
+      body TEXT,
+      work_order_number TEXT,
+      customer_name_guess TEXT,
+      detail_url TEXT,
+      created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+      processed_at TIMESTAMP WITHOUT TIME ZONE
+    )
+  `;
+
+  await sql`
+    INSERT INTO twister_assign_sms (
+      from_phone, to_phone, body, work_order_number, customer_name_guess, detail_url
+    ) VALUES (
+      ${from}, ${to}, ${body},
+      ${parsed.work_order_number}, ${parsed.customer_name_guess}, ${parsed.detail_url}
+    )
+  `;
+
+  const woLabel = parsed.work_order_number ? `WO#${parsed.work_order_number}` : 'WO#?';
+  const namePart = parsed.customer_name_guess ? ` ${parsed.customer_name_guess}` : '';
+  let notificationText = `Lowes Twister assign: ${woLabel}${namePart} — pull into CRM`;
+  if (parsed.detail_url) notificationText += `\n${parsed.detail_url}`;
+
+  let twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
+  twiml += `<Message from="${escapeXml(LOWES_TWILIO_NUMBER)}" to="${DAN_PHONE_E164}">${escapeXml(notificationText.slice(0, 1200))}</Message>`;
+  twiml += '</Response>';
+
+  return new NextResponse(twiml, {
+    headers: { 'Content-Type': 'text/xml' },
+  });
 }
 
 function isOptOutOrAngryReply(body: string): boolean {
@@ -279,7 +364,13 @@ export async function POST(request: NextRequest) {
   const inboundProfile = await inferInboundProfile(from, profileFromTwilioTo(to));
   const body = String(form.get('Body') || '').trim();
 
+  // Twister/IME lead-assign SMS on Lowes number — log + notify Dan, do not create a CRM lead.
+  if (isTwisterAssignSms(to, from, body)) {
+    return logAndNotifyTwisterAssign(from, to, body);
+  }
+
   // Prevent CRM-owned Twilio numbers from auto-replying to each other and creating loops.
+  // Includes Twister short-code 8442123522 so non-assign traffic never becomes a fake lead.
   if (INTERNAL_TWILIO_NUMBERS.has(normalizePhone(from))) {
     return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
       headers: { 'Content-Type': 'text/xml' },
