@@ -123,7 +123,7 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
   <div class="profile-meta" id="profileMeta">From: fencecrafters@homecrafter.ai · Signature: Scott / FenceCrafters</div>
   <div class="header-nav">
     <a data-profile-link="/crm.html" href="/crm.html">Sales Board</a>
-    <a href="/lowes-crm.html">Lowes Board</a>
+    <a data-profile-link="/lowes-crm.html" href="/lowes-crm.html">Lowes Board</a>
     <a data-profile-link="/calendar.html" href="/calendar.html">Calendar</a>
     <a data-profile-link="/proposals.html" href="/proposals.html">Proposals</a>
     <a data-profile-link="/operations.html" href="/operations.html" class="active">Operations</a>
@@ -219,8 +219,16 @@ function profileKey(v) {
 }
 function activeProfileConfig() { return CRM_PROFILES[profileKey(currentCrmProfile)]; }
 function profileUrl(path) {
-  var u = new URL(path, window.location.origin);
-  u.searchParams.set('profile', profileKey(currentCrmProfile));
+  var profile = profileKey(currentCrmProfile);
+  // Lowes sales lives on the dedicated board; keep other profiles on crm.html.
+  var base = path;
+  if (String(path || '').indexOf('/crm.html') === 0 && profile === 'lowes_fencing') {
+    base = '/lowes-crm.html';
+  }
+  var u = new URL(base, window.location.origin);
+  // Drop prior profile query so toggles replace cleanly.
+  u.search = '';
+  u.searchParams.set('profile', profile);
   return u.pathname + u.search;
 }
 function loadCrmProfileFromState() {
@@ -242,6 +250,14 @@ function saveCrmProfileToState() {
     st.crmProfile = profileKey(currentCrmProfile);
     localStorage.setItem(CRM_FILTER_STATE_KEY, JSON.stringify(st));
   } catch (e) {}
+  // Keep Sales Board filter state in sync (different key/field name).
+  try {
+    var crmRaw = localStorage.getItem('crm_dashboard_filter_state_v2');
+    var crmSt = crmRaw ? JSON.parse(crmRaw) : {};
+    crmSt.currentCrmProfile = profileKey(currentCrmProfile);
+    crmSt.savedAt = Date.now();
+    localStorage.setItem('crm_dashboard_filter_state_v2', JSON.stringify(crmSt));
+  } catch (e) {}
 }
 function applyCrmProfileUi() {
   var p = activeProfileConfig();
@@ -254,7 +270,8 @@ function applyCrmProfileUi() {
     btn.classList.toggle('active', profileKey(btn.getAttribute('data-profile')) === profileKey(currentCrmProfile));
   });
   document.querySelectorAll('[data-profile-link]').forEach(function(a) {
-    a.href = profileUrl(a.getAttribute('href') || '/operations.html');
+    var base = a.getAttribute('data-profile-link') || a.getAttribute('href') || '/operations.html';
+    a.href = profileUrl(base);
   });
   updateComposerMeta();
   renderVendors();

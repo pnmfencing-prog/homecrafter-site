@@ -535,7 +535,12 @@ function applyCrmProfileUi() {
   if (logo) logo.textContent = p.label.toUpperCase();
   document.querySelectorAll('[data-profile-link]').forEach(function(a) {
     var base = a.dataset.profileLink || a.getAttribute('href') || '#';
-    a.href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'profile=' + encodeURIComponent(currentCrmProfile);
+    if (String(base).indexOf('/crm.html') === 0 && currentCrmProfile === 'lowes_fencing') {
+      base = '/lowes-crm.html';
+    }
+    var u = new URL(base, window.location.origin);
+    u.searchParams.set('profile', currentCrmProfile);
+    a.href = u.pathname + u.search;
   });
 }
 
@@ -579,21 +584,34 @@ function applyCrmFilterControls() {
   if (sinceEl) sinceEl.value = lastMessageSince || '';
 }
 
+function profileFromUrl() {
+  try {
+    var fromUrl = new URLSearchParams(window.location.search).get('profile');
+    if (fromUrl) return profileKey(fromUrl);
+  } catch (e) {}
+  return null;
+}
+
 function restoreCrmFilterState() {
   try {
     var saved = JSON.parse(localStorage.getItem(CRM_FILTER_STATE_KEY) || '{}');
-    if (!saved || !saved.savedAt) return;
-    currentView = saved.currentView === 'list' ? 'list' : 'board';
-    currentCrmProfile = profileKey(saved.currentCrmProfile);
-    currentFilter = saved.currentFilter || 'all';
-    currentSource = saved.currentSource || 'all';
-    readFilter = ['all', 'unread', 'read'].indexOf(saved.readFilter) >= 0 ? saved.readFilter : 'all';
-    messageFilter = ['all', 'you', 'customer'].indexOf(saved.messageFilter) >= 0 ? saved.messageFilter : 'all';
-    campaignFilter = saved.campaignFilter || 'all';
-    flaggedFilter = saved.flaggedFilter === true;
-    lastMessageSince = saved.lastMessageSince || '';
+    if (saved && saved.savedAt) {
+      currentView = saved.currentView === 'list' ? 'list' : 'board';
+      currentCrmProfile = profileKey(saved.currentCrmProfile);
+      currentFilter = saved.currentFilter || 'all';
+      currentSource = saved.currentSource || 'all';
+      readFilter = ['all', 'unread', 'read'].indexOf(saved.readFilter) >= 0 ? saved.readFilter : 'all';
+      messageFilter = ['all', 'you', 'customer'].indexOf(saved.messageFilter) >= 0 ? saved.messageFilter : 'all';
+      campaignFilter = saved.campaignFilter || 'all';
+      flaggedFilter = saved.flaggedFilter === true;
+      lastMessageSince = saved.lastMessageSince || '';
+    }
+    // URL profile always wins (Ops / Calendar / deep links).
+    var urlProfile = profileFromUrl();
+    if (urlProfile) currentCrmProfile = urlProfile;
     applyCrmFilterControls();
     applyCrmProfileUi();
+    if (urlProfile) saveCrmFilterState();
   } catch (e) {}
 }
 
@@ -2583,12 +2601,19 @@ function openLinkedLeadFromUrl() {
 
 // Init
 restoreCrmFilterState();
-applyCrmProfileUi();
-loadCampaigns().then(loadLeads);
-setView(currentView);
-initSwipeDots();
-openLinkedLeadFromUrl();
-setInterval(refreshCrmQuietly, CRM_REFRESH_MS);
+if (profileKey(currentCrmProfile) === 'lowes_fencing') {
+  var params = new URLSearchParams(window.location.search);
+  var lead = params.get('lead') || params.get('id');
+  var dest = '/lowes-crm.html?profile=lowes_fencing' + (lead ? '&lead=' + encodeURIComponent(lead) : '');
+  window.location.replace(dest);
+} else {
+  applyCrmProfileUi();
+  loadCampaigns().then(loadLeads);
+  setView(currentView);
+  initSwipeDots();
+  openLinkedLeadFromUrl();
+  setInterval(refreshCrmQuietly, CRM_REFRESH_MS);
+}
 </script>
 </body>
 </html>
