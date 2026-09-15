@@ -36,6 +36,7 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
 .btn-primary:hover { background: var(--midnight-light); }
 .btn-outline { background: #fff; color: var(--midnight); border: 1px solid #e0ddd6; }
 .btn-outline:hover { border-color: var(--gold); }
+.btn-outline.active { border-color: var(--midnight); background: var(--midnight); color: var(--gold); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .board { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 0 1.25rem 1rem; max-width: 1600px; margin: 0 auto; min-height: 40vh; }
 .column { background: var(--cream-dark); border-radius: 12px; padding: 0.75rem; min-height: 300px; }
@@ -50,6 +51,19 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
 .vendor-card .status { display: inline-block; margin-top: 0.4rem; font-size: 0.55rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.15rem 0.45rem; border-radius: 999px; background: var(--green-bg); color: var(--green); }
 .vendor-card .status.inactive, .vendor-card .status.archived { background: var(--red-bg); color: var(--red); }
 .unread-badge { position: absolute; top: 0.65rem; right: 0.65rem; background: var(--red); color: #fff; font-size: 0.55rem; font-weight: 800; min-width: 18px; height: 18px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; padding: 0 0.3rem; }
+.tile-quick-reply { margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px solid #f0ede6; display: grid; gap: 0.35rem; cursor: default; }
+.tile-channel-row { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.tile-channel-btn { border: 1px solid #e0ddd6; border-radius: 999px; background: #fff; color: var(--midnight); font: 750 0.55rem 'Montserrat', sans-serif; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.22rem 0.55rem; cursor: pointer; }
+.tile-channel-btn.active { border-color: var(--midnight); background: var(--midnight); color: var(--gold); }
+.tile-channel-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.tile-reply-row { display: flex; align-items: stretch; gap: 0.35rem; }
+.tile-reply-input { flex: 1; width: 100%; min-width: 0; resize: vertical; border: 1px solid #e0ddd6; border-radius: 8px; background: #fff; color: var(--midnight); font-family: 'Montserrat', sans-serif; font-size: 0.78rem; line-height: 1.45; padding: 0.5rem 0.55rem; min-height: 46px; max-height: 180px; outline: none; overflow-y: auto; }
+.tile-reply-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(196,170,106,0.12); }
+.tile-send-btn { flex: 0 0 auto; border: 1px solid var(--midnight); border-radius: 999px; background: var(--midnight); color: var(--gold); font-family: 'Montserrat', sans-serif; font-size: 0.55rem; font-weight: 850; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.16rem 0.5rem; cursor: pointer; white-space: nowrap; align-self: stretch; }
+.tile-send-btn:disabled { opacity: 0.55; cursor: wait; }
+.tile-reply-status { min-height: 0.75rem; font-size: 0.56rem; font-weight: 750; color: var(--text-muted); }
+.tile-reply-status.ok { color: var(--green); }
+.tile-reply-status.err { color: var(--red); }
 .empty { padding: 1.5rem 0.75rem; text-align: center; color: var(--text-muted); font-size: 0.75rem; }
 .detail { display: none; max-width: 1600px; margin: 0 auto 2rem; padding: 0 1.25rem; }
 .detail.open { display: grid; grid-template-columns: 320px 1fr; gap: 1rem; }
@@ -69,14 +83,20 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
 .bubble.vendor, .bubble.bot { align-self: flex-start; background: #fff; border: 1px solid #e8e4dc; border-bottom-left-radius: 4px; }
 .bubble .who { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.7; margin-bottom: 0.25rem; }
 .bubble .when { font-size: 0.55rem; opacity: 0.55; margin-top: 0.35rem; }
-.composer { display: flex; gap: 0.5rem; padding: 0.85rem; border-top: 1px solid #eee; background: #fff; }
+.composer { display: grid; gap: 0.5rem; padding: 0.85rem; border-top: 1px solid #eee; background: #fff; }
+.composer-channels { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.composer-row { display: flex; gap: 0.5rem; align-items: stretch; }
 .composer textarea { flex: 1; min-height: 64px; resize: vertical; border: 1px solid #e0ddd6; border-radius: 8px; padding: 0.6rem 0.75rem; font: 0.8rem 'Montserrat', sans-serif; outline: none; }
 .composer textarea:focus { border-color: var(--gold); }
+.composer-meta { font-size: 0.58rem; color: var(--text-muted); font-weight: 650; }
 @media (max-width: 980px) {
   .board { grid-template-columns: 1fr; }
   .detail.open { grid-template-columns: 1fr; }
   .header-nav { display: grid; grid-template-columns: repeat(3, max-content); justify-content: center; gap: 0.55rem 1.05rem; }
   .header-nav a { font-size: 0.66rem; }
+  .tile-reply-row { flex-wrap: wrap; }
+  .tile-reply-input { flex: 1 1 100%; min-height: 58px; font-size: 16px; }
+  .tile-send-btn { min-height: 34px; }
 }
 </style>
 </head>
@@ -87,7 +107,8 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
   <div class="header-sub">Operations</div>
   <div class="profile-switcher" aria-label="CRM profile switcher">
     <button class="profile-btn active" data-profile="fencecrafters" onclick="setCrmProfile('fencecrafters')">FenceCrafters</button>
-    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button><button class="profile-btn" data-profile="lowes_fencing" onclick="setCrmProfile('lowes_fencing')">Lowes Fencing NJ</button>
+    <button class="profile-btn" data-profile="pnm_fencing" onclick="setCrmProfile('pnm_fencing')">PNM Fencing</button>
+    <button class="profile-btn" data-profile="lowes_fencing" onclick="setCrmProfile('lowes_fencing')">Lowes Fencing NJ</button>
   </div>
   <div class="profile-meta" id="profileMeta">From: fencecrafters@homecrafter.ai · Signature: Scott / FenceCrafters</div>
   <div class="header-nav">
@@ -133,8 +154,16 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
     </div>
     <div class="messages" id="messages"></div>
     <div class="composer">
-      <textarea id="composerBody" placeholder="Write a staff message..."></textarea>
-      <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+      <div class="composer-channels">
+        <button type="button" class="btn btn-outline active" id="detail-channel-sms" onclick="setDetailChannel('sms')">Text</button>
+        <button type="button" class="btn btn-outline" id="detail-channel-email" onclick="setDetailChannel('email')">Email</button>
+        <button type="button" class="btn btn-outline" id="detail-channel-note" onclick="setDetailChannel('in_app')">Note</button>
+      </div>
+      <div class="composer-meta" id="composerMeta">Sends SMS from active profile From number</div>
+      <div class="composer-row">
+        <textarea id="composerBody" placeholder="Write a message to this vendor..."></textarea>
+        <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+      </div>
     </div>
   </div>
 </div>
@@ -142,18 +171,43 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
 <script>
 var CRM_FILTER_STATE_KEY = 'pnm_crm_filter_state_v2';
 var CRM_PROFILES = {
-  fencecrafters: { label: 'FenceCrafters', senderEmail: 'fencecrafters@homecrafter.ai', signature: 'Scott / FenceCrafters' },
-  pnm_fencing: { label: 'PNM Fencing', senderEmail: 'pnmfencing@homecrafter.ai', signature: 'PNM Fencing' },
-  lowes_fencing: { label: 'Lowes Fencing NJ', senderEmail: 'lowesfencingnj@homecrafter.ai', signature: 'Lowes Fencing NJ' }
+  fencecrafters: {
+    label: 'FenceCrafters',
+    senderEmail: 'fencecrafters@homecrafter.ai',
+    signature: 'Scott / FenceCrafters',
+    smsSignature: 'Scott\nFenceCrafters',
+    fromHint: '+19085035473'
+  },
+  pnm_fencing: {
+    label: 'PNM Fencing',
+    senderEmail: 'pnmfencing@homecrafter.ai',
+    signature: 'PNM Fencing',
+    smsSignature: 'PNM Fencing',
+    fromHint: '+19083173444'
+  },
+  lowes_fencing: {
+    label: 'Lowes Fencing NJ',
+    senderEmail: 'lowesfencingnj@homecrafter.ai',
+    signature: 'Lowes Fencing NJ',
+    smsSignature: 'Lowes Fencing NJ',
+    fromHint: '+19086766984'
+  }
 };
 var currentCrmProfile = 'fencecrafters';
 var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
 var vendors = [];
 var selectedVendorId = null;
 var selectedThreadId = null;
+var detailChannel = 'sms';
+var cardChannels = {};
 var searchTimer = null;
 
-function profileKey(v) { if (v === 'pnm_fencing') return 'pnm_fencing'; if (v === 'lowes_fencing') return 'lowes_fencing'; return 'fencecrafters'; }
+function profileKey(v) {
+  if (v === 'pnm_fencing') return 'pnm_fencing';
+  if (v === 'lowes_fencing') return 'lowes_fencing';
+  return 'fencecrafters';
+}
+function activeProfileConfig() { return CRM_PROFILES[profileKey(currentCrmProfile)]; }
 function profileUrl(path) {
   var u = new URL(path, window.location.origin);
   u.searchParams.set('profile', profileKey(currentCrmProfile));
@@ -180,18 +234,20 @@ function saveCrmProfileToState() {
   } catch (e) {}
 }
 function applyCrmProfileUi() {
-  var p = CRM_PROFILES[profileKey(currentCrmProfile)];
+  var p = activeProfileConfig();
   document.title = 'Operations — ' + p.label + ' CRM';
   var logo = document.querySelector('.logo');
   if (logo) logo.textContent = p.label.toUpperCase();
   var meta = document.getElementById('profileMeta');
-  if (meta) meta.textContent = 'From: ' + p.senderEmail + ' · Signature: ' + p.signature;
+  if (meta) meta.textContent = 'From: ' + p.senderEmail + ' · SMS ' + p.fromHint + ' · Signature: ' + p.signature;
   document.querySelectorAll('.profile-btn').forEach(function(btn) {
     btn.classList.toggle('active', profileKey(btn.getAttribute('data-profile')) === profileKey(currentCrmProfile));
   });
   document.querySelectorAll('[data-profile-link]').forEach(function(a) {
     a.href = profileUrl(a.getAttribute('href') || '/operations.html');
   });
+  updateComposerMeta();
+  renderVendors();
 }
 function setCrmProfile(profile) {
   currentCrmProfile = profileKey(profile);
@@ -217,6 +273,67 @@ function fmtWhen(value) {
     return new Date(value).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   } catch (e) { return String(value); }
 }
+function autoGrowTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, Math.round(window.innerHeight * 0.35)) + 'px';
+}
+
+function defaultCardChannel(v) {
+  var phone = v.phone || v.primary_phone || '';
+  var email = v.email || v.primary_email || '';
+  if (phone) return 'sms';
+  if (email) return 'email';
+  return 'in_app';
+}
+function getCardChannel(id) {
+  if (cardChannels[id]) return cardChannels[id];
+  var v = vendors.find(function(x) { return x.id === id; });
+  return v ? defaultCardChannel(v) : 'sms';
+}
+function setCardChannel(event, id, channel) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  cardChannels[id] = channel;
+  var smsBtn = document.getElementById('tile-ch-sms-' + id);
+  var emailBtn = document.getElementById('tile-ch-email-' + id);
+  if (smsBtn) smsBtn.classList.toggle('active', channel === 'sms');
+  if (emailBtn) emailBtn.classList.toggle('active', channel === 'email');
+  setTileReplyStatus(id, '', '');
+}
+
+function vendorCardHtml(v) {
+  var unread = Number(v.unread_count || 0);
+  var phone = v.phone || v.primary_phone || '';
+  var email = v.email || v.primary_email || '';
+  var active = selectedVendorId === v.id ? ' active' : '';
+  var unreadCls = unread > 0 ? ' unread' : '';
+  var channel = getCardChannel(v.id);
+  var canSms = !!phone;
+  var canEmail = !!email;
+  var compose = '';
+  if (canSms || canEmail) {
+    compose =
+      '<div class="tile-quick-reply" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()">' +
+        '<div class="tile-channel-row">' +
+          '<button type="button" class="tile-channel-btn' + (channel === 'sms' ? ' active' : '') + '" id="tile-ch-sms-' + esc(v.id) + '" ' + (canSms ? '' : 'disabled ') + 'onclick="setCardChannel(event,\'' + esc(v.id) + '\',\'sms\')">Text</button>' +
+          '<button type="button" class="tile-channel-btn' + (channel === 'email' ? ' active' : '') + '" id="tile-ch-email-' + esc(v.id) + '" ' + (canEmail ? '' : 'disabled ') + 'onclick="setCardChannel(event,\'' + esc(v.id) + '\',\'email\')">Email</button>' +
+        '</div>' +
+        '<div class="tile-reply-row">' +
+          '<textarea class="tile-reply-input" id="tile-reply-' + esc(v.id) + '" rows="2" placeholder="Message vendor…" oninput="autoGrowTextarea(this)" onkeydown="handleTileReplyKeydown(event,\'' + esc(v.id) + '\')"></textarea>' +
+          '<button class="tile-send-btn" id="tile-send-' + esc(v.id) + '" onclick="sendTileQuickReply(event,\'' + esc(v.id) + '\')">Send</button>' +
+        '</div>' +
+        '<div class="tile-reply-status" id="tile-reply-status-' + esc(v.id) + '"></div>' +
+      '</div>';
+  }
+  return '<div class="vendor-card' + active + unreadCls + '" onclick="openVendor(\'' + esc(v.id) + '\')">' +
+    (unread > 0 ? '<span class="unread-badge">' + unread + '</span>' : '') +
+    '<div class="name">' + esc(v.display_name) + '</div>' +
+    '<div class="meta">' + esc(phone || 'No phone') + (email ? ' · ' + esc(email) : '') + '</div>' +
+    '<div class="meta">Last activity: ' + esc(fmtWhen(v.last_activity_at) || '—') + '</div>' +
+    '<span class="status ' + esc(v.status || '') + '">' + esc(v.status || 'active') + '</span>' +
+    compose +
+  '</div>';
+}
 
 function renderVendors() {
   var q = (document.getElementById('searchBox').value || '').trim().toLowerCase();
@@ -234,21 +351,6 @@ function renderVendors() {
   document.getElementById('junkList').innerHTML = junk.length ? junk.map(vendorCardHtml).join('') : '<div class="empty">No junk vendors yet</div>';
 }
 
-function vendorCardHtml(v) {
-  var unread = Number(v.unread_count || 0);
-  var phone = v.phone || v.primary_phone || '';
-  var email = v.email || v.primary_email || '';
-  var active = selectedVendorId === v.id ? ' active' : '';
-  var unreadCls = unread > 0 ? ' unread' : '';
-  return '<div class="vendor-card' + active + unreadCls + '" onclick="openVendor(\'' + esc(v.id) + '\')">' +
-    (unread > 0 ? '<span class="unread-badge">' + unread + '</span>' : '') +
-    '<div class="name">' + esc(v.display_name) + '</div>' +
-    '<div class="meta">' + esc(phone || 'No phone') + (email ? ' · ' + esc(email) : '') + '</div>' +
-    '<div class="meta">Last activity: ' + esc(fmtWhen(v.last_activity_at) || '—') + '</div>' +
-    '<span class="status ' + esc(v.status || '') + '">' + esc(v.status || 'active') + '</span>' +
-  '</div>';
-}
-
 function loadVendors() {
   return fetch('/api/crm/vendors', api('GET'))
     .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
@@ -263,6 +365,88 @@ function loadVendors() {
     });
 }
 
+function setTileReplyStatus(id, message, kind) {
+  var el = document.getElementById('tile-reply-status-' + id);
+  if (!el) return;
+  el.className = 'tile-reply-status' + (kind ? ' ' + kind : '');
+  el.textContent = message || '';
+}
+function handleTileReplyKeydown(event, id) {
+  event.stopPropagation();
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendTileQuickReply(event, id);
+  }
+}
+function sendTileQuickReply(event, id) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  var input = document.getElementById('tile-reply-' + id);
+  var btn = document.getElementById('tile-send-' + id);
+  var v = vendors.find(function(x) { return x.id === id; });
+  var body = (input ? input.value : '').trim();
+  var channel = getCardChannel(id);
+  if (!body) {
+    setTileReplyStatus(id, 'Type a message first.', 'err');
+    if (input) input.focus();
+    return;
+  }
+  if (!v) {
+    setTileReplyStatus(id, 'Vendor not loaded.', 'err');
+    return;
+  }
+  if (channel === 'sms' && !(v.phone || v.primary_phone)) {
+    setTileReplyStatus(id, 'Vendor phone missing.', 'err');
+    return;
+  }
+  if (channel === 'email' && !(v.email || v.primary_email)) {
+    setTileReplyStatus(id, 'Vendor email missing.', 'err');
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  setTileReplyStatus(id, 'Sending…', '');
+  var payload = {
+    vendor_id: id,
+    channel: channel,
+    title: channel === 'sms' ? 'SMS' : 'Email',
+    actor_type: 'staff',
+    actor_label: activeProfileConfig().label,
+    body_text: body,
+    direction: 'outbound',
+    crm_profile: profileKey(currentCrmProfile)
+  };
+  fetch('/api/ops/comm/messages', api('POST', payload))
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+      if (!res.ok) throw new Error(res.d.error || 'Could not send');
+      if (input) { input.value = ''; autoGrowTextarea(input); }
+      setTileReplyStatus(id, 'Sent ✓', 'ok');
+      if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
+      return loadVendors().then(function() {
+        if (selectedVendorId === id) return openVendor(id);
+      });
+    })
+    .catch(function(err) {
+      setTileReplyStatus(id, err.message || 'Could not send', 'err');
+      if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
+    });
+}
+
+function updateComposerMeta() {
+  var p = activeProfileConfig();
+  var el = document.getElementById('composerMeta');
+  if (!el) return;
+  if (detailChannel === 'sms') el.textContent = 'Sends SMS from ' + p.fromHint + ' (' + p.label + ')';
+  else if (detailChannel === 'email') el.textContent = 'Sends email from ' + p.senderEmail;
+  else el.textContent = 'Internal staff note (not delivered externally)';
+}
+function setDetailChannel(channel) {
+  detailChannel = channel;
+  document.getElementById('detail-channel-sms').classList.toggle('active', channel === 'sms');
+  document.getElementById('detail-channel-email').classList.toggle('active', channel === 'email');
+  document.getElementById('detail-channel-note').classList.toggle('active', channel === 'in_app');
+  updateComposerMeta();
+}
+
 function openVendor(id) {
   selectedVendorId = id;
   selectedThreadId = null;
@@ -274,8 +458,13 @@ function openVendor(id) {
   document.getElementById('threadTitle').textContent = 'Messages';
   document.getElementById('threadSub').textContent = 'Select a thread';
   document.getElementById('messages').innerHTML = '<div class="empty">Select a thread to view messages</div>';
-  document.getElementById('sendBtn').disabled = true;
+  document.getElementById('sendBtn').disabled = false;
   document.getElementById('threadList').innerHTML = '<div class="empty">Loading threads...</div>';
+  if (v) {
+    if (v.phone || v.primary_phone) setDetailChannel('sms');
+    else if (v.email || v.primary_email) setDetailChannel('email');
+    else setDetailChannel('in_app');
+  }
 
   fetch('/api/crm/vendors/' + encodeURIComponent(id) + '/threads', api('GET'))
     .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
@@ -283,11 +472,10 @@ function openVendor(id) {
       if (!res.ok) throw new Error(res.d.error || 'Failed to load threads');
       var threads = res.d.threads || [];
       if (!threads.length) {
-        document.getElementById('threadList').innerHTML = '<div class="empty">No threads yet.<br><button class="btn btn-primary" style="margin-top:0.75rem" onclick="startGeneralThread()">Start General thread</button></div>';
+        document.getElementById('threadList').innerHTML = '<div class="empty">No threads yet.<br>Type below and send to start one.</div>';
         document.getElementById('threadTitle').textContent = 'Messages';
-        document.getElementById('threadSub').textContent = 'Start a thread to message this vendor';
-        document.getElementById('messages').innerHTML = '<div class="empty">No thread yet — click Start General thread, or type below and send.</div>';
-        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('threadSub').textContent = 'Start a thread by sending a message';
+        document.getElementById('messages').innerHTML = '<div class="empty">No thread yet — send SMS, email, or a note below.</div>';
         selectedThreadId = null;
         return;
       }
@@ -322,7 +510,7 @@ function openThread(id) {
       document.getElementById('threadTitle').textContent = 'Messages';
       document.getElementById('threadSub').textContent = msgs.length + ' message' + (msgs.length === 1 ? '' : 's');
       if (!msgs.length) {
-        document.getElementById('messages').innerHTML = '<div class="empty">No messages yet — send the first staff note</div>';
+        document.getElementById('messages').innerHTML = '<div class="empty">No messages yet — send the first one</div>';
       } else {
         document.getElementById('messages').innerHTML = msgs.map(function(m) {
           var cls = m.actor_type === 'staff' ? 'staff' : (m.actor_type === 'vendor' ? 'vendor' : 'bot');
@@ -343,44 +531,43 @@ function openThread(id) {
     });
 }
 
-function startGeneralThread() {
-  var body = (document.getElementById('composerBody').value || '').trim() || 'Thread opened by staff';
-  document.getElementById('sendBtn').disabled = true;
-  fetch('/api/ops/comm/messages', api('POST', {
-    vendor_id: selectedVendorId,
-    channel: 'in_app',
-    title: 'General',
-    actor_type: 'staff',
-    actor_label: 'Staff',
-    body_text: body,
-    direction: 'outbound'
-  }))
-    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
-    .then(function(res) {
-      if (!res.ok) throw new Error(res.d.error || 'Could not start thread');
-      document.getElementById('composerBody').value = '';
-      return openVendor(selectedVendorId);
-    })
-    .catch(function(err) {
-      alert(err.message || 'Could not start thread');
-      document.getElementById('sendBtn').disabled = false;
-    });
-}
-
 function sendMessage() {
   var body = (document.getElementById('composerBody').value || '').trim();
   if (!body) return;
-  if (!selectedThreadId) {
-    startGeneralThread();
+  if (!selectedVendorId) {
+    alert('Select a vendor first');
+    return;
+  }
+  var v = vendors.find(function(x) { return x.id === selectedVendorId; });
+  var channel = detailChannel || 'sms';
+  if (channel === 'sms' && v && !(v.phone || v.primary_phone)) {
+    alert('Vendor phone is missing. Switch to Email or Note.');
+    return;
+  }
+  if (channel === 'email' && v && !(v.email || v.primary_email)) {
+    alert('Vendor email is missing. Switch to Text or Note.');
     return;
   }
   document.getElementById('sendBtn').disabled = true;
-  fetch('/api/crm/threads/' + encodeURIComponent(selectedThreadId) + '/messages', api('POST', { body_text: body, actor_label: 'Staff' }))
+  var payload = {
+    vendor_id: selectedVendorId,
+    channel: channel,
+    title: channel === 'sms' ? 'SMS' : (channel === 'email' ? 'Email' : 'General'),
+    actor_type: 'staff',
+    actor_label: activeProfileConfig().label,
+    body_text: body,
+    direction: 'outbound',
+    crm_profile: profileKey(currentCrmProfile)
+  };
+  if (selectedThreadId && channel === 'in_app') {
+    payload.thread_id = selectedThreadId;
+  }
+  fetch('/api/ops/comm/messages', api('POST', payload))
     .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
     .then(function(res) {
       if (!res.ok) throw new Error(res.d.error || 'Send failed');
       document.getElementById('composerBody').value = '';
-      return openThread(selectedThreadId);
+      return openVendor(selectedVendorId);
     })
     .catch(function(err) {
       alert(err.message || 'Send failed');
