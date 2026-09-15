@@ -1566,7 +1566,15 @@ function openLeadDetail(id, skipHistory) {
                     '<div style="display:flex;justify-content:flex-end;align-items:center;gap:0.35rem;font-size:0.6rem;color:' + (isOutbound ? 'rgba(255,255,255,0.5)' : '#999') + ';margin-top:0.3rem;text-align:right"><span>' + (isOutbound ? 'Sent' : 'Received') + ' · ' + date + '</span>' + (channelLabel ? '<span style="font-size:0.5rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;border:1px solid ' + (isOutbound ? 'rgba(255,255,255,0.25)' : '#ddd') + ';border-radius:999px;padding:0.05rem 0.35rem">' + channelLabel + '</span>' : '') + '</div>' +
                   '</div></div>';
               } else {
-                var icon = a.activity_type === 'call' ? '📞' : a.activity_type === 'email' ? '✉️' : '📝';
+                var icon = a.activity_type === 'call' ? '📞' : a.activity_type === 'email' ? '✉️' : (a.activity_type === 'note' ? '📎' : '📝');
+                var noteAtt = renderAttachments(a.attachments);
+                if (noteAtt) {
+                  return '<div style="margin:0.75rem 0;text-align:center">' +
+                    '<div style="display:inline-block;text-align:left;max-width:100%;padding:0.6rem 0.85rem;border-radius:12px;background:#fff;border:1px dashed #cfc8b8;box-shadow:0 1px 2px rgba(0,0,0,0.04)">' +
+                      '<div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:0.35rem">' + icon + ' Internal record · ' + date + '</div>' +
+                      '<div style="font-size:0.8rem;color:var(--text)">' + messageHtml(msg) + '</div>' + noteAtt +
+                    '</div></div>';
+                }
                 return '<div style="text-align:center;margin:0.75rem 0;font-size:0.7rem;color:var(--text-muted)">' +
                   '<span style="background:#fff;padding:0.25rem 0.75rem;border-radius:20px;box-shadow:0 1px 2px rgba(0,0,0,0.04)">' + icon + ' ' + messageHtml(msg) + ' · ' + date + '</span></div>';
               }
@@ -1584,6 +1592,7 @@ function openLeadDetail(id, skipHistory) {
             '<div class="channel-toggle">' +
               '<button type="button" id="channel-sms" class="btn btn-outline ' + (defaultReplyChannel === 'sms' ? 'active' : '') + '" onclick="setMessageChannel(\'sms\',' + l.id + ')">💬 Text</button>' +
               '<button type="button" id="channel-email" class="btn btn-outline ' + (defaultReplyChannel === 'email' ? 'active' : '') + '" ' + ((!hasValidEmail || PNM_EMAIL_SENDING_PAUSED) ? 'disabled title="Email sending is paused"' : 'title="Sends from ' + detailProfile.senderEmail + '"') + ' onclick="setMessageChannel(\'email\',' + l.id + ')">✉️ Email <span style="display:block;font-size:0.52rem;line-height:1.1;opacity:0.78">' + detailProfile.senderEmail + '</span>' + (PNM_EMAIL_SENDING_PAUSED ? ' Paused' : '') + '</button>' +
+              '<button type="button" id="channel-note" class="btn btn-outline" onclick="setMessageChannel(\'note\',' + l.id + ')" title="Save photos/files on the lead without texting or emailing the customer">📎 Record</button>' +
               emailSenderNote +
             '</div>' +
             '<div id="email-subject-row" class="email-subject-row"><input type="text" id="email-subject" placeholder="Email subject..." style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.8rem"></div>' +
@@ -1873,8 +1882,23 @@ function setMessageChannel(channel, id) {
   type.value = channel;
   document.getElementById('channel-sms')?.classList.toggle('active', channel === 'sms');
   document.getElementById('channel-email')?.classList.toggle('active', channel === 'email');
+  document.getElementById('channel-note')?.classList.toggle('active', channel === 'note');
   document.getElementById('email-subject-row')?.classList.toggle('show', channel === 'email');
-  document.getElementById('note-text').placeholder = channel === 'email' ? 'Type email body...' : 'Type a message...';
+  var noteEl = document.getElementById('note-text');
+  if (noteEl) {
+    noteEl.placeholder = channel === 'email'
+      ? 'Type email body...'
+      : (channel === 'note' ? 'Optional internal note (customer will NOT be messaged)...' : 'Type a message...');
+  }
+  var sendBtn = document.getElementById('profile-send-btn');
+  if (sendBtn) {
+    sendBtn.textContent = channel === 'note' ? 'Save to record' : 'Send';
+    sendBtn.title = channel === 'note'
+      ? 'Save photos/files on this lead only — does not text or email the customer'
+      : 'Tap to send now. Hold for send later.';
+  }
+  var laterRow = document.getElementById('profile-send-later-row');
+  if (laterRow && channel === 'note') laterRow.classList.remove('show');
   var senderNote = document.getElementById('email-sender-note');
   if (senderNote) senderNote.style.display = channel === 'email' ? 'inline' : 'none';
   if (channel === 'email') {
@@ -2120,6 +2144,30 @@ function addNote(id) {
   var hasFiles = fileInput && fileInput.files && fileInput.files.length > 0;
   if (!text && !hasFiles) return;
   var subject = (document.getElementById('email-subject')?.value || '').trim();
+  if (type === 'note') {
+    var noteDesc = text
+      ? ('📝 ' + text)
+      : ('📎 Internal ' + (hasFiles ? (fileInput.files.length === 1 ? 'photo/file' : 'photos/files') : 'note') + ' saved on lead (not sent to customer)');
+    selectedAttachments().then(function(attachments) {
+      if (!text && !attachments.length) return;
+      return fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: 'note', description: noteDesc, attachments: attachments }));
+    }).then(function(r) {
+      if (!r) return null;
+      return r.json().catch(function() { return {}; }).then(function(d) { return { ok: r.ok, data: d }; });
+    }).then(function(result) {
+      if (!result) return;
+      if (!result.ok) {
+        alert(result.data.error || 'Could not save to record.');
+        return;
+      }
+      document.getElementById('note-text').value = '';
+      var att = document.getElementById('message-attachments');
+      if (att) att.value = '';
+      autoGrowTextarea(document.getElementById('note-text'));
+      openLeadDetail(id);
+    });
+    return;
+  }
   if (type === 'email') {
     if (PNM_EMAIL_SENDING_PAUSED) {
       alert('Email sending is paused for now. Use SMS until Brevo-only email is approved.');

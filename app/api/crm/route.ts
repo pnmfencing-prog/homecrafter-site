@@ -1123,8 +1123,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const sender = isFromCustomer ? 'customer' : 'you';
-    await sql`UPDATE crm_leads SET updated_at = NOW(), last_message_by = ${sender}, last_message_at = NOW(), is_read = ${!isFromCustomer} WHERE id = ${id}`;
+    const isConversationMessage = activity_type === 'sms' || activity_type === 'email' || activity_type === 'customer_message';
+    if (isConversationMessage) {
+      const sender = isFromCustomer ? 'customer' : 'you';
+      await sql`UPDATE crm_leads SET updated_at = NOW(), last_message_by = ${sender}, last_message_at = NOW(), is_read = ${!isFromCustomer} WHERE id = ${id}`;
+    } else {
+      await sql`UPDATE crm_leads SET updated_at = NOW() WHERE id = ${id}`;
+    }
 
     if (activity_type === 'email' && !isFromCustomer) {
       const leadProfileRows = await sql`SELECT crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
