@@ -64,6 +64,16 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
 .tile-reply-status { min-height: 0.75rem; font-size: 0.56rem; font-weight: 750; color: var(--text-muted); }
 .tile-reply-status.ok { color: var(--green); }
 .tile-reply-status.err { color: var(--red); }
+.tile-message-history { margin-top: 0.45rem; margin-bottom: 0.15rem; max-height: 116px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #f0ede6; border-radius: 9px; background: #fffdfa; padding: 0.35rem; display: grid; gap: 0.32rem; cursor: default; scrollbar-width: thin; scrollbar-color: rgba(30,24,69,0.35) transparent; }
+.tile-message-history::-webkit-scrollbar { width: 5px; }
+.tile-message-history::-webkit-scrollbar-thumb { background: rgba(30,24,69,0.28); border-radius: 999px; }
+.tile-message-row { border-radius: 8px; padding: 0.32rem 0.42rem; background: #fff; border: 1px solid #f3efe7; }
+.tile-message-row.customer { background: rgba(176,58,46,0.055); border-color: rgba(176,58,46,0.12); }
+.tile-message-row.you { background: rgba(46,125,50,0.055); border-color: rgba(46,125,50,0.12); }
+.tile-message-head { display: flex; justify-content: space-between; gap: 0.35rem; align-items: baseline; font-size: 0.52rem; font-weight: 850; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.16rem; }
+.tile-message-row.customer .tile-message-head { color: var(--red); }
+.tile-message-row.you .tile-message-head { color: var(--green); }
+.tile-message-body { color: var(--midnight); font-size: 0.68rem; line-height: 1.35; font-weight: 650; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
 .empty { padding: 1.5rem 0.75rem; text-align: center; color: var(--text-muted); font-size: 0.75rem; }
 .detail { display: none; max-width: 1600px; margin: 0 auto 2rem; padding: 0 1.25rem; }
 .detail.open { display: grid; grid-template-columns: 320px 1fr; gap: 1rem; }
@@ -280,6 +290,46 @@ function autoGrowTextarea(el) {
   el.style.height = Math.min(el.scrollHeight, Math.round(window.innerHeight * 0.35)) + 'px';
 }
 
+function shortMessage(value, max) {
+  var s = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+  return s.length > max ? s.slice(0, max - 1).trim() + '…' : s;
+}
+function formatMessageDate(value) {
+  if (!value) return '';
+  try {
+    return new Date(value).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  } catch (e) { return String(value); }
+}
+function tileHistoryAuthor(v, msg) {
+  if (msg.is_from_vendor || msg.is_from_customer || msg.actor_type === 'vendor' || msg.direction === 'inbound') {
+    return (msg.actor_label && msg.actor_label !== 'vendor') ? msg.actor_label : (v.display_name || 'Vendor');
+  }
+  if (msg.actor_label && msg.actor_label !== 'admin' && msg.actor_label !== 'staff') return msg.actor_label;
+  return activeProfileConfig().label;
+}
+function tileMessageHistoryHtml(v) {
+  var messages = Array.isArray(v.recent_messages) ? v.recent_messages.slice() : [];
+  if (!messages.length) return '';
+  // API returns oldest→newest (last ~8). Keep that chat order; cap at 8.
+  messages = messages
+    .sort(function(a, b) { return new Date(a.created_at || 0) - new Date(b.created_at || 0); })
+    .slice(-8);
+  return '<div class="tile-message-history" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onwheel="event.stopPropagation()" aria-label="Recent message history">' +
+    messages.map(function(msg) {
+      var fromVendor = msg.is_from_vendor === true || msg.is_from_customer === true || msg.actor_type === 'vendor' || msg.direction === 'inbound';
+      var cls = fromVendor ? 'customer' : 'you';
+      var label = fromVendor ? 'Vendor' : 'You';
+      var body = shortMessage(msg.body_text || msg.description || '', 500);
+      if (!body) body = (msg.message_kind === 'email' || msg.direction === 'email') ? 'Email activity' : 'Message activity';
+      return '<div class="tile-message-row ' + cls + '">' +
+        '<div class="tile-message-head"><span>' + label + ' · ' + esc(tileHistoryAuthor(v, msg)) + '</span><span>' + esc(formatMessageDate(msg.created_at)) + '</span></div>' +
+        '<div class="tile-message-body">' + esc(body) + '</div>' +
+      '</div>';
+    }).join('') +
+  '</div>';
+}
+
 function defaultCardChannel(v) {
   var phone = v.phone || v.primary_phone || '';
   var email = v.email || v.primary_email || '';
@@ -332,6 +382,7 @@ function vendorCardHtml(v) {
     '<div class="meta">' + esc(phone || 'No phone') + (email ? ' · ' + esc(email) : '') + '</div>' +
     '<div class="meta">Last activity: ' + esc(fmtWhen(v.last_activity_at) || '—') + '</div>' +
     '<span class="status ' + esc(v.status || '') + '">' + esc(v.status || 'active') + '</span>' +
+    tileMessageHistoryHtml(v) +
     compose +
   '</div>';
 }
@@ -423,7 +474,7 @@ function sendTileQuickReply(event, id) {
       setTileReplyStatus(id, 'Sent ✓', 'ok');
       if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
       return loadVendors().then(function() {
-        if (selectedVendorId === id) return openVendor(id);
+        return openVendor(id);
       });
     })
     .catch(function(err) {

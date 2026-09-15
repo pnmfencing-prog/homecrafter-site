@@ -11,7 +11,80 @@ function mapVendor(row: any) {
     phone: row.primary_phone,
     email: row.primary_email,
     last_activity_at: row.last_activity_at || row.last_message_at || null,
+    recent_messages: Array.isArray(row.recent_messages) ? row.recent_messages : [],
   };
+}
+
+function mapRecentMessage(row: any) {
+  const actorType = String(row.actor_type || "");
+  const direction = String(row.direction || "");
+  const isFromVendor =
+    actorType === "vendor" ||
+    (direction === "inbound" && actorType !== "staff");
+  return {
+    id: row.id,
+    vendor_id: row.vendor_id,
+    actor_type: row.actor_type,
+    actor_label: row.actor_label,
+    body_text: row.body_text,
+    created_at: row.created_at,
+    direction: row.direction,
+    message_kind: row.message_kind,
+    is_from_vendor: isFromVendor,
+    // CRM tile equivalent: counterparty bubble (vendor ≈ customer)
+    is_from_customer: isFromVendor,
+  };
+}
+
+async function attachRecentMessages(rows: any[]) {
+  const vendorIds = rows.map((r) => r.id).filter(Boolean);
+  if (!vendorIds.length) return rows.map((r) => ({ ...r, recent_messages: [] }));
+
+  const recentMessages = await sql`
+    WITH vendor_ids AS (
+      SELECT unnest(${vendorIds}::uuid[]) AS vendor_id
+    )
+    SELECT
+      recent.vendor_id,
+      recent.id,
+      recent.actor_type,
+      recent.actor_label,
+      recent.body_text,
+      recent.created_at,
+      recent.direction,
+      recent.message_kind
+    FROM vendor_ids vi
+    CROSS JOIN LATERAL (
+      SELECT
+        t.vendor_id,
+        m.id,
+        m.actor_type,
+        m.actor_label,
+        LEFT(COALESCE(m.body_text, ''), 500) AS body_text,
+        m.created_at,
+        m.direction,
+        m.message_kind
+      FROM crm_comm_threads t
+      INNER JOIN crm_comm_messages m ON m.thread_id = t.id
+      WHERE t.vendor_id = vi.vendor_id
+      ORDER BY m.created_at DESC, m.id DESC
+      LIMIT 8
+    ) recent
+    ORDER BY recent.vendor_id, recent.created_at ASC, recent.id ASC
+  `;
+
+  const messagesByVendorId = new Map<string, any[]>();
+  for (const msg of recentMessages) {
+    const key = String(msg.vendor_id);
+    const list = messagesByVendorId.get(key) || [];
+    list.push(mapRecentMessage(msg));
+    messagesByVendorId.set(key, list);
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    recent_messages: messagesByVendorId.get(String(r.id)) || [],
+  }));
 }
 
 export async function GET(request: NextRequest) {
@@ -95,5 +168,7 @@ export async function GET(request: NextRequest) {
     `;
   }
 
-  return NextResponse.json({ vendors: rows.map(mapVendor) });
+  const withMessages = await attachRecentMessages(rows as any[]);
+  return NextResponse.json({ vendors: withMessages.map(mapVendor) });
 }
+
