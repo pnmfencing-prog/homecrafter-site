@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { normalizeCrmProfile, type CrmProfileKey } from '@/lib/email-policy';
 
-const ANGI_IMPORT_PROFILES = ['pnm_fencing', 'fencecrafters', 'lowes_fencing'] as const;
+const ANGI_IMPORT_PROFILES = ['pnm_fencing', 'fencecrafters'] as const;
 
 function normalizePhone(value: any): string | null {
   if (!value) return null;
