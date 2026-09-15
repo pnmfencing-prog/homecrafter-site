@@ -420,18 +420,105 @@ function renderVendors() {
   document.getElementById('junkList').innerHTML = junk.length ? junk.map(vendorCardHtml).join('') : '<div class="empty">No junk vendors yet</div>';
 }
 
+function snapshotTileDrafts() {
+  var drafts = {};
+  document.querySelectorAll('[id^="tile-reply-"]').forEach(function(el) {
+    if (el.value) drafts[el.id] = el.value;
+  });
+  var active = document.activeElement;
+  return {
+    drafts: drafts,
+    focusId: active && active.id ? active.id : null,
+    selStart: active && typeof active.selectionStart === 'number' ? active.selectionStart : null,
+    selEnd: active && typeof active.selectionEnd === 'number' ? active.selectionEnd : null
+  };
+}
+function restoreTileDrafts(snap) {
+  if (!snap) return;
+  Object.keys(snap.drafts || {}).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.value = snap.drafts[id];
+      autoGrowTextarea(el);
+    }
+  });
+  if (snap.focusId) {
+    var focusEl = document.getElementById(snap.focusId);
+    if (focusEl) {
+      focusEl.focus();
+      try {
+        if (snap.selStart != null && snap.selEnd != null) focusEl.setSelectionRange(snap.selStart, snap.selEnd);
+      } catch (e) {}
+    }
+  }
+}
+function isOpsTyping() {
+  var active = document.activeElement;
+  if (!active) return false;
+  if (active.id === 'composerBody') return true;
+  if (active.id && active.id.indexOf('tile-reply-') === 0) return true;
+  if (active.id === 'searchBox') return true;
+  return false;
+}
 function loadVendors() {
+  var snap = snapshotTileDrafts();
   return fetch('/api/crm/vendors?profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('GET'))
     .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
     .then(function(res) {
       if (!res.ok) throw new Error(res.d.error || 'Failed to load vendors');
       vendors = res.d.vendors || [];
       renderVendors();
+      restoreTileDrafts(snap);
     })
     .catch(function(err) {
       document.getElementById('materialsList').innerHTML = '<div class="empty">' + esc(err.message) + '</div>';
       document.getElementById('junkList').innerHTML = '<div class="empty">' + esc(err.message) + '</div>';
     });
+}
+function refreshOpenThreadQuietly() {
+  if (!selectedThreadId) return Promise.resolve();
+  var box = document.getElementById('messages');
+  var nearBottom = true;
+  if (box) {
+    nearBottom = (box.scrollHeight - box.scrollTop - box.clientHeight) < 80;
+  }
+  return fetch('/api/crm/threads/' + encodeURIComponent(selectedThreadId) + '/messages', api('GET'))
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+      if (!res.ok) return;
+      var msgs = res.d.messages || [];
+      document.getElementById('threadSub').textContent = msgs.length + ' message' + (msgs.length === 1 ? '' : 's');
+      if (!msgs.length) {
+        document.getElementById('messages').innerHTML = '<div class="empty">No messages yet — send the first one</div>';
+        return;
+      }
+      document.getElementById('messages').innerHTML = msgs.map(function(m) {
+        var cls = m.actor_type === 'staff' ? 'staff' : (m.actor_type === 'vendor' ? 'vendor' : 'bot');
+        return '<div class="bubble ' + cls + '">' +
+          '<div class="who">' + esc(m.actor_label || m.actor_type) + '</div>' +
+          '<div>' + esc(m.body_text) + '</div>' +
+          '<div class="when">' + esc(fmtWhen(m.created_at)) + '</div>' +
+        '</div>';
+      }).join('');
+      if (nearBottom) {
+        var messagesBox = document.getElementById('messages');
+        messagesBox.scrollTop = messagesBox.scrollHeight;
+      }
+    })
+    .catch(function() {});
+}
+var OPS_REFRESH_MS = 8000;
+var opsRefreshInFlight = false;
+function refreshOpsQuietly() {
+  if (document.hidden || opsRefreshInFlight) return;
+  // Still refresh tile threads while typing — but preserve drafts (snapshot/restore).
+  opsRefreshInFlight = true;
+  var detailOpen = document.getElementById('detail') && document.getElementById('detail').classList.contains('open');
+  loadVendors()
+    .then(function() {
+      if (detailOpen && selectedVendorId) return refreshOpenThreadQuietly();
+    })
+    .finally(function() { opsRefreshInFlight = false; });
 }
 
 function setTileReplyStatus(id, message, kind) {
@@ -656,6 +743,10 @@ currentCrmProfile = loadCrmProfileFromState();
 saveCrmProfileToState();
 applyCrmProfileUi();
 loadVendors();
+setInterval(refreshOpsQuietly, OPS_REFRESH_MS);
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden) refreshOpsQuietly();
+});
 </script>
 </body>
 </html>
