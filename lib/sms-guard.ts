@@ -92,7 +92,9 @@ export async function assertSmsCapable(to: string): Promise<string> {
   const lti = payload.line_type_intelligence || {};
   const lineType = lti.type || payload.line_type || 'unknown';
   const carrierName = lti.carrier_name || lti.carrier || payload.carrier_name || null;
-  const smsCapable = lineType === 'mobile';
+  // mobile + non-fixed VoIP (Google Voice etc.) commonly receive SMS.
+  // Keep landline/fixedVoip/tollFree blocked.
+  const smsCapable = lineType === 'mobile' || lineType === 'nonFixedVoip';
 
   await sql`
     INSERT INTO phone_lookup_cache (phone_e164, carrier_name, line_type, mobile_country_code, mobile_network_code, sms_capable, raw)
