@@ -350,9 +350,9 @@ function boardUrlForProfile(profileKey: string, leadId: number | string): string
 function newLeadReplyForProfile(profileValue: unknown): string {
   const profile = crmProfileConfig(profileValue);
   const intro = profile.key === 'pnm_fencing'
-    ? 'Hi, this is PNM Fencing. I was assigned as the estimator for your project.'
+    ? 'Hi, this is Dan with PNM Fencing. I was assigned as the estimator for your project.'
     : profile.key === 'lowes_fencing'
-      ? 'Hi, this is Lowes Fencing NJ. I was assigned as the estimator for your project.'
+      ? 'Hi, this is Dan with Lowes Fencing NJ. I was assigned as the estimator for your project.'
       : 'Hi, this is Scott with FenceCrafters. I was assigned as the estimator for your project.';
   return `${intro}\n\nDid you by chance have a property survey or the total footage or section count?`;
 }
