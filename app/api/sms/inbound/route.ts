@@ -317,6 +317,87 @@ async function logContractorSmsReply(contractor: any, from: string, body: string
   `;
 }
 
+async function findVendorByPhone(from: string): Promise<any | null> {
+  const normalized = normalizePhone(from);
+  const matches = await sql`
+    SELECT id, display_name, company, primary_phone, crm_profile, profile_type, status
+    FROM crm_vendor_profiles
+    WHERE status <> 'archived'
+      AND regexp_replace(coalesce(primary_phone, ''), '[^0-9]', '', 'g') IN (${normalized}, ${`1${normalized}`})
+    ORDER BY
+      CASE WHEN crm_profile = 'lowes_fencing' THEN 0 ELSE 1 END,
+      last_activity_at DESC NULLS LAST,
+      updated_at DESC
+    LIMIT 1
+  `;
+  return matches[0] || null;
+}
+
+/** Append inbound SMS onto the vendor's Operations tile SMS thread (never a sales lead). */
+async function appendVendorInboundSms(vendor: any, from: string, body: string): Promise<void> {
+  const bodyText = (body || '').trim() || '[attachment / empty inbound SMS]';
+  const preview = bodyText.slice(0, 240);
+
+  const existing = await sql`
+    SELECT id FROM crm_comm_threads
+    WHERE vendor_id = ${vendor.id}::uuid
+      AND channel = 'sms'
+      AND title = 'SMS'
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `;
+
+  let threadId = existing[0]?.id as string | undefined;
+  if (!threadId) {
+    const created = await sql`
+      INSERT INTO crm_comm_threads (vendor_id, channel, title)
+      VALUES (${vendor.id}::uuid, 'sms', 'SMS')
+      RETURNING id
+    `;
+    threadId = created[0].id;
+  }
+
+  // Avoid duplicate rows if Twilio retries the webhook.
+  const duplicate = await sql`
+    SELECT id FROM crm_comm_messages
+    WHERE thread_id = ${threadId}::uuid
+      AND actor_type = 'vendor'
+      AND direction = 'inbound'
+      AND body_text = ${bodyText}
+      AND created_at > NOW() - INTERVAL '10 minutes'
+    LIMIT 1
+  `;
+  if (!duplicate.length) {
+    await sql`
+      INSERT INTO crm_comm_messages (
+        thread_id, actor_type, actor_label, body_text, message_kind, direction
+      ) VALUES (
+        ${threadId}::uuid,
+        'vendor',
+        ${vendor.display_name || formatPhone(from)},
+        ${bodyText},
+        'chat',
+        'inbound'
+      )
+    `;
+    await sql`
+      UPDATE crm_comm_threads
+      SET
+        last_message_preview = ${preview},
+        last_message_at = NOW(),
+        updated_at = NOW(),
+        unread_count = unread_count + 1
+      WHERE id = ${threadId}::uuid
+    `;
+  }
+
+  await sql`
+    UPDATE crm_vendor_profiles
+    SET last_activity_at = NOW(), updated_at = NOW()
+    WHERE id = ${vendor.id}::uuid
+  `;
+}
+
 async function findOrCreateLead(from: string, crmProfile: CrmProfileKey): Promise<{ lead: any; created: boolean }> {
   const normalized = normalizePhone(from);
   const matches = await sql`
@@ -395,6 +476,19 @@ export async function POST(request: NextRequest) {
       }
       suppressAnyReply = true;
     } else {
+      // Ops vendors / GC partners: route onto Materials vendor tile SMS thread only.
+      const vendor = await findVendorByPhone(from);
+      if (vendor) {
+        await appendVendorInboundSms(vendor, from, body);
+        suppressAnyReply = true;
+        if (normalizePhone(from) !== DAN_PHONE) {
+          const profile = crmProfileConfig(vendor.crm_profile || inboundProfile);
+          notificationProfile = profile.key;
+          const vendorName = vendor.display_name || formatPhone(from);
+          const opsUrl = `${CRM_BASE_URL}/operations.html?profile=${encodeURIComponent(profile.key)}&vendor=${encodeURIComponent(String(vendor.id))}`;
+          notificationText = `New ${profile.label} Ops vendor text from ${vendorName} (${formatPhone(from)}): ${body || '[attachment]'}\n\nOpen Operations: ${opsUrl}`;
+        }
+      } else {
       const result = await findOrCreateLead(from, inboundProfile);
       lead = result.lead;
       const attachmentSummary = inboundAttachments.length
@@ -505,7 +599,8 @@ export async function POST(request: NextRequest) {
         `;
       }
     }
-    }
+      } // no-vendor → sales lead path
+    } // contractor-else
   }
 
   const now = new Date();
