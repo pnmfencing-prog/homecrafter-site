@@ -253,6 +253,7 @@ function setCrmProfile(profile) {
   currentCrmProfile = profileKey(profile);
   saveCrmProfileToState();
   applyCrmProfileUi();
+  loadVendors();
 }
 
 function api(method, body) {
