@@ -21,7 +21,7 @@ function twilioFromForProfile(profileValue: unknown): string {
   const profile = normalizeCrmProfile(profileValue);
   if (profile === 'pnm_fencing') return PNM_TWILIO_FROM;
   if (profile === 'lowes_fencing') return process.env.LOWES_TWILIO_NUMBER || process.env.LOWES_TWILIO_FROM || '+19086766984';
-  return TWILIO_FROM;
+  return TWILIO_FROM || process.env.FENCECRAFTERS_TWILIO_NUMBER || '+19085035473';
 }
 
 function normalizePhone(phone: string): string {

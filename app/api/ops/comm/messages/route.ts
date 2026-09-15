@@ -14,14 +14,17 @@ export const revalidate = 0;
 
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
-const TWILIO_FROM = process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '';
+const FENCECRAFTERS_TWILIO_FROM =
+  process.env.FENCECRAFTERS_TWILIO_NUMBER || process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '+19085035473';
 const PNM_TWILIO_FROM = process.env.PNM_TWILIO_FROM || process.env.PNM_TWILIO_NUMBER || '+19083173444';
+const LOWES_TWILIO_FROM = process.env.LOWES_TWILIO_NUMBER || process.env.LOWES_TWILIO_FROM || '+19086766984';
 
+/** Exclusive profile → Twilio From. Never cross profiles. */
 function twilioFromForProfile(profileValue: unknown): string {
   const profile = normalizeCrmProfile(profileValue);
   if (profile === 'pnm_fencing') return PNM_TWILIO_FROM;
-  if (profile === 'lowes_fencing') return process.env.LOWES_TWILIO_NUMBER || process.env.LOWES_TWILIO_FROM || '+19086766984';
-  return TWILIO_FROM || '+19085035473';
+  if (profile === 'lowes_fencing') return LOWES_TWILIO_FROM;
+  return FENCECRAFTERS_TWILIO_FROM;
 }
 
 async function sendTwilioSms(to: string, body: string, profileValue?: unknown): Promise<string | null> {
@@ -120,12 +123,11 @@ export async function POST(request: NextRequest) {
   const channel = String(body.channel || 'in_app').trim() || 'in_app';
   const title = String(body.title || (channel === 'sms' ? 'SMS' : channel === 'email' ? 'Email' : 'General')).trim() || 'General';
   const actorType = String(body.actor_type || 'bot').trim();
-  const actorLabel = String(body.actor_label || actorType).trim() || actorType;
+  let actorLabel = String(body.actor_label || actorType).trim() || actorType;
   const messageKind = String(body.message_kind || 'chat').trim() || 'chat';
   const direction = String(body.direction || (actorType === 'staff' ? 'outbound' : 'inbound')).trim();
   let externalMessageId = body.external_message_id ? String(body.external_message_id) : null;
   const orderPayload = body.order_payload ?? null;
-  const crmProfile = normalizeCrmProfile(body.crm_profile || body.profile);
   const emailSubject = String(body.subject || '').trim();
   const deliver = body.deliver !== false && actorType === 'staff' && direction === 'outbound' && (channel === 'sms' || channel === 'email');
 
@@ -136,20 +138,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'invalid channel' }, { status: 400 });
   }
 
-  if (deliver && channel === 'sms') {
-    bodyText = appendSignature(bodyText, crmProfile);
-  }
-  if (deliver && channel === 'email') {
-    bodyText = appendSignature(bodyText, crmProfile);
-  }
-
   let vendorRow: any = null;
   if (!threadId) {
     if (!vendorId) {
       return NextResponse.json({ error: 'vendor_id or thread_id is required' }, { status: 400 });
     }
     const vendor = await sql`
-      SELECT id, display_name, primary_phone, primary_email
+      SELECT id, display_name, primary_phone, primary_email, crm_profile
       FROM crm_vendor_profiles WHERE id = ${vendorId}::uuid LIMIT 1
     `;
     if (!vendor.length) {
@@ -186,7 +181,7 @@ export async function POST(request: NextRequest) {
   }
 
   const threadRows = await sql`
-    SELECT t.id, t.vendor_id, t.channel, v.display_name, v.primary_phone, v.primary_email
+    SELECT t.id, t.vendor_id, t.channel, v.display_name, v.primary_phone, v.primary_email, v.crm_profile
     FROM crm_comm_threads t
     JOIN crm_vendor_profiles v ON v.id = t.vendor_id
     WHERE t.id = ${threadId}::uuid
@@ -201,13 +196,23 @@ export async function POST(request: NextRequest) {
     display_name: threadRows[0].display_name,
     primary_phone: threadRows[0].primary_phone,
     primary_email: threadRows[0].primary_email,
+    crm_profile: threadRows[0].crm_profile,
   };
+  // Outbound identity is locked to the vendor's crm_profile (never the UI toggle).
+  const crmProfile = normalizeCrmProfile(vendorRow.crm_profile || threadRows[0].crm_profile);
+  const profileCfg = crmProfileConfig(crmProfile);
+  if (actorType === 'staff' && (channel === 'sms' || channel === 'email')) {
+    actorLabel = profileCfg.label;
+  }
 
   let deliveryStatus = body.delivery_status
     ? String(body.delivery_status)
     : (actorType === 'staff' ? 'sent' : null);
 
   if (deliver) {
+    if (channel === 'sms' || channel === 'email') {
+      bodyText = appendSignature(bodyText, crmProfile);
+    }
     try {
       if (channel === 'sms') {
         const to = normalizeSmsPhone(String(vendorRow.primary_phone || ''));

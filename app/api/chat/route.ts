@@ -20,8 +20,10 @@ const PNM_TWILIO_NUMBER = process.env.PNM_TWILIO_NUMBER || process.env.PNM_TWILI
 function twilioFromForProfile(profileValue: unknown): string {
   const profile = crmProfileConfig(profileValue);
   if (profile.key === 'pnm_fencing') return PNM_TWILIO_NUMBER;
-  if (profile.key === 'lowes_fencing') return process.env.LOWES_TWILIO_NUMBER || FENCECRAFTERS_TWILIO_NUMBER;
-  return FENCECRAFTERS_TWILIO_NUMBER;
+  if (profile.key === 'lowes_fencing') {
+    return process.env.LOWES_TWILIO_NUMBER || process.env.LOWES_TWILIO_FROM || '+19086766984';
+  }
+  return FENCECRAFTERS_TWILIO_NUMBER || '+19085035473';
 }
 
 async function sendTwilioSms(to: string, body: string, profileValue?: unknown): Promise<string | null> {

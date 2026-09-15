@@ -481,7 +481,7 @@ function sendTileQuickReply(event, id) {
     actor_label: activeProfileConfig().label,
     body_text: body,
     direction: 'outbound',
-    crm_profile: profileKey(currentCrmProfile)
+    crm_profile: profileKey(v.crm_profile || currentCrmProfile)
   };
   fetch('/api/ops/comm/messages', api('POST', payload))
     .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
@@ -626,7 +626,7 @@ function sendMessage() {
     actor_label: activeProfileConfig().label,
     body_text: body,
     direction: 'outbound',
-    crm_profile: profileKey(currentCrmProfile)
+    crm_profile: profileKey((v && v.crm_profile) || currentCrmProfile)
   };
   if (selectedThreadId && channel === 'in_app') {
     payload.thread_id = selectedThreadId;
