@@ -428,13 +428,34 @@ function boardUrlForProfile(profileKey: string, leadId: number | string): string
   return `${CRM_BASE_URL}${base}?lead=${leadId}&profile=${profileKey}`;
 }
 
-function newLeadReplyForProfile(profileValue: unknown): string {
+function newLeadReplyForProfile(
+  profileValue: unknown,
+  customerName?: string | null,
+  customerCity?: string | null,
+): string {
   const profile = crmProfileConfig(profileValue);
-  const intro = profile.key === 'pnm_fencing'
-    ? 'Hi, this is Dan with PNM Fencing. I was assigned as the estimator for your project.'
-    : profile.key === 'lowes_fencing'
-      ? 'Hi, this is Dan with Lowes Fencing NJ. I was assigned as the estimator for your project.'
+  const firstName = (customerName || '').trim().split(/\s+/)[0] || '';
+  const city = (customerCity || '').trim();
+  let intro: string;
+  if (profile.key === 'pnm_fencing') {
+    intro = firstName
+      ? `Hi ${firstName}, this is Dan with PNM Fencing. I was assigned as the estimator for your project.`
+      : 'Hi, this is Dan with PNM Fencing. I was assigned as the estimator for your project.';
+  } else if (profile.key === 'lowes_fencing') {
+    if (firstName && city) {
+      intro = `Hi ${firstName}, this is Dan with Lowes Fencing NJ. I was assigned as the estimator for your project in ${city}.`;
+    } else if (firstName) {
+      intro = `Hi ${firstName}, this is Dan with Lowes Fencing NJ. I was assigned as the estimator for your project.`;
+    } else if (city) {
+      intro = `Hi, this is Dan with Lowes Fencing NJ. I was assigned as the estimator for your project in ${city}.`;
+    } else {
+      intro = 'Hi, this is Dan with Lowes Fencing NJ. I was assigned as the estimator for your project.';
+    }
+  } else {
+    intro = firstName
+      ? `Hi ${firstName}, this is Scott with FenceCrafters. I was assigned as the estimator for your project.`
       : 'Hi, this is Scott with FenceCrafters. I was assigned as the estimator for your project.';
+  }
   return `${intro}\n\nDid you by chance have a property survey or the total footage or section count?`;
 }
 
@@ -583,7 +604,7 @@ export async function POST(request: NextRequest) {
       notificationText = `New ${profile.label} text from ${name} (${formatPhone(from)}): ${body || '[attachment]'}${inboundAttachments.length ? `\n📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : ''}\n\nOpen thread: ${threadUrl}`;
 
       if (result.created && !suppressAnyReply) {
-        newLeadAutoReply = newLeadReplyForProfile(lead.crm_profile);
+        newLeadAutoReply = newLeadReplyForProfile(lead.crm_profile, lead.customer_name, lead.customer_city);
         await sql`
           INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
           VALUES (${lead.id}, 'sms', ${`📤 ${newLeadAutoReply}`}, false, 'system')
