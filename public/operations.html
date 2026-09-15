@@ -352,7 +352,7 @@ function renderVendors() {
 }
 
 function loadVendors() {
-  return fetch('/api/crm/vendors', api('GET'))
+  return fetch('/api/crm/vendors?profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('GET'))
     .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
     .then(function(res) {
       if (!res.ok) throw new Error(res.d.error || 'Failed to load vendors');

@@ -23,18 +23,21 @@ export async function GET(request: NextRequest) {
   const type = (searchParams.get('type') || '').trim();
   const q = (searchParams.get('q') || '').trim();
   const like = q ? `%${q}%` : null;
+  const profileRaw = (searchParams.get('profile') || searchParams.get('crm_profile') || '').trim();
+  const crmProfile = profileRaw === 'pnm_fencing' || profileRaw === 'lowes_fencing' ? profileRaw : (profileRaw ? 'fencecrafters' : null);
 
   let rows;
   if (type && like) {
     rows = await sql`
       SELECT
-        v.id, v.profile_type, v.display_name, v.company, v.primary_phone, v.primary_email,
+        v.id, v.profile_type, v.crm_profile, v.display_name, v.company, v.primary_phone, v.primary_email,
         v.website, v.status, v.notes, v.last_activity_at, v.created_at, v.updated_at,
         COALESCE(SUM(t.unread_count), 0)::int AS unread_count,
         MAX(t.last_message_at) AS last_message_at
       FROM crm_vendor_profiles v
       LEFT JOIN crm_comm_threads t ON t.vendor_id = v.id
       WHERE v.profile_type = ${type}
+        AND (${crmProfile}::text IS NULL OR v.crm_profile = ${crmProfile})
         AND (
           v.display_name ILIKE ${like}
           OR COALESCE(v.company, '') ILIKE ${like}
@@ -47,26 +50,28 @@ export async function GET(request: NextRequest) {
   } else if (type) {
     rows = await sql`
       SELECT
-        v.id, v.profile_type, v.display_name, v.company, v.primary_phone, v.primary_email,
+        v.id, v.profile_type, v.crm_profile, v.display_name, v.company, v.primary_phone, v.primary_email,
         v.website, v.status, v.notes, v.last_activity_at, v.created_at, v.updated_at,
         COALESCE(SUM(t.unread_count), 0)::int AS unread_count,
         MAX(t.last_message_at) AS last_message_at
       FROM crm_vendor_profiles v
       LEFT JOIN crm_comm_threads t ON t.vendor_id = v.id
       WHERE v.profile_type = ${type}
+        AND (${crmProfile}::text IS NULL OR v.crm_profile = ${crmProfile})
       GROUP BY v.id
       ORDER BY COALESCE(MAX(t.last_message_at), v.last_activity_at, v.updated_at, v.created_at) DESC, v.display_name ASC
     `;
   } else if (like) {
     rows = await sql`
       SELECT
-        v.id, v.profile_type, v.display_name, v.company, v.primary_phone, v.primary_email,
+        v.id, v.profile_type, v.crm_profile, v.display_name, v.company, v.primary_phone, v.primary_email,
         v.website, v.status, v.notes, v.last_activity_at, v.created_at, v.updated_at,
         COALESCE(SUM(t.unread_count), 0)::int AS unread_count,
         MAX(t.last_message_at) AS last_message_at
       FROM crm_vendor_profiles v
       LEFT JOIN crm_comm_threads t ON t.vendor_id = v.id
-      WHERE (
+      WHERE (${crmProfile}::text IS NULL OR v.crm_profile = ${crmProfile})
+        AND (
         v.display_name ILIKE ${like}
         OR COALESCE(v.company, '') ILIKE ${like}
         OR COALESCE(v.primary_phone, '') ILIKE ${like}
@@ -78,12 +83,13 @@ export async function GET(request: NextRequest) {
   } else {
     rows = await sql`
       SELECT
-        v.id, v.profile_type, v.display_name, v.company, v.primary_phone, v.primary_email,
+        v.id, v.profile_type, v.crm_profile, v.display_name, v.company, v.primary_phone, v.primary_email,
         v.website, v.status, v.notes, v.last_activity_at, v.created_at, v.updated_at,
         COALESCE(SUM(t.unread_count), 0)::int AS unread_count,
         MAX(t.last_message_at) AS last_message_at
       FROM crm_vendor_profiles v
       LEFT JOIN crm_comm_threads t ON t.vendor_id = v.id
+      WHERE (${crmProfile}::text IS NULL OR v.crm_profile = ${crmProfile})
       GROUP BY v.id
       ORDER BY COALESCE(MAX(t.last_message_at), v.last_activity_at, v.updated_at, v.created_at) DESC, v.display_name ASC
     `;
