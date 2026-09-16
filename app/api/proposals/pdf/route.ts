@@ -135,8 +135,8 @@ ${hidePoBox ? '' : '<div class="company-sub">PO Box 437 Oakhurst, NJ 07712</div>
     <div class="for-label">Proposal For:</div>
     <div class="client-info">
       <strong>${p.client_name || ''}</strong><br>
-      ${p.client_email ? `${escapeHtml(p.client_email)}<br>` : ''}
-      ${[p.client_address, p.client_city, p.client_state, p.client_zip].filter(Boolean).map(escapeHtml).join(', ')}
+      ${isLowesAttachment ? '' : (p.client_email ? `${escapeHtml(p.client_email)}<br>` : '')}
+      ${isLowesAttachment ? '' : [p.client_address, p.client_city, p.client_state, p.client_zip].filter(Boolean).map(escapeHtml).join(', ')}
     </div>
   </div>
   <div class="est-info">
