@@ -158,7 +158,7 @@ ${p.redacted ? `
 
 <div class="description">${descriptionText}</div>
 
-${standardTerms ? `<div class="description" style="margin-top:12px">${normalizeText(standardTerms)}</div>` : ''}
+${(!isLowesAttachment && standardTerms) ? `<div class="description" style="margin-top:12px">${normalizeText(standardTerms)}</div>` : ''}
 
 <div class="amount">$${Number(p.total).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
 
