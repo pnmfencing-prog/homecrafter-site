@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
   const profile = crmProfileConfig(p.crm_profile || searchParams.get('profile'));
   const companyName = profile.label;
   const companyNameCaps = companyName.toUpperCase();
+  const isLowesAttachment = profile.key === 'lowes_fencing';
 
   // Track when customer opens the proposal (only update if status is 'sent')
   if (p.status === 'sent') {
@@ -62,7 +63,7 @@ ${p.removal_footage > 0 ? `Removal of ${p.removal_footage}ft of ${p.removal_type
     || /material[-\s]?only/i.test(String(p.material || ''));
   const removalIncluded = Number(p.removal_footage || 0) > 0 || /removal of existing|removal included|remove existing/i.test(descriptionText || '');
   const notesText = normalizeText(p.notes || '');
-  const hidePoBox = /\bHIDE_PO_BOX\b/i.test(notesText);
+  const hidePoBox = isLowesAttachment || /\bHIDE_PO_BOX\b/i.test(notesText);
   const displayNotesText = notesForPdfDisplay(notesText);
   const standardTermsOverride = notesText.match(/STANDARD_TERMS_OVERRIDE:\s*([\s\S]*?)(?=\n[A-Z_]+_OVERRIDE:|$)/i)?.[1]?.trim();
   const standardTerms = standardTermsOverride !== undefined ? standardTermsOverride
@@ -169,7 +170,7 @@ ${standardTerms ? `<div class="description" style="margin-top:12px">${normalizeT
   <div class="row total-row"><span>Grand Total</span><span>$${Number(p.total).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
 </div>
 
-<div class="notes">
+${isLowesAttachment ? '' : `<div class="notes">
   <h3>Notes</h3>
   ${paymentTermsOverride
     ? `${paymentTermsOverride.split(/\n+/).filter(Boolean).map((line: string) => `<p>${escapeHtml(line)}</p>`).join('')}
@@ -184,12 +185,12 @@ ${standardTerms ? `<div class="description" style="margin-top:12px">${normalizeT
   ${isMaterialOnly ? '' : `<p style="margin-top:10px">Please note this quote does not include removing or installing any existing paver blocks. Drilling or cutting thru concrete. Utility mark-out Included.</p>
   <p>${companyName} not responsible for unmarked sprinkler lines and miscellaneous pipes.</p>
   <p>Fence to follow grade of ground. Footing soil dispersed around posts/sections. ${companyName} not responsible for earth settling.</p>`}
-</div>
+</div>`}
 `}
 
-${p.redacted ? '' : '<div class="cancel"><strong>YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.</strong> IF YOU WISH TO CANCEL THIS CONTRACT, YOU MUST EITHER: <br>1. SEND A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION BY REGISTERED OR CERTIFIED MAIL, RETURN RECEIPT REQUESTED; OR <br>2. PERSONALLY DELIVER A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION TO: <br><br>' + companyName + (hidePoBox ? '<br>1-(908)-692-4847 ' : '<br>PO Box 437<br>Oakhurst NJ 07712<br>1-(908)-692-4847 ') + '<br><br>If you cancel this contract within the three day period, you are entitled to a full refund of your money. Refunds must be made within 30 days.</div>'}
+${(p.redacted || isLowesAttachment) ? '' : '<div class="cancel"><strong>YOU MAY CANCEL THIS CONTRACT AT ANY TIME BEFORE MIDNIGHT OF THE THIRD BUSINESS DAY AFTER RECEIVING A COPY OF THIS CONTRACT.</strong> IF YOU WISH TO CANCEL THIS CONTRACT, YOU MUST EITHER: <br>1. SEND A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION BY REGISTERED OR CERTIFIED MAIL, RETURN RECEIPT REQUESTED; OR <br>2. PERSONALLY DELIVER A SIGNED AND DATED WRITTEN NOTICE OF CANCELLATION TO: <br><br>' + companyName + (hidePoBox ? '<br>1-(908)-692-4847 ' : '<br>PO Box 437<br>Oakhurst NJ 07712<br>1-(908)-692-4847 ') + '<br><br>If you cancel this contract within the three day period, you are entitled to a full refund of your money. Refunds must be made within 30 days.</div>'}
 
-${p.redacted ? '' : (() => {
+${(p.redacted || isLowesAttachment) ? '' : (() => {
   if (p.signature_data) {
     return '<div class="sig-block"><p style="font-style:italic;font-size:9pt;color:#666">*Acknowledgment of terms above</p><div style="margin:20px 0;padding:15px;border:1px solid #ddd;border-radius:6px;background:#f9fff9;"><p style="font-weight:bold;color:#28a745;margin-bottom:8px;">✓ DIGITALLY SIGNED</p><div style="font-family:Dancing Script,Brush Script MT,Segoe Script,cursive;font-size:24px;color:#1a1a5e;border-bottom:1px solid #333;display:inline-block;padding-bottom:2px;margin-bottom:8px;">' + (p.signature_name || 'Customer') + '</div><p style="font-size:10px;color:#666;"><strong>Signed by:</strong> ' + (p.signature_name || 'Customer') + '</p><p style="font-size:10px;color:#666;"><strong>Date:</strong> ' + (p.signed_at ? new Date(p.signed_at).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '') + '</p></div></div>';
   } else {
