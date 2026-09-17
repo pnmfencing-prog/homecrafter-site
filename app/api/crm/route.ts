@@ -958,12 +958,40 @@ export async function POST(request: NextRequest) {
     // Auto-assign lead code
     const maxCode = await sql`SELECT COALESCE(MAX(CAST(lead_code AS INTEGER)), 99) + 1 as next_code FROM crm_leads WHERE lead_code ~ '^[0-9]+$'`;
     const leadCode = String(maxCode[0].next_code);
-    const result = await sql`
-      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, chat_token, lead_code, crm_profile, twister_work_order, lowes_store)
-      VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'}, ${chatToken}, ${leadCode}, ${crmProfile}, ${body.twister_work_order || null}, ${body.lowes_store || null})
-      RETURNING *
-    `;
+    // Standing rule (Dan): new lowes_fencing leads auto-enroll in Campaign #12 Lowes Twister Intake
+    let campaignId: number | null = null;
+    let campaignName: string | null = null;
+    if (crmProfile === 'lowes_fencing') {
+      const campRows = await sql`
+        SELECT id, name FROM crm_campaigns
+        WHERE COALESCE(crm_profile, 'fencecrafters') = 'lowes_fencing'
+          AND is_active = true
+          AND (id = 12 OR LOWER(name) = 'lowes twister intake')
+        ORDER BY CASE WHEN id = 12 THEN 0 ELSE 1 END, id
+        LIMIT 1
+      `;
+      campaignId = campRows[0]?.id ? Number(campRows[0].id) : null;
+      campaignName = campRows[0]?.name || null;
+    }
+    const result = campaignId
+      ? await sql`
+          INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, chat_token, lead_code, crm_profile, twister_work_order, lowes_store, campaign_id, campaign_started_at, outreach_count, email_outreach_count, outreach_paused, customer_responded)
+          VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'}, ${chatToken}, ${leadCode}, ${crmProfile}, ${body.twister_work_order || null}, ${body.lowes_store || null}, ${campaignId}, NOW(), 0, 0, false, false)
+          RETURNING *
+        `
+      : await sql`
+          INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, chat_token, lead_code, crm_profile, twister_work_order, lowes_store)
+          VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'}, ${chatToken}, ${leadCode}, ${crmProfile}, ${body.twister_work_order || null}, ${body.lowes_store || null})
+          RETURNING *
+        `;
     await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${result[0].id}, 'status_change', 'Lead created')`;
+    if (campaignId) {
+      const label = campaignName || `Campaign #${campaignId}`;
+      await sql`
+        INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+        VALUES (${result[0].id}, 'status_change', ${`Assigned to campaign: ${label}`}, false, 'campaign_system')
+      `;
+    }
     return NextResponse.json({ success: true, lead: result[0] });
   }
 
