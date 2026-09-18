@@ -1599,7 +1599,7 @@ function openLeadDetail(id, skipHistory) {
             '<select id="message-template" style="width:95px;padding:0.5rem;border:1px solid #e0ddd6;border-radius:8px;font-size:0.7rem" onchange="applyMessageTemplate(this.value)">' +
               '<option value="">Templates</option><option value="qualify">Material / removal / gates</option><option value="hope">Hope follow-up</option><option value="review_call">Review over phone</option><option value="styles">Standard styles</option>' +
             '</select>' +
-            '<input id="message-attachments" type="file" multiple accept="image/*,.pdf" style="font-size:0.7rem;max-width:145px">' +
+            '<input id="message-attachments" type="file" multiple accept="image/*,.heic,.heif,.pdf,image/heic,image/heif" style="font-size:0.7rem;max-width:145px">' +
             '<textarea id="note-text" rows="1" placeholder="Type a message..." style="flex:1;padding:0.5rem 0.75rem;border:1px solid #e0ddd6;border-radius:8px;font-family:Montserrat,sans-serif;font-size:0.8rem;line-height:1.35" oninput="autoGrowTextarea(this)" onkeydown="handleMessageKeydown(event,' + l.id + ')"></textarea>' +
             '<button class="btn btn-primary" id="profile-send-btn" onclick="addNote(' + l.id + ')" onmousedown="startProfileSendHold(event)" onmouseup="cancelProfileSendHold()" onmouseleave="cancelProfileSendHold()" ontouchstart="startProfileSendHold(event)" ontouchend="cancelProfileSendHold()" title="Tap to send now. Hold for send later.">Send</button>' +
             '<div id="profile-send-later-row" class="send-later-row"><span>🕒 Send later</span><input id="profile-scheduled-for" type="datetime-local"><button type="button" onclick="setProfileTomorrowMorning()">Tomorrow AM</button><button type="button" onclick="clearProfileSchedule()">Clear</button></div>' +
@@ -2073,7 +2073,72 @@ function handleMessageKeydown(event, id) {
   }
 }
 
-function fileToAttachment(file) {
+function formatAttachError(result, fallback) {
+  var data = (result && result.data) || {};
+  if (data.error) return data.error;
+  var status = result && result.status;
+  if (status === 413) return 'Photo/file is too large for upload. Images are compressed automatically now — try again, or attach 1 photo at a time.';
+  return fallback || 'Upload failed.';
+}
+
+function estimateBase64Bytes(b64) {
+  return Math.floor((String(b64 || '').length * 3) / 4);
+}
+
+function renameCompressedImage(name) {
+  var base = String(name || 'photo').replace(/\.[^.]+$/, '');
+  return base + '.jpg';
+}
+
+function compressImageFile(file, maxEdge, quality) {
+  maxEdge = maxEdge || 1600;
+  quality = quality || 0.72;
+  return new Promise(function(resolve, reject) {
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function() {
+      try {
+        var w = img.naturalWidth || img.width || 0;
+        var h = img.naturalHeight || img.height || 0;
+        if (!w || !h) {
+          URL.revokeObjectURL(url);
+          reject(new Error('Could not read image dimensions'));
+          return;
+        }
+        var scale = Math.min(1, maxEdge / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * scale));
+        var ch = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = cw;
+        canvas.height = ch;
+        var ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          reject(new Error('Canvas not available'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, cw, ch);
+        var dataUrl = canvas.toDataURL('image/jpeg', quality);
+        URL.revokeObjectURL(url);
+        resolve({
+          name: renameCompressedImage(file.name),
+          mimeType: 'image/jpeg',
+          dataBase64: dataUrl.split(',')[1] || ''
+        });
+      } catch (err) {
+        URL.revokeObjectURL(url);
+        reject(err);
+      }
+    };
+    img.onerror = function() {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not decode image for compression'));
+    };
+    img.src = url;
+  });
+}
+
+function readFileAsAttachment(file) {
   return new Promise(function(resolve, reject) {
     var reader = new FileReader();
     reader.onload = function() {
@@ -2085,10 +2150,52 @@ function fileToAttachment(file) {
   });
 }
 
+// Keep payloads under Vercel serverless ~4.5MB request body limit (base64 JSON is bulky).
+var CRM_ATTACH_MAX_BYTES = 2800000;
+var CRM_ATTACH_TOTAL_MAX_BYTES = 3500000;
+
+function fileToAttachment(file) {
+  var mime = String(file.type || '').toLowerCase();
+  var isImage = mime.indexOf('image/') === 0 || /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(file.name || '');
+  if (!isImage) {
+    return readFileAsAttachment(file).then(function(att) {
+      if (estimateBase64Bytes(att.dataBase64) > CRM_ATTACH_MAX_BYTES) {
+        throw new Error((file.name || 'File') + ' is too large to upload (max ~2.5MB). Try a smaller PDF or compress it first.');
+      }
+      return att;
+    });
+  }
+  return compressImageFile(file, 1600, 0.72).then(function(att) {
+    if (estimateBase64Bytes(att.dataBase64) <= CRM_ATTACH_MAX_BYTES) return att;
+    return compressImageFile(file, 1280, 0.6).then(function(att2) {
+      if (estimateBase64Bytes(att2.dataBase64) <= CRM_ATTACH_MAX_BYTES) return att2;
+      return compressImageFile(file, 1024, 0.5).then(function(att3) {
+        if (estimateBase64Bytes(att3.dataBase64) > CRM_ATTACH_MAX_BYTES) {
+          throw new Error((file.name || 'Photo') + ' is still too large after compression. Try a smaller crop or fewer photos.');
+        }
+        return att3;
+      });
+    });
+  }).catch(function() {
+    return readFileAsAttachment(file).then(function(att) {
+      if (estimateBase64Bytes(att.dataBase64) > CRM_ATTACH_MAX_BYTES) {
+        throw new Error((file.name || 'Photo') + ' could not be compressed and is too large to upload. Convert HEIC to JPG or pick a smaller image.');
+      }
+      return att;
+    });
+  });
+}
+
 function selectedAttachments() {
   var input = document.getElementById('message-attachments');
   var files = input && input.files ? Array.from(input.files).slice(0, 5) : [];
-  return Promise.all(files.map(fileToAttachment));
+  return Promise.all(files.map(fileToAttachment)).then(function(attachments) {
+    var total = attachments.reduce(function(sum, att) { return sum + estimateBase64Bytes(att.dataBase64); }, 0);
+    if (total > CRM_ATTACH_TOTAL_MAX_BYTES) {
+      throw new Error('Those files are too large together (max ~3.5MB total). Attach fewer photos, or use Record with 1-2 at a time.');
+    }
+    return attachments;
+  });
 }
 
 function localDateTimeValue(date) {
@@ -2153,11 +2260,11 @@ function addNote(id) {
       return fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: 'note', description: noteDesc, attachments: attachments }));
     }).then(function(r) {
       if (!r) return null;
-      return r.json().catch(function() { return {}; }).then(function(d) { return { ok: r.ok, data: d }; });
+      return r.text().then(function(txt) { var d={}; try { d=JSON.parse(txt||'{}'); } catch(e) { d={ error: (txt||'').slice(0,180) || undefined }; } return { ok: r.ok, status: r.status, data: d }; });
     }).then(function(result) {
       if (!result) return;
       if (!result.ok) {
-        alert(result.data.error || 'Could not save to record.');
+        alert(formatAttachError(result, 'Could not save to record.'));
         return;
       }
       document.getElementById('note-text').value = '';
@@ -2165,6 +2272,8 @@ function addNote(id) {
       if (att) att.value = '';
       autoGrowTextarea(document.getElementById('note-text'));
       openLeadDetail(id);
+    }).catch(function(err) {
+      alert((err && err.message) || 'Could not save attachment.');
     });
     return;
   }
@@ -2219,10 +2328,10 @@ function addNote(id) {
   selectedAttachments().then(function(attachments) {
     return fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: desc, subject: subject, attachments: attachments, scheduled_for: scheduledFor }));
   }).then(function(r) {
-    return r.json().catch(function() { return {}; }).then(function(d) { return { ok: r.ok, data: d }; });
+    return r.text().then(function(txt) { var d={}; try { d=JSON.parse(txt||'{}'); } catch(e) { d={ error: (txt||'').slice(0,180) || undefined }; } return { ok: r.ok, status: r.status, data: d }; });
   }).then(function(result) {
     if (!result.ok) {
-      alert(result.data.error || 'Could not send message.');
+      alert(formatAttachError(result, 'Could not send message.'));
       return;
     }
     document.getElementById('note-text').value = '';
@@ -2233,6 +2342,8 @@ function addNote(id) {
     var subj = document.getElementById('email-subject');
     if (subj && type === 'email') subj.value = subject;
     openLeadDetail(id);
+  }).catch(function(err) {
+    alert((err && err.message) || 'Could not send attachment.');
   });
 }
 
