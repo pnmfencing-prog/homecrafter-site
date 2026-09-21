@@ -8,6 +8,14 @@ import {
 } from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
 import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
+import {
+  appendVendorOutboundSms,
+  findActiveVendorByPhone,
+  isOpsVendorLeadStatus,
+  loadActiveVendorPhoneDigits,
+  markLeadAsOpsVendorNotCustomer,
+  phoneDigits10,
+} from '@/lib/ops-vendor';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -348,6 +356,14 @@ export async function GET(request: NextRequest) {
         ) cm ON true
         LEFT JOIN crm_campaigns camp_filter ON camp_filter.id = ec.effective_campaign_id
         WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+          AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
+          AND NOT EXISTS (
+            SELECT 1 FROM crm_vendor_profiles v
+            WHERE v.status <> 'archived'
+              AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+                = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+              AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+          )
           AND (${status || 'all'} = 'all' OR l.status = ${status || 'all'})
           AND (${source || 'all'} = 'all' OR l.source = ${source || 'all'})
           AND (${readFilter || 'all'} = 'all'
@@ -419,6 +435,14 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_vendor_profiles v
+          WHERE v.status <> 'archived'
+            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+        )
         AND l.status = ${status} AND (
         l.customer_name ILIKE ${searchPat}
         OR l.customer_phone ILIKE ${searchPat}
@@ -451,6 +475,14 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_vendor_profiles v
+          WHERE v.status <> 'archived'
+            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+        )
         AND l.status = ${status}
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${queryLimit}`;
@@ -470,6 +502,14 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_vendor_profiles v
+          WHERE v.status <> 'archived'
+            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+        )
         AND l.source = ${source} AND (
         l.customer_name ILIKE ${searchPat}
         OR l.customer_phone ILIKE ${searchPat}
@@ -502,6 +542,14 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_vendor_profiles v
+          WHERE v.status <> 'archived'
+            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+        )
         AND l.source = ${source}
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${queryLimit}`;
@@ -521,6 +569,14 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_vendor_profiles v
+          WHERE v.status <> 'archived'
+            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+        )
         AND (
         l.customer_name ILIKE ${searchPat}
         OR l.customer_phone ILIKE ${searchPat}
@@ -552,6 +608,14 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_vendor_profiles v
+          WHERE v.status <> 'archived'
+            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+        )
         AND latest.is_from_customer IS FALSE
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${workflowLimit}`;
@@ -570,6 +634,14 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_vendor_profiles v
+          WHERE v.status <> 'archived'
+            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+        )
         AND latest.is_from_customer IS TRUE
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${workflowLimit}`;
@@ -597,6 +669,14 @@ export async function GET(request: NextRequest) {
         FROM crm_leads l
         LEFT JOIN latest_by_lead latest ON latest.crm_lead_id = l.id
         WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+          AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
+          AND NOT EXISTS (
+            SELECT 1 FROM crm_vendor_profiles v
+            WHERE v.status <> 'archived'
+              AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+                = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+              AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+          )
       )
       SELECT * FROM lead_rows
       WHERE status_rank <= ${maxPerStatus}
@@ -615,6 +695,14 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_vendor_profiles v
+          WHERE v.status <> 'archived'
+            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+        )
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC`;
   }
 
@@ -625,6 +713,15 @@ export async function GET(request: NextRequest) {
   }
 
   leads = leads.filter((lead) => normalizeCrmProfile(lead.crm_profile) === profileFilter);
+
+  // Sales-board isolation: Ops vendors / GC partners never appear as sales leads.
+  const vendorPhones = await loadActiveVendorPhoneDigits();
+  leads = leads.filter((lead) => {
+    if (isOpsVendorLeadStatus(lead.status)) return false;
+    const digits = phoneDigits10(lead.customer_phone);
+    if (digits.length === 10 && vendorPhones.has(digits)) return false;
+    return true;
+  });
 
   leads = leads.map((lead) => ({
     ...lead,
@@ -780,6 +877,14 @@ export async function GET(request: NextRequest) {
       coalesce(sum(quoted_amount) FILTER (WHERE status IN ('quoted','scheduled')), 0)::numeric as pipeline_value
     FROM crm_leads
     WHERE COALESCE(crm_profile, 'fencecrafters') = ${profileFilter}
+      AND status IS DISTINCT FROM 'ops_vendor_not_customer'
+      AND NOT EXISTS (
+        SELECT 1 FROM crm_vendor_profiles v
+        WHERE v.status <> 'archived'
+          AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+            = right(regexp_replace(coalesce(crm_leads.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+          AND length(right(regexp_replace(coalesce(crm_leads.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+      )
   `;
 
   const exactStats = !search
@@ -841,6 +946,14 @@ export async function GET(request: NextRequest) {
             ) AS campaign_completed
           ) campaign_state ON true
           WHERE COALESCE(crm_leads.crm_profile, 'fencecrafters') = ${profileFilter}
+            AND crm_leads.status IS DISTINCT FROM 'ops_vendor_not_customer'
+            AND NOT EXISTS (
+              SELECT 1 FROM crm_vendor_profiles v
+              WHERE v.status <> 'archived'
+                AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+                  = right(regexp_replace(coalesce(crm_leads.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+                AND length(right(regexp_replace(coalesce(crm_leads.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+            )
             AND (${status || 'all'} = 'all' OR crm_leads.status = ${status || 'all'})
             AND (${source || 'all'} = 'all' OR crm_leads.source = ${source || 'all'})
             AND (${readFilter || 'all'} = 'all'
@@ -1113,14 +1226,55 @@ export async function POST(request: NextRequest) {
       if (unsupported.length) {
         return NextResponse.json({ error: 'Text/MMS attachments must be JPG, PNG, or GIF images. iPhone HEIC photos and PDFs need to be converted or sent by email.' }, { status: 400 });
       }
+      // Ops vendor / GC phone: deliver + log on Operations tile, never sales crm_activity.
+      const opsVendor = await findActiveVendorByPhone(outboundSmsTo, outboundSmsProfile);
+      if (opsVendor) {
+        if (attachments.length) {
+          return NextResponse.json({
+            error: 'Ops vendor SMS with attachments must be sent from Operations (operations.html), not the sales board.',
+          }, { status: 400 });
+        }
+        let sid: string | null = null;
+        try {
+          sid = await sendTwilioSms(outboundSmsTo, outboundSmsBody, [], outboundSmsProfile);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'SMS/MMS send failed';
+          return NextResponse.json({ error: message }, { status: 502 });
+        }
+        const profileCfg = crmProfileConfig(opsVendor.crm_profile || outboundSmsProfile);
+        const logged = await appendVendorOutboundSms({
+          vendor: opsVendor,
+          bodyText: outboundSmsBody,
+          externalMessageId: sid,
+          actorLabel: profileCfg.label,
+        });
+        await markLeadAsOpsVendorNotCustomer(id);
+        return NextResponse.json({
+          success: true,
+          ops_routed: true,
+          vendor_id: opsVendor.id,
+          thread_id: logged.threadId,
+          message_id: logged.messageId,
+        });
+      }
+
     }
 
     if (activity_type === 'email' && !isFromCustomer) {
-      const leads = await sql`SELECT customer_name, customer_email, crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
+      const leads = await sql`SELECT customer_name, customer_email, customer_phone, crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
       outboundEmailTo = leads[0]?.customer_email || '';
       outboundEmailName = leads[0]?.customer_name || '';
       if (!outboundEmailTo) return NextResponse.json({ error: 'Customer email is missing' }, { status: 400 });
       if (!process.env.BREVO_API_KEY) return NextResponse.json({ error: 'Brevo email is not configured' }, { status: 503 });
+      const emailOpsVendor = await findActiveVendorByPhone(leads[0]?.customer_phone, leads[0]?.crm_profile);
+      if (emailOpsVendor) {
+        await markLeadAsOpsVendorNotCustomer(id);
+        return NextResponse.json({
+          error: 'This contact is an Ops vendor. Send email from Operations (operations.html), not the sales board.',
+          ops_routed: true,
+          vendor_id: emailOpsVendor.id,
+        }, { status: 409 });
+      }
     }
 
     const inserted = await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${id}, ${activity_type || 'note'}, ${description}, ${isFromCustomer}) RETURNING id`;

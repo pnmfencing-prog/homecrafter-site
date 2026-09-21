@@ -339,6 +339,7 @@ function profileUrl(path) {
   u.searchParams.set('profile', profile);
   return u.pathname + u.search;
 }
+// Deep-link: /operations.html?profile=<crm_profile>&vendor=<uuid>&thread=<uuid>
 function loadCrmProfileFromState() {
   var fromUrl = new URLSearchParams(window.location.search).get('profile');
   if (fromUrl) return profileKey(fromUrl);
@@ -717,7 +718,7 @@ function setDetailChannel(channel) {
   updateComposerMeta();
 }
 
-function openVendor(id) {
+function openVendor(id, preferredThreadId) {
   selectedVendorId = id;
   selectedThreadId = null;
   renderVendors();
@@ -757,7 +758,14 @@ function openVendor(id) {
           '<div class="t-meta"><span>' + esc((t.channel || '').toUpperCase()) + '</span><span>' + esc(fmtWhen(t.last_message_at)) + '</span></div>' +
         '</div>';
       }).join('');
-      openThread(threads[0].id);
+      var pick = threads[0];
+      var prefer = preferredThreadId || (window.__opsDeepLinkThread || null);
+      if (prefer) {
+        var found = threads.find(function(t) { return String(t.id) === String(prefer); });
+        if (found) pick = found;
+      }
+      window.__opsDeepLinkThread = null;
+      openThread(pick.id);
     })
     .catch(function(err) {
       document.getElementById('threadList').innerHTML = '<div class="empty">' + esc(err.message) + '</div>';
@@ -909,7 +917,16 @@ document.getElementById('composerBody').addEventListener('keydown', function(e) 
 currentCrmProfile = loadCrmProfileFromState();
 saveCrmProfileToState();
 applyCrmProfileUi();
-loadVendors();
+(function bootOpsDeepLink() {
+  // Deep-link shape: /operations.html?profile=<crm_profile>&vendor=<uuid>&thread=<uuid>
+  var params = new URLSearchParams(window.location.search);
+  var deepVendor = params.get("vendor");
+  var deepThread = params.get("thread");
+  if (deepThread) window.__opsDeepLinkThread = deepThread;
+  loadVendors().then(function() {
+    if (deepVendor) openVendor(deepVendor, deepThread);
+  });
+})();
 setInterval(refreshOpsQuietly, OPS_REFRESH_MS);
 document.addEventListener('visibilitychange', function() {
   if (!document.hidden) refreshOpsQuietly();
