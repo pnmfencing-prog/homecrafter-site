@@ -38,7 +38,7 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
 .btn-outline:hover { border-color: var(--gold); }
 .btn-outline.active { border-color: var(--midnight); background: var(--midnight); color: var(--gold); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.board { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 0 1.25rem 1rem; max-width: 1600px; margin: 0 auto; min-height: 40vh; }
+.board { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; padding: 0 1.25rem 1rem; max-width: 1600px; margin: 0 auto; min-height: 40vh; }
 .column { background: var(--cream-dark); border-radius: 12px; padding: 0.75rem; min-height: 300px; }
 .column-header { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); padding: 0.5rem 0.5rem 0.75rem; display: flex; justify-content: space-between; align-items: center; }
 .column-count { background: var(--midnight); color: var(--gold); font-size: 0.55rem; padding: 0.15rem 0.5rem; border-radius: 10px; }
@@ -108,6 +108,23 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
   .tile-reply-input { flex: 1 1 100%; min-height: 58px; font-size: 16px; }
   .tile-send-btn { min-height: 34px; }
 }
+
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(30,24,69,0.45); z-index: 10000; align-items: center; justify-content: center; padding: 1rem; }
+.modal-backdrop.open { display: flex; }
+.modal { width: min(440px, 100%); background: #fff; border-radius: 12px; box-shadow: 0 12px 40px rgba(30,24,69,0.25); overflow: hidden; }
+.modal-head { padding: 0.95rem 1.1rem; background: var(--cream-dark); border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+.modal-head h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.25rem; color: var(--midnight); }
+.modal-close { border: 0; background: transparent; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; line-height: 1; }
+.modal-body { padding: 1rem 1.1rem 1.15rem; display: grid; gap: 0.7rem; }
+.modal-field { display: grid; gap: 0.25rem; }
+.modal-field label { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.modal-field input, .modal-field select, .modal-field textarea { width: 100%; border: 1px solid #e0ddd6; border-radius: 8px; padding: 0.55rem 0.7rem; font: 0.8rem 'Montserrat', sans-serif; outline: none; background: #fff; color: var(--midnight); }
+.modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus { border-color: var(--gold); }
+.modal-field textarea { min-height: 64px; resize: vertical; }
+.modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.25rem; }
+@media (max-width: 1100px) {
+  .board { grid-template-columns: 1fr 1fr; }
+}
 </style>
 </head>
 <body>
@@ -135,6 +152,7 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
 
 <div class="toolbar">
   <input type="text" class="search-box" id="searchBox" placeholder="Search vendors by name, phone, email...">
+  <button class="btn btn-primary" onclick="openCreateVendorModal()">Add Vendor</button>
   <button class="btn btn-outline" onclick="loadVendors()">Refresh</button>
 </div>
 
@@ -142,6 +160,10 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
   <div class="column" id="materialsCol">
     <div class="column-header"><span>Materials</span><span class="column-count" id="materialsCount">0</span></div>
     <div id="materialsList"><div class="empty">Loading...</div></div>
+  </div>
+  <div class="column" id="installersCol">
+    <div class="column-header"><span>Installers</span><span class="column-count" id="installersCount">0</span></div>
+    <div id="installersList"><div class="empty">Loading...</div></div>
   </div>
   <div class="column" id="junkCol">
     <div class="column-header"><span>Junk</span><span class="column-count" id="junkCount">0</span></div>
@@ -173,6 +195,50 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
       <div class="composer-row">
         <textarea id="composerBody" placeholder="Write a message to this vendor..."></textarea>
         <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-backdrop" id="createVendorModal" onclick="if(event.target===this)closeCreateVendorModal()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="createVendorTitle">
+    <div class="modal-head">
+      <h3 id="createVendorTitle">Add Vendor</h3>
+      <button type="button" class="modal-close" onclick="closeCreateVendorModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-field">
+        <label for="cvType">Type</label>
+        <select id="cvType">
+          <option value="material_supplier">Materials</option>
+          <option value="installer">Installer</option>
+          <option value="junk_sub">Junk</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label for="cvName">Name</label>
+        <input id="cvName" type="text" placeholder="Display name" autocomplete="name">
+      </div>
+      <div class="modal-field">
+        <label for="cvCompany">Company</label>
+        <input id="cvCompany" type="text" placeholder="Optional company">
+      </div>
+      <div class="modal-field">
+        <label for="cvPhone">Phone</label>
+        <input id="cvPhone" type="tel" placeholder="+1 (609) 555-0100" autocomplete="tel">
+      </div>
+      <div class="modal-field">
+        <label for="cvEmail">Email</label>
+        <input id="cvEmail" type="email" placeholder="Optional email" autocomplete="email">
+      </div>
+      <div class="modal-field">
+        <label for="cvNotes">Notes</label>
+        <textarea id="cvNotes" placeholder="Optional notes"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" onclick="closeCreateVendorModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="cvSaveBtn" onclick="submitCreateVendor()">Save Vendor</button>
       </div>
     </div>
   </div>
@@ -407,16 +473,20 @@ function vendorCardHtml(v) {
 function renderVendors() {
   var q = (document.getElementById('searchBox').value || '').trim().toLowerCase();
   var materials = [];
+  var installers = [];
   var junk = [];
   vendors.forEach(function(v) {
     var hay = [v.display_name, v.company, v.phone || v.primary_phone, v.email || v.primary_email, v.status].join(' ').toLowerCase();
     if (q && hay.indexOf(q) === -1) return;
     if (v.profile_type === 'junk_sub') junk.push(v);
+    else if (v.profile_type === 'installer') installers.push(v);
     else if (v.profile_type === 'material_supplier') materials.push(v);
   });
   document.getElementById('materialsCount').textContent = String(materials.length);
+  document.getElementById('installersCount').textContent = String(installers.length);
   document.getElementById('junkCount').textContent = String(junk.length);
   document.getElementById('materialsList').innerHTML = materials.length ? materials.map(vendorCardHtml).join('') : '<div class="empty">No material suppliers</div>';
+  document.getElementById('installersList').innerHTML = installers.length ? installers.map(vendorCardHtml).join('') : '<div class="empty">No installers yet</div>';
   document.getElementById('junkList').innerHTML = junk.length ? junk.map(vendorCardHtml).join('') : '<div class="empty">No junk vendors yet</div>';
 }
 
@@ -458,6 +528,7 @@ function isOpsTyping() {
   if (active.id === 'composerBody') return true;
   if (active.id && active.id.indexOf('tile-reply-') === 0) return true;
   if (active.id === 'searchBox') return true;
+  if (active.id && active.id.indexOf('cv') === 0) return true;
   return false;
 }
 function loadVendors() {
@@ -472,6 +543,7 @@ function loadVendors() {
     })
     .catch(function(err) {
       document.getElementById('materialsList').innerHTML = '<div class="empty">' + esc(err.message) + '</div>';
+      document.getElementById('installersList').innerHTML = '<div class="empty">' + esc(err.message) + '</div>';
       document.getElementById('junkList').innerHTML = '<div class="empty">' + esc(err.message) + '</div>';
     });
 }
@@ -728,6 +800,59 @@ function sendMessage() {
     .catch(function(err) {
       alert(err.message || 'Send failed');
       document.getElementById('sendBtn').disabled = false;
+    });
+}
+
+
+function openCreateVendorModal(defaultType) {
+  var modal = document.getElementById('createVendorModal');
+  if (!modal) return;
+  document.getElementById('cvType').value = defaultType || 'installer';
+  document.getElementById('cvName').value = '';
+  document.getElementById('cvCompany').value = '';
+  document.getElementById('cvPhone').value = '';
+  document.getElementById('cvEmail').value = '';
+  document.getElementById('cvNotes').value = '';
+  document.getElementById('cvSaveBtn').disabled = false;
+  modal.classList.add('open');
+  setTimeout(function() { document.getElementById('cvName').focus(); }, 30);
+}
+function closeCreateVendorModal() {
+  var modal = document.getElementById('createVendorModal');
+  if (modal) modal.classList.remove('open');
+}
+function submitCreateVendor() {
+  var name = (document.getElementById('cvName').value || '').trim();
+  var type = (document.getElementById('cvType').value || '').trim();
+  if (!name) { alert('Name is required'); return; }
+  if (['material_supplier','junk_sub','installer'].indexOf(type) === -1) {
+    alert('Pick Materials, Installer, or Junk');
+    return;
+  }
+  var btn = document.getElementById('cvSaveBtn');
+  btn.disabled = true;
+  var payload = {
+    profile_type: type,
+    display_name: name,
+    company: (document.getElementById('cvCompany').value || '').trim() || null,
+    primary_phone: (document.getElementById('cvPhone').value || '').trim() || null,
+    primary_email: (document.getElementById('cvEmail').value || '').trim() || null,
+    notes: (document.getElementById('cvNotes').value || '').trim() || null,
+    crm_profile: profileKey(currentCrmProfile),
+    status: 'active'
+  };
+  fetch('/api/crm/vendors', api('POST', payload))
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+      if (!res.ok) throw new Error(res.d.error || 'Create failed');
+      closeCreateVendorModal();
+      return loadVendors().then(function() {
+        if (res.d.vendor && res.d.vendor.id) openVendor(res.d.vendor.id);
+      });
+    })
+    .catch(function(err) {
+      alert(err.message || 'Create failed');
+      btn.disabled = false;
     });
 }
 

@@ -5,6 +5,10 @@ import { isCrmAdmin } from '@/lib/crm-admin';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const PROFILE_TYPES = new Set(['material_supplier', 'junk_sub', 'installer']);
+const CRM_PROFILES = new Set(['fencecrafters', 'pnm_fencing', 'lowes_fencing']);
+const STATUSES = new Set(['active', 'inactive', 'archived']);
+
 function mapVendor(row: any) {
   return {
     ...row,
@@ -87,6 +91,13 @@ async function attachRecentMessages(rows: any[]) {
   }));
 }
 
+function normalizeCrmProfile(raw: unknown): string | null {
+  const profileRaw = String(raw || '').trim();
+  if (!profileRaw) return null;
+  if (profileRaw === 'pnm_fencing' || profileRaw === 'lowes_fencing') return profileRaw;
+  return 'fencecrafters';
+}
+
 export async function GET(request: NextRequest) {
   if (!isCrmAdmin(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -98,6 +109,10 @@ export async function GET(request: NextRequest) {
   const like = q ? `%${q}%` : null;
   const profileRaw = (searchParams.get('profile') || searchParams.get('crm_profile') || '').trim();
   const crmProfile = profileRaw === 'pnm_fencing' || profileRaw === 'lowes_fencing' ? profileRaw : (profileRaw ? 'fencecrafters' : null);
+
+  if (type && !PROFILE_TYPES.has(type)) {
+    return NextResponse.json({ error: 'Invalid profile_type' }, { status: 400 });
+  }
 
   let rows;
   if (type && like) {
@@ -172,3 +187,63 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ vendors: withMessages.map(mapVendor) });
 }
 
+export async function POST(request: NextRequest) {
+  if (!isCrmAdmin(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const profileType = String(body.profile_type || '').trim();
+  const displayName = String(body.display_name || body.name || '').trim();
+  const company = String(body.company || '').trim() || null;
+  const primaryPhone = String(body.primary_phone || body.phone || '').trim() || null;
+  const primaryEmail = String(body.primary_email || body.email || '').trim() || null;
+  const website = String(body.website || '').trim() || null;
+  const notes = String(body.notes || '').trim() || null;
+  const status = String(body.status || 'active').trim() || 'active';
+  const crmProfile = normalizeCrmProfile(body.crm_profile || body.profile) || 'fencecrafters';
+
+  if (!PROFILE_TYPES.has(profileType)) {
+    return NextResponse.json({
+      error: 'profile_type must be material_supplier, junk_sub, or installer',
+    }, { status: 400 });
+  }
+  if (!displayName) {
+    return NextResponse.json({ error: 'display_name is required' }, { status: 400 });
+  }
+  if (!CRM_PROFILES.has(crmProfile)) {
+    return NextResponse.json({ error: 'Invalid crm_profile' }, { status: 400 });
+  }
+  if (!STATUSES.has(status)) {
+    return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+  }
+
+  const rows = await sql`
+    INSERT INTO crm_vendor_profiles (
+      profile_type, crm_profile, display_name, company, primary_phone, primary_email,
+      website, status, notes, last_activity_at, created_at, updated_at
+    ) VALUES (
+      ${profileType}, ${crmProfile}, ${displayName}, ${company}, ${primaryPhone}, ${primaryEmail},
+      ${website}, ${status}, ${notes}, NOW(), NOW(), NOW()
+    )
+    RETURNING *
+  `;
+
+  const row: any = rows[0];
+  return NextResponse.json({
+    vendor: {
+      ...row,
+      phone: row.primary_phone,
+      email: row.primary_email,
+      last_activity_at: row.last_activity_at || null,
+      recent_messages: [],
+      unread_count: 0,
+    },
+  }, { status: 201 });
+}
