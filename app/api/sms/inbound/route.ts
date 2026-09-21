@@ -317,15 +317,18 @@ async function logContractorSmsReply(contractor: any, from: string, body: string
   `;
 }
 
-async function findVendorByPhone(from: string): Promise<any | null> {
+async function findVendorByPhone(from: string, crmProfile?: CrmProfileKey | null): Promise<any | null> {
   const normalized = normalizePhone(from);
+  const preferred = crmProfile || null;
+  // Prefer phone+profile twin so multi-profile installers (e.g. Jose) keep
+  // SMS threads on the Ops board matching the Twilio To-number profile.
   const matches = await sql`
     SELECT id, display_name, company, primary_phone, crm_profile, profile_type, status
     FROM crm_vendor_profiles
     WHERE status <> 'archived'
       AND regexp_replace(coalesce(primary_phone, ''), '[^0-9]', '', 'g') IN (${normalized}, ${`1${normalized}`})
     ORDER BY
-      CASE WHEN crm_profile = 'lowes_fencing' THEN 0 ELSE 1 END,
+      CASE WHEN ${preferred}::text IS NOT NULL AND crm_profile = ${preferred} THEN 0 ELSE 1 END,
       last_activity_at DESC NULLS LAST,
       updated_at DESC
     LIMIT 1
@@ -498,7 +501,7 @@ export async function POST(request: NextRequest) {
       suppressAnyReply = true;
     } else {
       // Ops vendors / GC partners: route onto Materials vendor tile SMS thread only.
-      const vendor = await findVendorByPhone(from);
+      const vendor = await findVendorByPhone(from, inboundProfile);
       if (vendor) {
         await appendVendorInboundSms(vendor, from, body);
         suppressAnyReply = true;
