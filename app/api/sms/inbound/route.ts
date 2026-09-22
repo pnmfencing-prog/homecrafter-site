@@ -337,8 +337,22 @@ async function findVendorByPhone(from: string, crmProfile?: CrmProfileKey | null
 }
 
 /** Append inbound SMS onto the vendor's Operations tile SMS thread (never a sales lead). */
+function isCarrierSysMsg(body: string): boolean {
+  const text = (body || '').trim();
+  if (!text) return false;
+  return /\[?\s*SYS-MSG\s*\]?/i.test(text)
+    || /Message\s*&\s*data rates may apply/i.test(text)
+    || /Reply with ['"]?HELP['"]? for more information/i.test(text)
+    || /message frequency varies/i.test(text)
+    || /^FreeMsg:/i.test(text)
+    || /Delivery (failed|receipt|report)/i.test(text);
+}
+
 async function appendVendorInboundSms(vendor: any, from: string, body: string): Promise<void> {
-  const bodyText = (body || '').trim() || '[attachment / empty inbound SMS]';
+  // Store carrier SYS-MSG for thread history but do not bump unread / wake triage.
+  const rawBody = (body || '').trim();
+  const carrierNoise = isCarrierSysMsg(rawBody);
+  const bodyText = rawBody || '[attachment / empty inbound SMS]';
   const preview = bodyText.slice(0, 240);
 
   const existing = await sql`
@@ -389,7 +403,7 @@ async function appendVendorInboundSms(vendor: any, from: string, body: string): 
         last_message_preview = ${preview},
         last_message_at = NOW(),
         updated_at = NOW(),
-        unread_count = unread_count + 1
+        unread_count = CASE WHEN ${carrierNoise} THEN unread_count ELSE unread_count + 1 END
       WHERE id = ${threadId}::uuid
     `;
   }
@@ -505,7 +519,7 @@ export async function POST(request: NextRequest) {
       if (vendor) {
         await appendVendorInboundSms(vendor, from, body);
         suppressAnyReply = true;
-        if (normalizePhone(from) !== DAN_PHONE) {
+        if (normalizePhone(from) !== DAN_PHONE && !isCarrierSysMsg(body)) {
           const profile = crmProfileConfig(vendor.crm_profile || inboundProfile);
           notificationProfile = profile.key;
           const vendorName = vendor.display_name || formatPhone(from);
