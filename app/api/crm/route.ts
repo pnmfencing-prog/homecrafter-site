@@ -1125,6 +1125,16 @@ export async function POST(request: NextRequest) {
 
   if (action === 'update_status') {
     const { id, status, lost_reason } = body;
+    const prevRows = await sql`
+      SELECT id, status, campaign_id, campaign_started_at, crm_profile
+      FROM crm_leads
+      WHERE id = ${id}
+      LIMIT 1
+    `;
+    if (!prevRows.length) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    const prev = prevRows[0];
+    const prevStatus = String(prev.status || '');
+
     await sql`UPDATE crm_leads SET status = ${status}, updated_at = NOW() WHERE id = ${id}`;
 
     if (status === 'contacted') await sql`UPDATE crm_leads SET contacted_at = NOW() WHERE id = ${id}`;
@@ -1138,6 +1148,60 @@ export async function POST(request: NextRequest) {
 
     const desc = 'Status changed to ' + status;
     await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${id}, 'status_change', ${desc})`;
+
+    // Standing rule (Dan / Sales Director): transition TO quoted → auto-enroll Quote Follow Up
+    // pnm_fencing=4, fencecrafters=2; lowes_fencing has no Quote FU yet (no-op). Enrollment only — no SMS send.
+    if (status === 'quoted' && prevStatus !== 'quoted') {
+      const profile = normalizeCrmProfile(prev.crm_profile);
+      const quoteCampaignId =
+        profile === 'pnm_fencing' ? 4 :
+        profile === 'fencecrafters' ? 2 :
+        null;
+
+      if (quoteCampaignId) {
+        const alreadyOnCampaign = Number(prev.campaign_id) === quoteCampaignId;
+        if (alreadyOnCampaign) {
+          if (!prev.campaign_started_at) {
+            const startRows = await sql`
+              SELECT (((NOW() AT TIME ZONE 'America/New_York')::date + INTERVAL '1 day' + TIME '10:00') AT TIME ZONE 'America/New_York') AS start_at
+            `;
+            await sql`
+              UPDATE crm_leads
+              SET campaign_started_at = ${startRows[0].start_at}, updated_at = NOW()
+              WHERE id = ${id} AND campaign_started_at IS NULL
+            `;
+          }
+        } else {
+          const startRows = await sql`
+            SELECT (((NOW() AT TIME ZONE 'America/New_York')::date + INTERVAL '1 day' + TIME '10:00') AT TIME ZONE 'America/New_York') AS start_at
+          `;
+          const campaignStartAt = startRows[0].start_at;
+          const campRows = await sql`
+            SELECT name FROM crm_campaigns WHERE id = ${quoteCampaignId} LIMIT 1
+          `;
+          const campaignName = campRows[0]?.name || `Campaign #${quoteCampaignId}`;
+          // New enroll or switch-from-other: set Quote FU id + start (tomorrow 10 ET, same as manual assign).
+          // campaign_started_at only preserved when already null-path is handled above (alreadyOnCampaign).
+          await sql`
+            UPDATE crm_leads
+            SET campaign_id = ${quoteCampaignId},
+                campaign_started_at = ${campaignStartAt},
+                outreach_count = 0,
+                email_outreach_count = 0,
+                last_outreach_at = NULL,
+                customer_responded = false,
+                outreach_paused = false,
+                updated_at = NOW()
+            WHERE id = ${id}
+          `;
+          await sql`
+            INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+            VALUES (${id}, 'status_change', ${`Auto-enrolled Quote Follow Up on quoted: ${campaignName}`}, false, 'campaign_system')
+          `;
+        }
+      }
+    }
+
     return NextResponse.json({ success: true });
   }
 
