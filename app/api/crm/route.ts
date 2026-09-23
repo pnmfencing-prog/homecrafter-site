@@ -868,13 +868,14 @@ export async function GET(request: NextRequest) {
       count(*) FILTER (WHERE status = 'real_estate_neutral')::int as real_estate_neutral_count,
       count(*) FILTER (WHERE status = 'contacted')::int as contacted_count,
       count(*) FILTER (WHERE status = 'quoted')::int as quoted_count,
+      count(*) FILTER (WHERE status = 'ready_to_schedule')::int as ready_to_schedule_count,
       count(*) FILTER (WHERE status = 'scheduled')::int as scheduled_count,
       count(*) FILTER (WHERE status = 'won')::int as won_count,
       count(*) FILTER (WHERE status = 'sold')::int as sold_count,
       count(*) FILTER (WHERE status = 'lost')::int as lost_count,
       count(*)::int as total,
       coalesce(sum(job_value) FILTER (WHERE status IN ('won', 'sold')), 0)::numeric as total_revenue,
-      coalesce(sum(quoted_amount) FILTER (WHERE status IN ('quoted','scheduled')), 0)::numeric as pipeline_value
+      coalesce(sum(quoted_amount) FILTER (WHERE status IN ('quoted','ready_to_schedule','scheduled')), 0)::numeric as pipeline_value
     FROM crm_leads
     WHERE COALESCE(crm_profile, 'fencecrafters') = ${profileFilter}
       AND status IS DISTINCT FROM 'ops_vendor_not_customer'
@@ -1206,7 +1207,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === 'update') {
-    const { id, quoted_amount, job_value, assigned_to, next_follow_up, notes, service_type, customer_email, customer_phone, customer_name, customer_address, customer_city, customer_state, customer_zip, twister_work_order, lowes_store, source } = body;
+    const { id, quoted_amount, job_value, assigned_to, next_follow_up, notes, service_type, customer_email, customer_phone, customer_name, customer_address, customer_city, customer_state, customer_zip, twister_work_order, lowes_store, source, install_start } = body;
     if (quoted_amount !== undefined) await sql`UPDATE crm_leads SET quoted_amount = ${quoted_amount}, updated_at = NOW() WHERE id = ${id}`;
     if (job_value !== undefined) await sql`UPDATE crm_leads SET job_value = ${job_value}, updated_at = NOW() WHERE id = ${id}`;
     if (assigned_to !== undefined) await sql`UPDATE crm_leads SET assigned_to = ${assigned_to}, updated_at = NOW() WHERE id = ${id}`;
@@ -1226,7 +1227,54 @@ export async function POST(request: NextRequest) {
     if (twister_work_order !== undefined) await sql`UPDATE crm_leads SET twister_work_order = ${twister_work_order}, updated_at = NOW() WHERE id = ${id}`;
     if (lowes_store !== undefined) await sql`UPDATE crm_leads SET lowes_store = ${lowes_store}, updated_at = NOW() WHERE id = ${id}`;
     if (source !== undefined) await sql`UPDATE crm_leads SET source = ${source}, updated_at = NOW() WHERE id = ${id}`;
-    return NextResponse.json({ success: true });
+
+    let twisterPush: any = null;
+    if (install_start !== undefined) {
+      const installVal = install_start === null || install_start === '' ? null : String(install_start);
+      const leadRows = await sql`
+        SELECT id, crm_profile, twister_work_order, install_start
+        FROM crm_leads WHERE id = ${id} LIMIT 1
+      `;
+      if (!leadRows.length) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+      const lead = leadRows[0];
+      const profile = String(lead.crm_profile || '');
+      const wo = String(lead.twister_work_order || '').trim();
+
+      if (installVal === null) {
+        await sql`
+          UPDATE crm_leads
+          SET install_start = NULL,
+              install_start_twister_status = NULL,
+              install_start_twister_error = NULL,
+              updated_at = NOW()
+          WHERE id = ${id}
+        `;
+        twisterPush = { status: 'cleared' };
+      } else {
+        const isLowes = profile === 'lowes_fencing';
+        const pushStatus = isLowes && wo ? 'pending' : 'skipped';
+        const skipReason = !isLowes ? 'non-lowes profile' : (!wo ? 'missing twister_work_order' : null);
+        await sql`
+          UPDATE crm_leads
+          SET install_start = ${installVal},
+              install_start_twister_status = ${pushStatus},
+              install_start_twister_error = ${skipReason},
+              install_start_twister_pushed_at = NULL,
+              updated_at = NOW()
+          WHERE id = ${id}
+        `;
+        const desc = pushStatus === 'pending'
+          ? `Install start saved (${installVal}); Twister Schedule Install Date queued for WO ${wo}`
+          : `Install start saved (${installVal}); Twister push skipped (${skipReason || 'n/a'})`;
+        await sql`
+          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+          VALUES (${id}, 'note', ${desc}, false, 'admin')
+        `;
+        twisterPush = { status: pushStatus, work_order: wo || null, profile, skip_reason: skipReason };
+      }
+    }
+
+    return NextResponse.json({ success: true, twister_push: twisterPush });
   }
 
   if (action === 'add_note') {

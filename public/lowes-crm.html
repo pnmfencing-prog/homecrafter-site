@@ -32,7 +32,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .profile-meta { margin-top: 0.35rem; font-size: 0.6rem; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.06em; }
 
 /* Top stats */
-.stats-row { display: grid; grid-template-columns: repeat(13, 1fr); gap: 0.75rem; padding: 1.25rem 1.25rem 0; max-width: 2050px; margin: 0 auto; }
+.stats-row { display: grid; grid-template-columns: repeat(14, 1fr); gap: 0.75rem; padding: 1.25rem 1.25rem 0; max-width: 2200px; margin: 0 auto; }
 .stat-pill { background: #fff; border-radius: 10px; padding: 1rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
 .stat-pill:hover { transform: translateY(-2px); }
 .stat-pill.active { border-color: var(--gold); }
@@ -47,6 +47,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .stat-pill.real_estate_neutral .num { color: #8b5cf6; }
 .stat-pill.contacted .num { color: var(--orange); }
 .stat-pill.quoted .num { color: #7c3aed; }
+.stat-pill.ready_to_schedule .num { color: #0f766e; }
 .stat-pill.scheduled .num { color: var(--midnight); }
 .stat-pill.won .num { color: var(--green); }
 .stat-pill.sold .num { color: #16a34a; }
@@ -82,7 +83,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .btn-source.active { background: var(--midnight); color: var(--gold); }
 
 /* Kanban board */
-.board { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 0.75rem; padding: 0 1.25rem 2rem; max-width: 2500px; margin: 0 auto; min-height: 60vh; }
+.board { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 0.75rem; padding: 0 1.25rem 2rem; max-width: 2700px; margin: 0 auto; min-height: 60vh; }
 .column { background: var(--cream-dark); border-radius: 12px; padding: 0.75rem; min-height: 300px; }
 .column-header { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); padding: 0.5rem 0.5rem 0.75rem; display: flex; justify-content: space-between; align-items: center; }
 .column-count { background: var(--midnight); color: var(--gold); font-size: 0.55rem; padding: 0.15rem 0.5rem; border-radius: 10px; }
@@ -184,6 +185,7 @@ body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: v
 .status-badge.real_estate_neutral { background: #f5f3ff; color: #7c3aed; }
 .status-badge.contacted { background: var(--orange-bg); color: var(--orange); }
 .status-badge.quoted { background: #f5f3ff; color: #7c3aed; }
+.status-badge.ready_to_schedule { background: #ecfdf5; color: #0f766e; }
 .status-badge.scheduled { background: #f0f0ff; color: var(--midnight); }
 .status-badge.won { background: var(--green-bg); color: var(--green); }
 .status-badge.sold { background: #ecfdf5; color: #16a34a; }
@@ -598,12 +600,13 @@ var COLUMNS = [
   { key: 'real_estate_neutral', label: 'Real Estate Neutral', color: '#7c3aed' },
   { key: 'contacted', label: 'Contacted', color: '#d97706' },
   { key: 'quoted', label: 'Quoted', color: '#7c3aed' },
+  { key: 'ready_to_schedule', label: 'Ready to schedule', color: '#0f766e' },
   { key: 'scheduled', label: 'Scheduled', color: '#1e1845' },
   { key: 'won', label: 'Won', color: '#2d8a4e' },
   { key: 'sold', label: 'Sold', color: '#16a34a' },
   { key: 'lost', label: 'Lost', color: '#c0392b' },
 ];
-var FIXED_BOARD_COLUMN_KEYS = ['new', 'large_promising_reply', 'promising_reply', 'neutral_reply', 'contacted', 'quoted', 'scheduled', 'won', 'sold', 'real_estate_new', 'real_estate_promising', 'real_estate_neutral', 'lost'];
+var FIXED_BOARD_COLUMN_KEYS = ['new', 'large_promising_reply', 'promising_reply', 'neutral_reply', 'contacted', 'quoted', 'ready_to_schedule', 'scheduled', 'won', 'sold', 'real_estate_new', 'real_estate_promising', 'real_estate_neutral', 'lost'];
 
 function allBoardColumns() {
   return FIXED_BOARD_COLUMN_KEYS.map(function(key) {
@@ -616,7 +619,7 @@ function boardColumns() {
   if (messageFilter !== 'customer') return cols;
   // In Msg Rcvd mode, keep New first so fresh replies that have not been
   // triaged yet do not appear to disappear off to the far right.
-  var priority = { new: 0, large_promising_reply: 1, promising_reply: 2, neutral_reply: 3, contacted: 4, quoted: 5, scheduled: 6, won: 7, sold: 8, real_estate_new: 9, real_estate_promising: 10, real_estate_neutral: 11, lost: 12 };
+  var priority = { new: 0, large_promising_reply: 1, promising_reply: 2, neutral_reply: 3, contacted: 4, quoted: 5, ready_to_schedule: 6, scheduled: 7, won: 8, sold: 9, real_estate_new: 10, real_estate_promising: 11, real_estate_neutral: 12, lost: 13 };
   return cols.slice().sort(function(a, b) {
     return (priority[a.key] ?? 99) - (priority[b.key] ?? 99);
   });
@@ -1047,7 +1050,7 @@ function renderStatsFromLeads(leads) {
   leads.forEach(function(l) {
     s[(l.status || 'new') + '_count'] = (s[(l.status || 'new') + '_count'] || 0) + 1;
     if (l.status === 'won' || l.status === 'sold') s.total_revenue += Number(l.job_value || 0);
-    if (l.status === 'quoted' || l.status === 'scheduled') s.pipeline_value += Number(l.quoted_amount || 0);
+    if (l.status === 'quoted' || l.status === 'ready_to_schedule' || l.status === 'scheduled') s.pipeline_value += Number(l.quoted_amount || 0);
   });
   renderStats(s);
 }
@@ -1482,6 +1485,13 @@ function openLeadDetail(id, skipHistory) {
           '<div class="form-group"><label>Job Value (Won)</label><input type="number" id="edit-value" value="' + (l.job_value || '') + '"></div>' +
         '</div>' +
         '<button class="btn btn-green" style="width:100%;margin-bottom:1rem" onclick="saveAmounts(' + l.id + ')">Save Amounts</button>' +
+        '<div class="form-row" style="margin-bottom:0.5rem">' +
+          '<div class="form-group"><label>Install start</label><input type="datetime-local" id="edit-install-start" value="' + installStartLocalValue(l.install_start) + '"></div>' +
+          '<div class="form-group"><label>Twister push</label><div id="install-twister-status" style="font-size:0.78rem;padding-top:0.55rem;color:var(--text-muted)">' + esc(installTwisterLabel(l)) + '</div></div>' +
+        '</div>' +
+        '<div style="font-size:0.65rem;color:var(--text-muted);margin:-0.25rem 0 0.5rem">PNM typical window 8-9 AM ET. Lowes + Twister WO save queues Schedule Install Date (status 30 / MethodTypeId=4).</div>' +
+        '<button class="btn btn-primary" style="width:100%;margin-bottom:1rem" onclick="saveInstallStart(' + l.id + ')">Save Install Start</button>' +
+
 
         '<details open style="margin-bottom:1rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:10px;padding:0.75rem;border-left:3px solid var(--gold)">' +
           '<summary style="cursor:pointer;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--midnight)">📝 Customer notes</summary>' +
@@ -1634,6 +1644,7 @@ function stagePickerHtml(id, currentStatus) {
     { s: 'real_estate_neutral', label: 'Real Estate Neutral' },
     { s: 'contacted', label: 'Contacted' },
     { s: 'quoted', label: 'Quoted' },
+    { s: 'ready_to_schedule', label: 'Ready to schedule' },
     { s: 'scheduled', label: 'Scheduled' },
     { s: 'won', label: 'Won' },
     { s: 'sold', label: 'Sold' },
@@ -1942,6 +1953,122 @@ function editTileNotes(event, id) {
     .then(function() {
       renderBoard();
     }).catch(function() { alert('❌ Could not save notes'); });
+}
+
+
+function installStartLocalValue(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  var parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  }).formatToParts(d);
+  var map = {};
+  parts.forEach(function(p) { map[p.type] = p.value; });
+  var hour = map.hour === '24' ? '00' : map.hour;
+  return map.year + '-' + map.month + '-' + map.day + 'T' + hour + ':' + map.minute;
+}
+
+function installTwisterLabel(l) {
+  var st = l.install_start_twister_status || '';
+  if (!st) return String.fromCharCode(8212);
+  if (st === 'pending') return 'Pending Twister push';
+  if (st === 'pushed') return 'Pushed to Twister';
+  if (st === 'failed') return 'Failed: ' + (l.install_start_twister_error || 'error');
+  if (st === 'skipped') return 'Skipped: ' + (l.install_start_twister_error || 'n/a');
+  return st;
+}
+
+function etDatetimeLocalToIso(localValue) {
+  if (!localValue) return null;
+  var m = String(localValue).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return null;
+  var y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]), h = Number(m[4]), mi = Number(m[5]);
+  var guess = new Date(Date.UTC(y, mo - 1, d, h, mi, 0));
+  var fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    timeZoneName: 'shortOffset',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  });
+  var parts = fmt.formatToParts(guess);
+  var tz = (parts.find(function(p){ return p.type === 'timeZoneName'; }) || {}).value || 'GMT-4';
+  var off = tz.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/);
+  var offsetMin = 0;
+  if (off) {
+    var sign = off[1].startsWith('-') ? -1 : 1;
+    var oh = Math.abs(parseInt(off[1], 10));
+    var om = off[2] ? parseInt(off[2], 10) : 0;
+    offsetMin = sign * (oh * 60 + om);
+  } else if (/EDT/i.test(tz)) offsetMin = -4 * 60;
+  else if (/EST/i.test(tz)) offsetMin = -5 * 60;
+  var utcMs = Date.UTC(y, mo - 1, d, h, mi, 0) - offsetMin * 60 * 1000;
+  return new Date(utcMs).toISOString();
+}
+
+function saveInstallStart(id) {
+  var el = document.getElementById('edit-install-start');
+  var raw = el ? el.value : '';
+  var iso = raw ? etDatetimeLocalToIso(raw) : null;
+  if (raw && !iso) {
+    alert('Invalid install start');
+    return;
+  }
+  fetch('/api/crm', api('POST', { action: 'update', id: id, install_start: iso }))
+    .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+    .then(function(res) {
+      if (!res.ok) {
+        alert('Could not save install start' + (res.data && res.data.error ? (': ' + res.data.error) : ''));
+        return;
+      }
+      var push = res.data && res.data.twister_push;
+      if (push && push.status === 'pending') {
+        alert('Install start saved. Twister Schedule Install Date queued (claw bridge).');
+        pollInstallTwisterStatus(id, 20);
+      } else if (push && push.status === 'skipped') {
+        alert('Install start saved. Twister push skipped (' + (push.skip_reason || 'n/a') + ').');
+        openLeadDetail(id, true);
+        loadLeads();
+      } else {
+        alert('Install start saved.');
+        openLeadDetail(id, true);
+        loadLeads();
+      }
+    })
+    .catch(function() { alert('Could not save install start'); });
+}
+
+function pollInstallTwisterStatus(id, remaining) {
+  if (remaining <= 0) {
+    alert('Twister push still pending — check lead Twister push status shortly.');
+    openLeadDetail(id, true);
+    loadLeads();
+    return;
+  }
+  fetch('/api/crm?id=' + id, api('GET'))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var l = data.lead || (data.leads && data.leads[0]) || data;
+      var st = l && l.install_start_twister_status;
+      if (st === 'pushed') {
+        alert('Twister Schedule Install Date pushed.');
+        openLeadDetail(id, true);
+        loadLeads();
+        return;
+      }
+      if (st === 'failed') {
+        alert('Twister schedule failed: ' + (l.install_start_twister_error || 'error'));
+        openLeadDetail(id, true);
+        loadLeads();
+        return;
+      }
+      setTimeout(function() { pollInstallTwisterStatus(id, remaining - 1); }, 1000);
+    })
+    .catch(function() {
+      setTimeout(function() { pollInstallTwisterStatus(id, remaining - 1); }, 1000);
+    });
 }
 
 function saveAmounts(id) {
