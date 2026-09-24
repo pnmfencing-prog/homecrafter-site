@@ -22,7 +22,7 @@ export const CRM_PROFILES = {
     senderEmail: 'pnmfencing@homecrafter.ai',
     replyToEmail: 'pnmfencing@homecrafter.ai',
     defaultSubject: 'Following up from PNM Fencing',
-    smsSignature: 'PNM Fencing',
+    smsSignature: 'Trent\nPNM Fencing',
   },
   lowes_fencing: {
     key: 'lowes_fencing',
