@@ -1,0 +1,538 @@
+import { NextRequest, NextResponse } from 'next/server';
+import sql from '@/lib/db';
+import { crmProfileConfig, type CrmProfileKey } from '@/lib/email-policy';
+
+const DAN_PHONE = '9086924847';
+const DAN_PHONE_E164 = '+19086924847';
+const INTERNAL_TWILIO_NUMBERS = new Set(['9085035473', '9083173444', '9086766984', '8442123522']);
+const TWISTER_ASSIGN_FROM = '8442123522';
+const LOWES_TWILIO_DIGITS = '9086766984';
+const CRM_BASE_URL = process.env.CRM_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://homecrafter.ai';
+const FENCECRAFTERS_TWILIO_NUMBER = process.env.FENCECRAFTERS_TWILIO_NUMBER || process.env.TWILIO_FROM || process.env.TWILIO_PHONE_NUMBER || '+19085035473';
+const PNM_TWILIO_NUMBER = process.env.PNM_TWILIO_NUMBER || process.env.PNM_TWILIO_FROM || '+19083173444';
+const LOWES_TWILIO_NUMBER = process.env.LOWES_TWILIO_NUMBER || process.env.LOWES_TWILIO_FROM || '+19086766984';
+const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
+const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
+const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
+const ANGRY_OPTOUT_RE = /\b(fuck off|f off|leave me alone|do not text|dont text|don't text|remove me|wrong number|not interested|no thanks?|no thank you|i'?m good|im good|i am good|all set|we'?re good|were good)\b/i;
+
+function profileFromTwilioTo(to: string): CrmProfileKey {
+  const digits = normalizePhone(to);
+  // +1 908-317-3444 is the newer Twilio number Dan assigned to PNM Fencing.
+  if (digits === '9083173444') return 'pnm_fencing';
+  // +1 908-676-6984 is the dedicated Lowes Fencing NJ Twilio number.
+  if (digits === '9086766984') return 'lowes_fencing';
+  return 'fencecrafters';
+}
+
+function notificationFromForProfile(profile: CrmProfileKey): string {
+  if (profile === 'pnm_fencing') return PNM_TWILIO_NUMBER;
+  if (profile === 'lowes_fencing') return LOWES_TWILIO_NUMBER;
+  return FENCECRAFTERS_TWILIO_NUMBER;
+}
+
+async function inferInboundProfile(from: string, twilioProfile: CrmProfileKey): Promise<CrmProfileKey> {
+  if (twilioProfile === 'pnm_fencing') return 'pnm_fencing';
+  if (twilioProfile === 'lowes_fencing') return 'lowes_fencing';
+
+  // Legacy guard: some PNM-profile CRM texts were historically sent from the
+  // default FenceCrafters Twilio number. If the customer's latest CRM outbound
+  // SMS was from a PNM lead, keep the reply in the PNM profile instead of
+  // creating/using a duplicate FenceCrafters thread.
+  const normalized = normalizePhone(from);
+  const rows = await sql`
+    SELECT COALESCE(l.crm_profile, 'fencecrafters') AS crm_profile, MAX(a.created_at) AS last_outbound_at
+    FROM crm_leads l
+    JOIN crm_activity a ON a.crm_lead_id = l.id
+    WHERE regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g') IN (${normalized}, ${`1${normalized}`})
+      AND a.is_from_customer = false
+      AND a.activity_type = 'sms'
+      AND COALESCE(a.description, '') LIKE '📤%'
+      AND a.created_at > NOW() - INTERVAL '45 days'
+    GROUP BY COALESCE(l.crm_profile, 'fencecrafters')
+    ORDER BY MAX(a.created_at) DESC
+    LIMIT 1
+  `;
+  const latest = String(rows[0]?.crm_profile || '');
+  if (latest === 'pnm_fencing') return 'pnm_fencing';
+  if (latest === 'lowes_fencing') return 'lowes_fencing';
+  return twilioProfile;
+}
+
+function normalizePhone(phone: string): string {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
+  return digits;
+}
+
+function formatPhone(phone: string): string {
+  const digits = normalizePhone(phone);
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return phone;
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+
+function isTwisterAssignSms(to: string, from: string, body: string): boolean {
+  const toDigits = normalizePhone(to);
+  const fromDigits = normalizePhone(from);
+  if (toDigits !== LOWES_TWILIO_DIGITS) return false;
+  if (fromDigits !== TWISTER_ASSIGN_FROM) return false;
+  if (!/you have been assigned/i.test(body || '')) return false;
+  if (!/WO#\s*\d+/i.test(body || '')) return false;
+  return true;
+}
+
+function parseTwisterAssignSms(body: string): {
+  work_order_number: string | null;
+  customer_name_guess: string | null;
+  detail_url: string | null;
+} {
+  const text = body || '';
+  const woMatch = text.match(/WO#\s*(\d+)/i);
+  const work_order_number = woMatch ? woMatch[1] : null;
+
+  let customer_name_guess: string | null = null;
+  const nameMatch = text.match(/WO#\s*\d+\s+for\s+([A-Za-z][A-Za-z0-9 .'\-]{1,80}?)(?:\.|$|\n)/i);
+  if (nameMatch) {
+    customer_name_guess = nameMatch[1].replace(/\s+/g, ' ').trim() || null;
+  }
+
+  let detail_url: string | null = null;
+  const urlMatch = text.match(/https?:\/\/[^\s<>"']+/i);
+  if (urlMatch) {
+    detail_url = urlMatch[0].replace(/[.,;:)\]}>]+$/g, '');
+  } else if (/apps\.trustedhomeservices\.com|micWoId=/i.test(text)) {
+    const loose = text.match(/(?:https?:\/\/)?(?:www\.)?apps\.trustedhomeservices\.com[^\s<>"']*/i);
+    if (loose) {
+      const raw = loose[0];
+      detail_url = raw.startsWith('http')
+        ? raw.replace(/[.,;:)\]}>]+$/g, '')
+        : `https://${raw.replace(/[.,;:)\]}>]+$/g, '')}`;
+    }
+  }
+
+  return { work_order_number, customer_name_guess, detail_url };
+}
+
+async function logAndNotifyTwisterAssign(from: string, to: string, body: string): Promise<NextResponse> {
+  const parsed = parseTwisterAssignSms(body);
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS twister_assign_sms (
+      id SERIAL PRIMARY KEY,
+      from_phone TEXT,
+      to_phone TEXT,
+      body TEXT,
+      work_order_number TEXT,
+      customer_name_guess TEXT,
+      detail_url TEXT,
+      created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+      processed_at TIMESTAMP WITHOUT TIME ZONE
+    )
+  `;
+
+  await sql`
+    INSERT INTO twister_assign_sms (
+      from_phone, to_phone, body, work_order_number, customer_name_guess, detail_url
+    ) VALUES (
+      ${from}, ${to}, ${body},
+      ${parsed.work_order_number}, ${parsed.customer_name_guess}, ${parsed.detail_url}
+    )
+  `;
+
+  const woLabel = parsed.work_order_number ? `WO#${parsed.work_order_number}` : 'WO#?';
+  const namePart = parsed.customer_name_guess ? ` ${parsed.customer_name_guess}` : '';
+  let notificationText = `Lowes Twister assign: ${woLabel}${namePart} — pull into CRM`;
+  if (parsed.detail_url) notificationText += `\n${parsed.detail_url}`;
+
+  let twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
+  twiml += `<Message from="${escapeXml(LOWES_TWILIO_NUMBER)}" to="${DAN_PHONE_E164}">${escapeXml(notificationText.slice(0, 1200))}</Message>`;
+  twiml += '</Response>';
+
+  return new NextResponse(twiml, {
+    headers: { 'Content-Type': 'text/xml' },
+  });
+}
+
+function isOptOutOrAngryReply(body: string): boolean {
+  const normalized = body.trim();
+  return HARD_OPTOUT_RE.test(normalized) || ANGRY_OPTOUT_RE.test(normalized);
+}
+
+function isHardOptOutReply(body: string): boolean {
+  return HARD_OPTOUT_RE.test(body.trim());
+}
+
+function isLargePromisingReply(body: string): boolean {
+  const text = (body || '').toLowerCase().replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) return false;
+
+  const largeFootagePattern = /\b(\d{2,4})\s*(?:linear\s*)?(?:feet|foot|ft|lf)\b/g;
+  let match: RegExpExecArray | null;
+  while ((match = largeFootagePattern.exec(text)) !== null) {
+    if (Number(match[1]) > 140) return true;
+  }
+
+  const largePanelPattern = /\b(\d{1,3})\s*(?:panels?|sections?)\b/g;
+  while ((match = largePanelPattern.exec(text)) !== null) {
+    if (Number(match[1]) > 17) return true;
+  }
+
+  return false;
+}
+
+function classifyCustomerReply(body: string, attachmentCount = 0): 'large_promising_reply' | 'promising_reply' | 'neutral_reply' {
+  if (isLargePromisingReply(body)) return 'large_promising_reply';
+  const text = (body || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (attachmentCount > 0) return 'promising_reply';
+  if (!text) return 'neutral_reply';
+  if (/\bcancel\b.{0,40}\bappointment\b|\bappointment\b.{0,40}\bcancel\b/.test(text) && !/\breschedule|another\s+(day|time)|new\s+(day|time)\b/.test(text)) return 'neutral_reply';
+
+  const promisingPatterns = [
+    /\bsurvey\b/,
+    /\bfootage\b/,
+    /\bfeet\b/,
+    /\bft\b/,
+    /\bsections?\b/,
+    /\bgates?\b/,
+    /\bmeasure\b/,
+    /\bcome measure\b/,
+    /\bcall me\b/,
+    /\bgive me a call\b/,
+    /\bavailable\b/,
+    /\bappointment\b/,
+    /\breschedule\b/,
+    /\bquote\b/,
+    /\bpricing\b/,
+    /\bdamaged?\b/,
+    /\bpvc\b/,
+    /\bwood\b/,
+    /\bchain\s*link\b/,
+    /\baluminum\b/,
+    /\bvinyl\b/,
+    /\blattice\b/,
+    /\b(i|we)\s+(need|want|would like|am looking for|are looking for)\s+(a\s+)?(new\s+)?(fence|gate|railing)\b/,
+    /\b(need|want|would like|looking for)\s+(a\s+)?(new\s+)?(fence|gate|railing)\b/,
+    /\b(send|have)\s+someone\s+(out|come|come out)\b/,
+    /\b(take|look)\s+(a\s+)?look\b/,
+    /\bcome\s+(by|out)\b/,
+    /\byes\b/,
+    /\b\d+\s*(sections?|gates?|feet|ft)\b/,
+  ];
+
+  return promisingPatterns.some((pattern) => pattern.test(text)) ? 'promising_reply' : 'neutral_reply';
+}
+
+function routeReplyStatus(baseStatus: 'large_promising_reply' | 'promising_reply' | 'neutral_reply', lead: any): 'large_promising_reply' | 'promising_reply' | 'neutral_reply' | 'real_estate_promising' | 'real_estate_neutral' {
+  const source = String(lead?.source || '').toLowerCase();
+  // Real-estate reply columns are only for real-estate agent upload leads.
+  // County/homeowner imports should stay in the normal Promising/Neutral flow.
+  if (baseStatus === 'large_promising_reply') return source === 'batchleads_agents' ? 'real_estate_promising' : 'large_promising_reply';
+  if (source !== 'batchleads_agents') return baseStatus;
+  return baseStatus === 'promising_reply' ? 'real_estate_promising' : 'real_estate_neutral';
+}
+
+function extensionFromMime(mimeType: string): string {
+  const clean = (mimeType || '').toLowerCase().split(';')[0].trim();
+  if (clean === 'image/jpeg' || clean === 'image/jpg') return 'jpg';
+  if (clean === 'image/png') return 'png';
+  if (clean === 'image/gif') return 'gif';
+  if (clean === 'image/webp') return 'webp';
+  if (clean === 'application/pdf') return 'pdf';
+  if (clean.includes('/')) return clean.split('/')[1].replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin';
+  return 'bin';
+}
+
+async function collectTwilioMedia(form: FormData): Promise<Array<{ fileName: string; mimeType: string; contentBase64: string; sizeBytes: number }>> {
+  const count = Math.min(Number(form.get('NumMedia') || 0) || 0, 10);
+  if (!count) return [];
+
+  const auth = TWILIO_SID && TWILIO_TOKEN ? Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64') : '';
+  const attachments = [];
+  for (let i = 0; i < count; i += 1) {
+    const mediaUrl = String(form.get(`MediaUrl${i}`) || '');
+    const mimeType = String(form.get(`MediaContentType${i}`) || 'application/octet-stream').slice(0, 120);
+    if (!mediaUrl) continue;
+
+    try {
+      const res = await fetch(mediaUrl, {
+        headers: auth ? { Authorization: `Basic ${auth}` } : undefined,
+      });
+      if (!res.ok) {
+        console.error(`Twilio media fetch failed (${res.status}) for ${mediaUrl}`);
+        continue;
+      }
+      const arrayBuffer = await res.arrayBuffer();
+      const buf = Buffer.from(arrayBuffer);
+      if (!buf.length) continue;
+      attachments.push({
+        fileName: `sms-attachment-${Date.now()}-${i + 1}.${extensionFromMime(mimeType)}`.slice(0, 180),
+        mimeType,
+        contentBase64: buf.toString('base64'),
+        sizeBytes: buf.length,
+      });
+    } catch (err) {
+      console.error('Twilio media fetch error', err);
+    }
+  }
+  return attachments;
+}
+
+async function findContractorByPhone(from: string): Promise<any | null> {
+  const normalized = normalizePhone(from);
+  const matches = await sql`
+    SELECT id, name, phone, category
+    FROM contractors
+    WHERE regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g') IN (${normalized}, ${`1${normalized}`})
+    ORDER BY active DESC, id ASC
+    LIMIT 1
+  `;
+  return matches[0] || null;
+}
+
+async function logContractorSmsReply(contractor: any, from: string, body: string): Promise<void> {
+  await sql`
+    CREATE TABLE IF NOT EXISTS contractor_sms_replies (
+      id SERIAL PRIMARY KEY,
+      contractor_id INTEGER,
+      contractor_name TEXT,
+      contractor_phone TEXT,
+      category TEXT,
+      message TEXT NOT NULL,
+      created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+    )
+  `;
+  await sql`
+    INSERT INTO contractor_sms_replies (contractor_id, contractor_name, contractor_phone, category, message)
+    VALUES (${contractor.id}, ${contractor.name || null}, ${formatPhone(from)}, ${contractor.category || null}, ${body})
+  `;
+}
+
+async function findOrCreateLead(from: string, crmProfile: CrmProfileKey): Promise<{ lead: any; created: boolean }> {
+  const normalized = normalizePhone(from);
+  const matches = await sql`
+    SELECT * FROM crm_leads
+    WHERE regexp_replace(coalesce(customer_phone, ''), '[^0-9]', '', 'g') IN (${normalized}, ${`1${normalized}`})
+      AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile}
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `;
+
+  if (matches.length) return { lead: matches[0], created: false };
+
+  const maxCode = await sql`SELECT COALESCE(MAX(CAST(lead_code AS INTEGER)), 99) + 1 as next_code FROM crm_leads WHERE lead_code ~ '^[0-9]+$'`;
+  const leadCode = String(maxCode[0].next_code);
+  const chatToken = [...Array(16)].map(() => Math.random().toString(36)[2]).join('');
+  const displayPhone = formatPhone(from);
+  const created = await sql`
+    INSERT INTO crm_leads (customer_name, customer_phone, source, status, chat_token, lead_code, notes, customer_responded, is_read, last_message_by, last_message_at, crm_profile)
+    VALUES (${`Unknown texter ${displayPhone}`}, ${displayPhone}, 'angi_sms', 'new', ${chatToken}, ${leadCode}, 'Created automatically from incoming text message', true, false, 'customer', NOW(), ${crmProfile})
+    RETURNING *
+  `;
+  await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${created[0].id}, 'status_change', 'Lead created from incoming SMS')`;
+  return { lead: created[0], created: true };
+}
+
+function boardUrlForProfile(profileKey: string, leadId: number | string): string {
+  const base = profileKey === 'lowes_fencing' ? '/lowes-crm.html' : '/crm.html';
+  return `${CRM_BASE_URL}${base}?lead=${leadId}&profile=${profileKey}`;
+}
+
+function newLeadReplyForProfile(profileValue: unknown): string {
+  const profile = crmProfileConfig(profileValue);
+  const intro = profile.key === 'pnm_fencing'
+    ? 'Hi, this is PNM Fencing. I was assigned as the estimator for your project.'
+    : profile.key === 'lowes_fencing'
+      ? 'Hi, this is Lowes Fencing NJ. I was assigned as the estimator for your project.'
+      : 'Hi, this is Scott with FenceCrafters. I was assigned as the estimator for your project.';
+  return `${intro}\n\nDid you by chance have a property survey or the total footage or section count?`;
+}
+
+export async function POST(request: NextRequest) {
+  const form = await request.formData();
+  const from = String(form.get('From') || '');
+  const to = String(form.get('To') || '');
+  const inboundProfile = await inferInboundProfile(from, profileFromTwilioTo(to));
+  const body = String(form.get('Body') || '').trim();
+
+  // Twister/IME lead-assign SMS on Lowes number — log + notify Dan, do not create a CRM lead.
+  if (isTwisterAssignSms(to, from, body)) {
+    return logAndNotifyTwisterAssign(from, to, body);
+  }
+
+  // Prevent CRM-owned Twilio numbers from auto-replying to each other and creating loops.
+  // Includes Twister short-code 8442123522 so non-assign traffic never becomes a fake lead.
+  if (INTERNAL_TWILIO_NUMBERS.has(normalizePhone(from))) {
+    return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+      headers: { 'Content-Type': 'text/xml' },
+    });
+  }
+
+  const expectedMediaCount = Math.min(Number(form.get('NumMedia') || 0) || 0, 10);
+  const inboundAttachments = await collectTwilioMedia(form);
+  let notificationText = '';
+  let notificationProfile: CrmProfileKey = inboundProfile;
+  let newLeadAutoReply = '';
+  let suppressAnyReply = false;
+  let lead: any = null;
+
+  if (from && (body || inboundAttachments.length)) {
+    const contractor = await findContractorByPhone(from);
+
+    if (contractor) {
+      await logContractorSmsReply(contractor, from, body);
+      if (normalizePhone(from) !== DAN_PHONE) {
+        notificationText = `HomeCrafter contractor reply from ${contractor.name || 'Unknown contractor'} (${formatPhone(from)}): ${body}\n\nNot added to PNM CRM.`;
+      }
+      suppressAnyReply = true;
+    } else {
+      const result = await findOrCreateLead(from, inboundProfile);
+      lead = result.lead;
+      const attachmentSummary = inboundAttachments.length
+        ? `📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}`
+        : (expectedMediaCount ? `⚠️ Customer sent ${expectedMediaCount} media attachment${expectedMediaCount === 1 ? '' : 's'}, but the file${expectedMediaCount === 1 ? '' : 's'} could not be retrieved from Twilio.` : '');
+      const messageText = body || (expectedMediaCount ? 'Customer sent media.' : 'See attached.');
+      const description = `📥 ${messageText}${attachmentSummary ? `\n\n${attachmentSummary}` : ''}`;
+      suppressAnyReply = body ? isOptOutOrAngryReply(body) : false;
+
+    // Avoid duplicate CRM entries if Twilio retries the webhook.
+    const duplicate = await sql`
+      SELECT id FROM crm_activity
+      WHERE crm_lead_id = ${lead.id}
+        AND activity_type = 'sms'
+        AND description = ${description}
+        AND created_at > NOW() - INTERVAL '10 minutes'
+      LIMIT 1
+    `;
+
+    let activityId = duplicate[0]?.id;
+    if (!activityId) {
+      const inserted = await sql`
+        INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+        VALUES (${lead.id}, 'sms', ${description}, true, 'customer_sms')
+        RETURNING id
+      `;
+      activityId = inserted[0].id;
+    }
+
+    if (activityId && inboundAttachments.length) {
+      const existingAttachmentCount = await sql`
+        SELECT COUNT(*)::int AS count
+        FROM crm_attachments
+        WHERE crm_activity_id = ${activityId}
+      `;
+      if (Number(existingAttachmentCount[0]?.count || 0) === 0) {
+        for (const att of inboundAttachments) {
+          await sql`
+            INSERT INTO crm_attachments (crm_activity_id, crm_lead_id, file_name, mime_type, content_base64, size_bytes, direction)
+            VALUES (${activityId}, ${lead.id}, ${att.fileName}, ${att.mimeType}, ${att.contentBase64}, ${att.sizeBytes}, 'inbound')
+          `;
+        }
+      }
+    }
+
+    if (suppressAnyReply) {
+      const hardOptOut = body ? isHardOptOutReply(body) : false;
+      await sql`
+        UPDATE crm_leads
+        SET customer_responded = true,
+            outreach_paused = true,
+            campaign_id = NULL,
+            status = 'lost',
+            lost_reason = ${hardOptOut ? 'SMS opt-out (STOP/END)' : 'Opted out / negative SMS reply'},
+            is_read = ${hardOptOut ? true : false},
+            last_message_by = 'customer',
+            last_message_at = NOW(),
+            updated_at = NOW(),
+            closed_at = NOW()
+        WHERE id = ${lead.id}
+      `;
+    } else {
+      const replyStatus = routeReplyStatus(classifyCustomerReply(body || '', inboundAttachments.length), lead);
+      await sql`
+        UPDATE crm_leads
+        SET customer_responded = true,
+            outreach_paused = true,
+            is_read = false,
+            last_message_by = 'customer',
+            last_message_at = NOW(),
+            updated_at = NOW(),
+            status = CASE
+              WHEN status IN ('large_promising_reply', 'promising_reply', 'real_estate_promising') AND ${replyStatus} IN ('neutral_reply', 'real_estate_neutral') THEN status
+              WHEN status IN ('new', 'real_estate_new', 'contacted', 'large_promising_reply', 'promising_reply', 'neutral_reply', 'real_estate_promising', 'real_estate_neutral') THEN ${replyStatus}
+              ELSE status
+            END
+        WHERE id = ${lead.id}
+      `;
+      if (lead.campaign_id && !lead.outreach_paused) {
+        await sql`
+          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+          VALUES (${lead.id}, 'status_change', '✅ Campaign completed: customer replied', false, 'campaign_system')
+        `;
+      }
+    }
+
+    if (normalizePhone(from) !== DAN_PHONE) {
+      const name = lead.customer_name || `Unknown texter ${formatPhone(from)}`;
+      const profile = crmProfileConfig(lead.crm_profile || inboundProfile);
+      notificationProfile = profile.key;
+      const threadUrl = boardUrlForProfile(profile.key, lead.id);
+      notificationText = `New ${profile.label} text from ${name} (${formatPhone(from)}): ${body || '[attachment]'}${inboundAttachments.length ? `\n📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : ''}\n\nOpen thread: ${threadUrl}`;
+
+      if (result.created && !suppressAnyReply) {
+        newLeadAutoReply = newLeadReplyForProfile(lead.crm_profile);
+        await sql`
+          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+          VALUES (${lead.id}, 'sms', ${`📤 ${newLeadAutoReply}`}, false, 'system')
+        `;
+        await sql`
+          UPDATE crm_leads
+          SET last_message_by = 'you',
+              last_message_at = NOW(),
+              last_outreach_at = NOW(),
+              outreach_count = coalesce(outreach_count, 0) + 1,
+              updated_at = NOW()
+          WHERE id = ${lead.id}
+        `;
+      }
+    }
+    }
+  }
+
+  const now = new Date();
+  const est = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const hour = est.getHours();
+  const day = est.getDay();
+
+  const isBusinessHours =
+    (day >= 1 && day <= 5 && hour >= 8 && hour < 18) ||
+    (day === 6 && hour >= 9 && hour < 14);
+
+  let twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
+
+  if (notificationText) {
+    const notificationFrom = notificationFromForProfile(notificationProfile);
+    twiml += `<Message from="${escapeXml(notificationFrom)}" to="${DAN_PHONE_E164}">${escapeXml(notificationText.slice(0, 1200))}</Message>`;
+  }
+
+  if (newLeadAutoReply) {
+    twiml += `<Message>${escapeXml(newLeadAutoReply)}</Message>`;
+  } else if (!isBusinessHours && !suppressAnyReply) {
+    twiml += "<Message>Thanks for reaching out to PNM Fencing! Our office hours are Mon-Fri 8AM-6PM and Sat 9AM-2PM. We'll get back to you on the next business day. For urgent matters, call (908) 503-5473.</Message>";
+  }
+
+  twiml += '</Response>';
+
+  return new NextResponse(twiml, {
+    headers: { 'Content-Type': 'text/xml' },
+  });
+}

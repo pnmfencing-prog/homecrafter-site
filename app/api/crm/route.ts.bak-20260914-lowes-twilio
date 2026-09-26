@@ -8,14 +8,6 @@ import {
 } from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
 import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
-import {
-  appendVendorOutboundSms,
-  findActiveVendorByPhone,
-  isOpsVendorLeadStatus,
-  loadActiveVendorPhoneDigits,
-  markLeadAsOpsVendorNotCustomer,
-  phoneDigits10,
-} from '@/lib/ops-vendor';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -28,8 +20,8 @@ const PNM_TWILIO_FROM = process.env.PNM_TWILIO_FROM || process.env.PNM_TWILIO_NU
 function twilioFromForProfile(profileValue: unknown): string {
   const profile = normalizeCrmProfile(profileValue);
   if (profile === 'pnm_fencing') return PNM_TWILIO_FROM;
-  if (profile === 'lowes_fencing') return process.env.LOWES_TWILIO_NUMBER || process.env.LOWES_TWILIO_FROM || '+19086766984';
-  return TWILIO_FROM || process.env.FENCECRAFTERS_TWILIO_NUMBER || '+19085035473';
+  if (profile === 'lowes_fencing') return process.env.LOWES_TWILIO_NUMBER || process.env.LOWES_TWILIO_FROM || TWILIO_FROM;
+  return TWILIO_FROM;
 }
 
 function normalizePhone(phone: string): string {
@@ -356,14 +348,6 @@ export async function GET(request: NextRequest) {
         ) cm ON true
         LEFT JOIN crm_campaigns camp_filter ON camp_filter.id = ec.effective_campaign_id
         WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-          AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
-          AND NOT EXISTS (
-            SELECT 1 FROM crm_vendor_profiles v
-            WHERE v.status <> 'archived'
-              AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-                = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-              AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-          )
           AND (${status || 'all'} = 'all' OR l.status = ${status || 'all'})
           AND (${source || 'all'} = 'all' OR l.source = ${source || 'all'})
           AND (${readFilter || 'all'} = 'all'
@@ -435,14 +419,6 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
-        AND NOT EXISTS (
-          SELECT 1 FROM crm_vendor_profiles v
-          WHERE v.status <> 'archived'
-            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-        )
         AND l.status = ${status} AND (
         l.customer_name ILIKE ${searchPat}
         OR l.customer_phone ILIKE ${searchPat}
@@ -475,14 +451,6 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
-        AND NOT EXISTS (
-          SELECT 1 FROM crm_vendor_profiles v
-          WHERE v.status <> 'archived'
-            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-        )
         AND l.status = ${status}
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${queryLimit}`;
@@ -502,14 +470,6 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
-        AND NOT EXISTS (
-          SELECT 1 FROM crm_vendor_profiles v
-          WHERE v.status <> 'archived'
-            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-        )
         AND l.source = ${source} AND (
         l.customer_name ILIKE ${searchPat}
         OR l.customer_phone ILIKE ${searchPat}
@@ -542,14 +502,6 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
-        AND NOT EXISTS (
-          SELECT 1 FROM crm_vendor_profiles v
-          WHERE v.status <> 'archived'
-            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-        )
         AND l.source = ${source}
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${queryLimit}`;
@@ -569,14 +521,6 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
-        AND NOT EXISTS (
-          SELECT 1 FROM crm_vendor_profiles v
-          WHERE v.status <> 'archived'
-            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-        )
         AND (
         l.customer_name ILIKE ${searchPat}
         OR l.customer_phone ILIKE ${searchPat}
@@ -608,14 +552,6 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
-        AND NOT EXISTS (
-          SELECT 1 FROM crm_vendor_profiles v
-          WHERE v.status <> 'archived'
-            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-        )
         AND latest.is_from_customer IS FALSE
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${workflowLimit}`;
@@ -634,14 +570,6 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
-        AND NOT EXISTS (
-          SELECT 1 FROM crm_vendor_profiles v
-          WHERE v.status <> 'archived'
-            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-        )
         AND latest.is_from_customer IS TRUE
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC
       LIMIT ${workflowLimit}`;
@@ -669,14 +597,6 @@ export async function GET(request: NextRequest) {
         FROM crm_leads l
         LEFT JOIN latest_by_lead latest ON latest.crm_lead_id = l.id
         WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-          AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
-          AND NOT EXISTS (
-            SELECT 1 FROM crm_vendor_profiles v
-            WHERE v.status <> 'archived'
-              AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-                = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-              AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-          )
       )
       SELECT * FROM lead_rows
       WHERE status_rank <= ${maxPerStatus}
@@ -695,14 +615,6 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       ) latest ON true
       WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
-        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
-        AND NOT EXISTS (
-          SELECT 1 FROM crm_vendor_profiles v
-          WHERE v.status <> 'archived'
-            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-        )
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC`;
   }
 
@@ -713,15 +625,6 @@ export async function GET(request: NextRequest) {
   }
 
   leads = leads.filter((lead) => normalizeCrmProfile(lead.crm_profile) === profileFilter);
-
-  // Sales-board isolation: Ops vendors / GC partners never appear as sales leads.
-  const vendorPhones = await loadActiveVendorPhoneDigits();
-  leads = leads.filter((lead) => {
-    if (isOpsVendorLeadStatus(lead.status)) return false;
-    const digits = phoneDigits10(lead.customer_phone);
-    if (digits.length === 10 && vendorPhones.has(digits)) return false;
-    return true;
-  });
 
   leads = leads.map((lead) => ({
     ...lead,
@@ -868,24 +771,15 @@ export async function GET(request: NextRequest) {
       count(*) FILTER (WHERE status = 'real_estate_neutral')::int as real_estate_neutral_count,
       count(*) FILTER (WHERE status = 'contacted')::int as contacted_count,
       count(*) FILTER (WHERE status = 'quoted')::int as quoted_count,
-      count(*) FILTER (WHERE status = 'ready_to_schedule')::int as ready_to_schedule_count,
       count(*) FILTER (WHERE status = 'scheduled')::int as scheduled_count,
       count(*) FILTER (WHERE status = 'won')::int as won_count,
       count(*) FILTER (WHERE status = 'sold')::int as sold_count,
       count(*) FILTER (WHERE status = 'lost')::int as lost_count,
       count(*)::int as total,
       coalesce(sum(job_value) FILTER (WHERE status IN ('won', 'sold')), 0)::numeric as total_revenue,
-      coalesce(sum(quoted_amount) FILTER (WHERE status IN ('quoted','ready_to_schedule','scheduled')), 0)::numeric as pipeline_value
+      coalesce(sum(quoted_amount) FILTER (WHERE status IN ('quoted','scheduled')), 0)::numeric as pipeline_value
     FROM crm_leads
     WHERE COALESCE(crm_profile, 'fencecrafters') = ${profileFilter}
-      AND status IS DISTINCT FROM 'ops_vendor_not_customer'
-      AND NOT EXISTS (
-        SELECT 1 FROM crm_vendor_profiles v
-        WHERE v.status <> 'archived'
-          AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-            = right(regexp_replace(coalesce(crm_leads.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-          AND length(right(regexp_replace(coalesce(crm_leads.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-      )
   `;
 
   const exactStats = !search
@@ -947,14 +841,6 @@ export async function GET(request: NextRequest) {
             ) AS campaign_completed
           ) campaign_state ON true
           WHERE COALESCE(crm_leads.crm_profile, 'fencecrafters') = ${profileFilter}
-            AND crm_leads.status IS DISTINCT FROM 'ops_vendor_not_customer'
-            AND NOT EXISTS (
-              SELECT 1 FROM crm_vendor_profiles v
-              WHERE v.status <> 'archived'
-                AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
-                  = right(regexp_replace(coalesce(crm_leads.customer_phone, ''), '[^0-9]', '', 'g'), 10)
-                AND length(right(regexp_replace(coalesce(crm_leads.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
-            )
             AND (${status || 'all'} = 'all' OR crm_leads.status = ${status || 'all'})
             AND (${source || 'all'} = 'all' OR crm_leads.source = ${source || 'all'})
             AND (${readFilter || 'all'} = 'all'
@@ -1072,40 +958,12 @@ export async function POST(request: NextRequest) {
     // Auto-assign lead code
     const maxCode = await sql`SELECT COALESCE(MAX(CAST(lead_code AS INTEGER)), 99) + 1 as next_code FROM crm_leads WHERE lead_code ~ '^[0-9]+$'`;
     const leadCode = String(maxCode[0].next_code);
-    // Standing rule (Dan): new lowes_fencing leads auto-enroll in Campaign #12 Lowes Twister Intake
-    let campaignId: number | null = null;
-    let campaignName: string | null = null;
-    if (crmProfile === 'lowes_fencing') {
-      const campRows = await sql`
-        SELECT id, name FROM crm_campaigns
-        WHERE COALESCE(crm_profile, 'fencecrafters') = 'lowes_fencing'
-          AND is_active = true
-          AND (id = 12 OR LOWER(name) = 'lowes twister intake')
-        ORDER BY CASE WHEN id = 12 THEN 0 ELSE 1 END, id
-        LIMIT 1
-      `;
-      campaignId = campRows[0]?.id ? Number(campRows[0].id) : null;
-      campaignName = campRows[0]?.name || null;
-    }
-    const result = campaignId
-      ? await sql`
-          INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, chat_token, lead_code, crm_profile, twister_work_order, lowes_store, campaign_id, campaign_started_at, outreach_count, email_outreach_count, outreach_paused, customer_responded)
-          VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'}, ${chatToken}, ${leadCode}, ${crmProfile}, ${body.twister_work_order || null}, ${body.lowes_store || null}, ${campaignId}, NOW(), 0, 0, false, false)
-          RETURNING *
-        `
-      : await sql`
-          INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, chat_token, lead_code, crm_profile, twister_work_order, lowes_store)
-          VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'}, ${chatToken}, ${leadCode}, ${crmProfile}, ${body.twister_work_order || null}, ${body.lowes_store || null})
-          RETURNING *
-        `;
+    const result = await sql`
+      INSERT INTO crm_leads (customer_name, customer_phone, customer_email, customer_address, customer_city, customer_state, customer_zip, service_type, notes, source, chat_token, lead_code, crm_profile)
+      VALUES (${body.customer_name || null}, ${body.customer_phone || null}, ${body.customer_email || null}, ${body.customer_address || null}, ${body.customer_city || null}, ${body.customer_state || null}, ${body.customer_zip || null}, ${body.service_type || null}, ${body.notes || null}, ${body.source || 'manual'}, ${chatToken}, ${leadCode}, ${crmProfile})
+      RETURNING *
+    `;
     await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${result[0].id}, 'status_change', 'Lead created')`;
-    if (campaignId) {
-      const label = campaignName || `Campaign #${campaignId}`;
-      await sql`
-        INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
-        VALUES (${result[0].id}, 'status_change', ${`Assigned to campaign: ${label}`}, false, 'campaign_system')
-      `;
-    }
     return NextResponse.json({ success: true, lead: result[0] });
   }
 
@@ -1126,16 +984,6 @@ export async function POST(request: NextRequest) {
 
   if (action === 'update_status') {
     const { id, status, lost_reason } = body;
-    const prevRows = await sql`
-      SELECT id, status, campaign_id, campaign_started_at, crm_profile
-      FROM crm_leads
-      WHERE id = ${id}
-      LIMIT 1
-    `;
-    if (!prevRows.length) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
-    const prev = prevRows[0];
-    const prevStatus = String(prev.status || '');
-
     await sql`UPDATE crm_leads SET status = ${status}, updated_at = NOW() WHERE id = ${id}`;
 
     if (status === 'contacted') await sql`UPDATE crm_leads SET contacted_at = NOW() WHERE id = ${id}`;
@@ -1149,66 +997,11 @@ export async function POST(request: NextRequest) {
 
     const desc = 'Status changed to ' + status;
     await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description) VALUES (${id}, 'status_change', ${desc})`;
-
-    // Standing rule (Dan / Sales Director): transition TO quoted → auto-enroll Quote Follow Up
-    // pnm_fencing=4, fencecrafters=2, lowes_fencing=13. Enrollment only — no SMS send.
-    if (status === 'quoted' && prevStatus !== 'quoted') {
-      const profile = normalizeCrmProfile(prev.crm_profile);
-      const quoteCampaignId =
-        profile === 'pnm_fencing' ? 4 :
-        profile === 'fencecrafters' ? 2 :
-        profile === 'lowes_fencing' ? 13 :
-        null;
-
-      if (quoteCampaignId) {
-        const alreadyOnCampaign = Number(prev.campaign_id) === quoteCampaignId;
-        if (alreadyOnCampaign) {
-          if (!prev.campaign_started_at) {
-            const startRows = await sql`
-              SELECT (((NOW() AT TIME ZONE 'America/New_York')::date + INTERVAL '1 day' + TIME '10:00') AT TIME ZONE 'America/New_York') AS start_at
-            `;
-            await sql`
-              UPDATE crm_leads
-              SET campaign_started_at = ${startRows[0].start_at}, updated_at = NOW()
-              WHERE id = ${id} AND campaign_started_at IS NULL
-            `;
-          }
-        } else {
-          const startRows = await sql`
-            SELECT (((NOW() AT TIME ZONE 'America/New_York')::date + INTERVAL '1 day' + TIME '10:00') AT TIME ZONE 'America/New_York') AS start_at
-          `;
-          const campaignStartAt = startRows[0].start_at;
-          const campRows = await sql`
-            SELECT name FROM crm_campaigns WHERE id = ${quoteCampaignId} LIMIT 1
-          `;
-          const campaignName = campRows[0]?.name || `Campaign #${quoteCampaignId}`;
-          // New enroll or switch-from-other: set Quote FU id + start (tomorrow 10 ET, same as manual assign).
-          // campaign_started_at only preserved when already null-path is handled above (alreadyOnCampaign).
-          await sql`
-            UPDATE crm_leads
-            SET campaign_id = ${quoteCampaignId},
-                campaign_started_at = ${campaignStartAt},
-                outreach_count = 0,
-                email_outreach_count = 0,
-                last_outreach_at = NULL,
-                customer_responded = false,
-                outreach_paused = false,
-                updated_at = NOW()
-            WHERE id = ${id}
-          `;
-          await sql`
-            INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
-            VALUES (${id}, 'status_change', ${`Auto-enrolled Quote Follow Up on quoted: ${campaignName}`}, false, 'campaign_system')
-          `;
-        }
-      }
-    }
-
     return NextResponse.json({ success: true });
   }
 
   if (action === 'update') {
-    const { id, quoted_amount, job_value, assigned_to, next_follow_up, notes, service_type, customer_email, customer_phone, customer_name, customer_address, customer_city, customer_state, customer_zip, twister_work_order, lowes_store, source, install_start } = body;
+    const { id, quoted_amount, job_value, assigned_to, next_follow_up, notes, service_type, customer_email, customer_phone, customer_name, customer_address, customer_city, customer_state, customer_zip } = body;
     if (quoted_amount !== undefined) await sql`UPDATE crm_leads SET quoted_amount = ${quoted_amount}, updated_at = NOW() WHERE id = ${id}`;
     if (job_value !== undefined) await sql`UPDATE crm_leads SET job_value = ${job_value}, updated_at = NOW() WHERE id = ${id}`;
     if (assigned_to !== undefined) await sql`UPDATE crm_leads SET assigned_to = ${assigned_to}, updated_at = NOW() WHERE id = ${id}`;
@@ -1225,57 +1018,7 @@ export async function POST(request: NextRequest) {
     if (customer_city !== undefined) await sql`UPDATE crm_leads SET customer_city = ${customer_city}, updated_at = NOW() WHERE id = ${id}`;
     if (customer_state !== undefined) await sql`UPDATE crm_leads SET customer_state = ${customer_state}, updated_at = NOW() WHERE id = ${id}`;
     if (customer_zip !== undefined) await sql`UPDATE crm_leads SET customer_zip = ${customer_zip}, updated_at = NOW() WHERE id = ${id}`;
-    if (twister_work_order !== undefined) await sql`UPDATE crm_leads SET twister_work_order = ${twister_work_order}, updated_at = NOW() WHERE id = ${id}`;
-    if (lowes_store !== undefined) await sql`UPDATE crm_leads SET lowes_store = ${lowes_store}, updated_at = NOW() WHERE id = ${id}`;
-    if (source !== undefined) await sql`UPDATE crm_leads SET source = ${source}, updated_at = NOW() WHERE id = ${id}`;
-
-    let twisterPush: any = null;
-    if (install_start !== undefined) {
-      const installVal = install_start === null || install_start === '' ? null : String(install_start);
-      const leadRows = await sql`
-        SELECT id, crm_profile, twister_work_order, install_start
-        FROM crm_leads WHERE id = ${id} LIMIT 1
-      `;
-      if (!leadRows.length) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
-      const lead = leadRows[0];
-      const profile = String(lead.crm_profile || '');
-      const wo = String(lead.twister_work_order || '').trim();
-
-      if (installVal === null) {
-        await sql`
-          UPDATE crm_leads
-          SET install_start = NULL,
-              install_start_twister_status = NULL,
-              install_start_twister_error = NULL,
-              updated_at = NOW()
-          WHERE id = ${id}
-        `;
-        twisterPush = { status: 'cleared' };
-      } else {
-        const isLowes = profile === 'lowes_fencing';
-        const pushStatus = isLowes && wo ? 'pending' : 'skipped';
-        const skipReason = !isLowes ? 'non-lowes profile' : (!wo ? 'missing twister_work_order' : null);
-        await sql`
-          UPDATE crm_leads
-          SET install_start = ${installVal},
-              install_start_twister_status = ${pushStatus},
-              install_start_twister_error = ${skipReason},
-              install_start_twister_pushed_at = NULL,
-              updated_at = NOW()
-          WHERE id = ${id}
-        `;
-        const desc = pushStatus === 'pending'
-          ? `Install start saved (${installVal}); Twister Schedule Install Date queued for WO ${wo}`
-          : `Install start saved (${installVal}); Twister push skipped (${skipReason || 'n/a'})`;
-        await sql`
-          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
-          VALUES (${id}, 'note', ${desc}, false, 'admin')
-        `;
-        twisterPush = { status: pushStatus, work_order: wo || null, profile, skip_reason: skipReason };
-      }
-    }
-
-    return NextResponse.json({ success: true, twister_push: twisterPush });
+    return NextResponse.json({ success: true });
   }
 
   if (action === 'add_note') {
@@ -1339,55 +1082,14 @@ export async function POST(request: NextRequest) {
       if (unsupported.length) {
         return NextResponse.json({ error: 'Text/MMS attachments must be JPG, PNG, or GIF images. iPhone HEIC photos and PDFs need to be converted or sent by email.' }, { status: 400 });
       }
-      // Ops vendor / GC phone: deliver + log on Operations tile, never sales crm_activity.
-      const opsVendor = await findActiveVendorByPhone(outboundSmsTo, outboundSmsProfile);
-      if (opsVendor) {
-        if (attachments.length) {
-          return NextResponse.json({
-            error: 'Ops vendor SMS with attachments must be sent from Operations (operations.html), not the sales board.',
-          }, { status: 400 });
-        }
-        let sid: string | null = null;
-        try {
-          sid = await sendTwilioSms(outboundSmsTo, outboundSmsBody, [], outboundSmsProfile);
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : 'SMS/MMS send failed';
-          return NextResponse.json({ error: message }, { status: 502 });
-        }
-        const profileCfg = crmProfileConfig(opsVendor.crm_profile || outboundSmsProfile);
-        const logged = await appendVendorOutboundSms({
-          vendor: opsVendor,
-          bodyText: outboundSmsBody,
-          externalMessageId: sid,
-          actorLabel: profileCfg.label,
-        });
-        await markLeadAsOpsVendorNotCustomer(id);
-        return NextResponse.json({
-          success: true,
-          ops_routed: true,
-          vendor_id: opsVendor.id,
-          thread_id: logged.threadId,
-          message_id: logged.messageId,
-        });
-      }
-
     }
 
     if (activity_type === 'email' && !isFromCustomer) {
-      const leads = await sql`SELECT customer_name, customer_email, customer_phone, crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
+      const leads = await sql`SELECT customer_name, customer_email, crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
       outboundEmailTo = leads[0]?.customer_email || '';
       outboundEmailName = leads[0]?.customer_name || '';
       if (!outboundEmailTo) return NextResponse.json({ error: 'Customer email is missing' }, { status: 400 });
       if (!process.env.BREVO_API_KEY) return NextResponse.json({ error: 'Brevo email is not configured' }, { status: 503 });
-      const emailOpsVendor = await findActiveVendorByPhone(leads[0]?.customer_phone, leads[0]?.crm_profile);
-      if (emailOpsVendor) {
-        await markLeadAsOpsVendorNotCustomer(id);
-        return NextResponse.json({
-          error: 'This contact is an Ops vendor. Send email from Operations (operations.html), not the sales board.',
-          ops_routed: true,
-          vendor_id: emailOpsVendor.id,
-        }, { status: 409 });
-      }
     }
 
     const inserted = await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${id}, ${activity_type || 'note'}, ${description}, ${isFromCustomer}) RETURNING id`;
@@ -1418,13 +1120,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const isConversationMessage = activity_type === 'sms' || activity_type === 'email' || activity_type === 'customer_message';
-    if (isConversationMessage) {
-      const sender = isFromCustomer ? 'customer' : 'you';
-      await sql`UPDATE crm_leads SET updated_at = NOW(), last_message_by = ${sender}, last_message_at = NOW(), is_read = ${!isFromCustomer} WHERE id = ${id}`;
-    } else {
-      await sql`UPDATE crm_leads SET updated_at = NOW() WHERE id = ${id}`;
-    }
+    const sender = isFromCustomer ? 'customer' : 'you';
+    await sql`UPDATE crm_leads SET updated_at = NOW(), last_message_by = ${sender}, last_message_at = NOW(), is_read = ${!isFromCustomer} WHERE id = ${id}`;
 
     if (activity_type === 'email' && !isFromCustomer) {
       const leadProfileRows = await sql`SELECT crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
