@@ -1204,6 +1204,73 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Standing rule (Dan / Sales Director 2026-09-27): transition TO neutral_reply → auto-enroll Casual
+    // Mapping: pnm_fencing=10, fencecrafters=11, lowes_fencing=14.
+    // Enrollment only — no SMS send (Casual cron owns sends).
+    // Do NOT override Quote Follow Up (#4/#2/#13), Twister Intake (#12), or any other campaign already set.
+    // Only enroll when campaign_id is null/empty. Keep outreach_paused as-is (do not unpause).
+    // Only fires on move INTO neutral_reply (quoted/scheduled/won/lost/sold never hit this path).
+    if (status === 'neutral_reply' && prevStatus !== 'neutral_reply') {
+      const profile = normalizeCrmProfile(prev.crm_profile);
+      const casualCampaignId =
+        profile === 'pnm_fencing' ? 10 :
+        profile === 'fencecrafters' ? 11 :
+        profile === 'lowes_fencing' ? 14 :
+        null;
+
+      if (casualCampaignId) {
+        const prevCampaignId = prev.campaign_id == null || prev.campaign_id === ''
+          ? null
+          : Number(prev.campaign_id);
+        const alreadyOnCasual = prevCampaignId === casualCampaignId;
+        const hasOtherCampaign = prevCampaignId != null && !alreadyOnCasual;
+
+        if (alreadyOnCasual) {
+          // Already enrolled in this Casual — only backfill start if unset.
+          if (!prev.campaign_started_at) {
+            const startRows = await sql`
+              SELECT (((NOW() AT TIME ZONE 'America/New_York')::date + INTERVAL '1 day' + TIME '10:00') AT TIME ZONE 'America/New_York') AS start_at
+            `;
+            await sql`
+              UPDATE crm_leads
+              SET campaign_started_at = ${startRows[0].start_at}, updated_at = NOW()
+              WHERE id = ${id} AND campaign_started_at IS NULL
+            `;
+          }
+        } else if (!hasOtherCampaign) {
+          // campaign_id null/empty → enroll Casual. Do not touch outreach_paused.
+          const startRows = await sql`
+            SELECT (((NOW() AT TIME ZONE 'America/New_York')::date + INTERVAL '1 day' + TIME '10:00') AT TIME ZONE 'America/New_York') AS start_at
+          `;
+          const campaignStartAt = prev.campaign_started_at || startRows[0].start_at;
+          const campRows = await sql`
+            SELECT name FROM crm_campaigns WHERE id = ${casualCampaignId} LIMIT 1
+          `;
+          const campaignName = campRows[0]?.name || `Campaign #${casualCampaignId}`;
+          const enrollRows = await sql`
+            UPDATE crm_leads
+            SET campaign_id = ${casualCampaignId},
+                campaign_started_at = COALESCE(campaign_started_at, ${campaignStartAt}::timestamptz),
+                outreach_count = 0,
+                email_outreach_count = 0,
+                last_outreach_at = NULL,
+                customer_responded = false,
+                updated_at = NOW()
+            WHERE id = ${id}
+              AND campaign_id IS NULL
+            RETURNING id
+          `;
+          if (enrollRows.length) {
+            await sql`
+              INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+              VALUES (${id}, 'status_change', ${`Auto-enrolled Casual on neutral_reply: ${campaignName}`}, false, 'campaign_system')
+            `;
+          }
+        }
+        // else: stronger/other campaign already set (Quote FU / Twister Intake / etc.) — leave alone
+      }
+    }
+
     return NextResponse.json({ success: true });
   }
 
