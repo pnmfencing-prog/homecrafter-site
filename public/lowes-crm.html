@@ -759,6 +759,52 @@ function leadFullAddress(l) {
   return [l.customer_address, l.customer_city, l.customer_state, l.customer_zip].filter(Boolean).join(', ');
 }
 
+
+var tileReplyDrafts = {}; // leadId -> in-progress compose text (survives board poll remounts)
+
+function tileReplyDraftKey(id) {
+  return String(id);
+}
+function rememberTileReplyDraft(id, value) {
+  var key = tileReplyDraftKey(id);
+  if (value) tileReplyDrafts[key] = value;
+  else delete tileReplyDrafts[key];
+}
+function onTileReplyInput(el) {
+  autoGrowTextarea(el);
+  if (!el || !el.id) return;
+  var id = el.id.replace(/^tile-reply-/, '');
+  rememberTileReplyDraft(id, el.value);
+}
+function snapshotTileDraftFocus() {
+  document.querySelectorAll('[id^="tile-reply-"]').forEach(function(el) {
+    var id = el.id.replace(/^tile-reply-/, '');
+    rememberTileReplyDraft(id, el.value);
+  });
+  var active = document.activeElement;
+  var focusedTile = active && active.id && active.id.indexOf('tile-reply-') === 0;
+  return {
+    focusId: focusedTile ? active.id : null,
+    selStart: focusedTile && typeof active.selectionStart === 'number' ? active.selectionStart : null,
+    selEnd: focusedTile && typeof active.selectionEnd === 'number' ? active.selectionEnd : null
+  };
+}
+function restoreTileDrafts(snap) {
+  Object.keys(tileReplyDrafts).forEach(function(id) {
+    var el = document.getElementById('tile-reply-' + id);
+    if (!el) return;
+    el.value = tileReplyDrafts[id];
+    autoGrowTextarea(el);
+  });
+  if (!snap || !snap.focusId) return;
+  var focusEl = document.getElementById(snap.focusId);
+  if (!focusEl) return;
+  focusEl.focus();
+  try {
+    if (snap.selStart != null && snap.selEnd != null) focusEl.setSelectionRange(snap.selStart, snap.selEnd);
+  } catch (e) {}
+}
+
 function tileQuickReplyHtml(l) {
   if (!l.customer_phone || l.status === 'lost') return '';
   var hasAddress = !!leadFullAddress(l);
@@ -775,7 +821,7 @@ function tileQuickReplyHtml(l) {
       '<option value="wrong">Remove/wrong number</option>' +
     '</select>' +
     '<div class="tile-reply-row">' +
-      '<textarea class="tile-reply-input" id="tile-reply-' + l.id + '" rows="2" placeholder="Reply…" oninput="autoGrowTextarea(this)" onkeydown="handleTileReplyKeydown(event,' + l.id + ')"></textarea>' +
+      '<textarea class="tile-reply-input" id="tile-reply-' + l.id + '" rows="2" placeholder="Reply…" oninput="onTileReplyInput(this)" onkeydown="handleTileReplyKeydown(event,' + l.id + ')"></textarea>' +
     '</div>' +
     '<div class="tile-reply-status" id="tile-reply-status-' + l.id + '"></div>' +
   '</div>';
@@ -1106,6 +1152,7 @@ function renderRcvdCounts(visible) {
 }
 
 function renderBoard() {
+  var draftSnap = snapshotTileDraftFocus();
   renderActiveFilterPill();
   var html = '';
   var visible = visibleLeadsForBoard();
@@ -1156,6 +1203,7 @@ function renderBoard() {
     html += '</div>';
   });
   document.getElementById('board').innerHTML = html;
+  restoreTileDrafts(draftSnap);
   scrollTileHistoriesToBottom();
   initSwipeDots();
 }
@@ -2128,6 +2176,7 @@ function applyTileTemplate(event, id) {
   var text = tileTemplateText(lead, sel.value);
   if (!text) return;
   input.value = text;
+  rememberTileReplyDraft(id, text);
   sel.value = '';
   autoGrowTextarea(input);
   input.focus();
@@ -2181,6 +2230,7 @@ function sendTileQuickReply(event, id) {
     .then(function(r) { return r.json().then(function(d) { if (!r.ok || d.error) throw new Error(d.error || 'Could not send'); return d; }); })
     .then(function() {
       if (input) { input.value = ''; autoGrowTextarea(input); }
+      rememberTileReplyDraft(id, '');
       setTileReplyStatus(id, 'Sent ✓', 'ok');
       loadLeads();
     })
