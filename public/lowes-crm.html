@@ -598,7 +598,6 @@ var COLUMNS = [
   { key: 'real_estate_new', label: 'Real Estate New', color: '#0891b2' },
   { key: 'real_estate_promising', label: 'Real Estate Promising', color: '#0f766e' },
   { key: 'real_estate_neutral', label: 'Real Estate Neutral', color: '#7c3aed' },
-  { key: 'contacted', label: 'Contacted', color: '#d97706' },
   { key: 'quoted', label: 'Quoted', color: '#7c3aed' },
   { key: 'ready_to_schedule', label: 'Ready to schedule', color: '#0f766e' },
   { key: 'scheduled', label: 'Scheduled', color: '#1e1845' },
@@ -606,7 +605,7 @@ var COLUMNS = [
   { key: 'sold', label: 'Sold', color: '#16a34a' },
   { key: 'lost', label: 'Lost', color: '#c0392b' },
 ];
-var FIXED_BOARD_COLUMN_KEYS = ['new', 'large_promising_reply', 'promising_reply', 'neutral_reply', 'contacted', 'quoted', 'ready_to_schedule', 'scheduled', 'won', 'sold', 'real_estate_new', 'real_estate_promising', 'real_estate_neutral', 'lost'];
+var FIXED_BOARD_COLUMN_KEYS = ['new', 'large_promising_reply', 'promising_reply', 'neutral_reply', 'quoted', 'ready_to_schedule', 'scheduled', 'won', 'sold', 'real_estate_new', 'real_estate_promising', 'real_estate_neutral', 'lost'];
 
 function allBoardColumns() {
   return FIXED_BOARD_COLUMN_KEYS.map(function(key) {
@@ -619,7 +618,7 @@ function boardColumns() {
   if (messageFilter !== 'customer') return cols;
   // In Msg Rcvd mode, keep New first so fresh replies that have not been
   // triaged yet do not appear to disappear off to the far right.
-  var priority = { new: 0, large_promising_reply: 1, promising_reply: 2, neutral_reply: 3, contacted: 4, quoted: 5, ready_to_schedule: 6, scheduled: 7, won: 8, sold: 9, real_estate_new: 10, real_estate_promising: 11, real_estate_neutral: 12, lost: 13 };
+  var priority = { new: 0, large_promising_reply: 1, promising_reply: 2, neutral_reply: 3, quoted: 5, ready_to_schedule: 6, scheduled: 7, won: 8, sold: 9, real_estate_new: 10, real_estate_promising: 11, real_estate_neutral: 12, lost: 13 };
   return cols.slice().sort(function(a, b) {
     return (priority[a.key] ?? 99) - (priority[b.key] ?? 99);
   });
@@ -1692,7 +1691,6 @@ function stagePickerHtml(id, currentStatus) {
     { s: 'real_estate_new', label: 'Real Estate New' },
     { s: 'real_estate_promising', label: 'Real Estate Promising' },
     { s: 'real_estate_neutral', label: 'Real Estate Neutral' },
-    { s: 'contacted', label: 'Contacted' },
     { s: 'quoted', label: 'Quoted' },
     { s: 'ready_to_schedule', label: 'Ready to schedule' },
     { s: 'scheduled', label: 'Scheduled' },
