@@ -445,6 +445,8 @@ function boardUrlForProfile(profileKey: string, leadId: number | string): string
   return `${CRM_BASE_URL}${base}?lead=${leadId}&profile=${profileKey}`;
 }
 
+// Retained template (was instant TwIML new-lead welcome; deferred per 2026-09-28 policy).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function newLeadReplyForProfile(
   profileValue: unknown,
   customerName?: string | null,
@@ -500,7 +502,6 @@ export async function POST(request: NextRequest) {
   const inboundAttachments = await collectTwilioMedia(form);
   let notificationText = '';
   let notificationProfile: CrmProfileKey = inboundProfile;
-  let newLeadAutoReply = '';
   let suppressAnyReply = false;
   let lead: any = null;
 
@@ -620,47 +621,20 @@ export async function POST(request: NextRequest) {
       const threadUrl = boardUrlForProfile(profile.key, lead.id);
       notificationText = `New ${profile.label} text from ${name} (${formatPhone(from)}): ${body || '[attachment]'}${inboundAttachments.length ? `\n📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : ''}\n\nOpen thread: ${threadUrl}`;
 
-      if (result.created && !suppressAnyReply) {
-        newLeadAutoReply = newLeadReplyForProfile(lead.crm_profile, lead.customer_name, lead.customer_city);
-        await sql`
-          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
-          VALUES (${lead.id}, 'sms', ${`📤 ${newLeadAutoReply}`}, false, 'system')
-        `;
-        await sql`
-          UPDATE crm_leads
-          SET last_message_by = 'you',
-              last_message_at = NOW(),
-              last_outreach_at = NOW(),
-              outreach_count = coalesce(outreach_count, 0) + 1,
-              updated_at = NOW()
-          WHERE id = ${lead.id}
-        `;
-      }
+      // Dan locked 2026-09-28: no immediate customer bot auto-reply on inbound
+      // (new-lead welcome / after-hours office-hours TwIML removed). Humans get
+      // 18 min on weekdays 8:00–18:00 ET; nights/weekends hold. Deferred generic
+      // ack: claw scripts/crm-autorespond.py. Dan notify TwIML below is unchanged.
     }
       } // no-vendor → sales lead path
     } // contractor-else
   }
-
-  const now = new Date();
-  const est = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const hour = est.getHours();
-  const day = est.getDay();
-
-  const isBusinessHours =
-    (day >= 1 && day <= 5 && hour >= 8 && hour < 18) ||
-    (day === 6 && hour >= 9 && hour < 14);
 
   let twiml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
 
   if (notificationText) {
     const notificationFrom = notificationFromForProfile(notificationProfile);
     twiml += `<Message from="${escapeXml(notificationFrom)}" to="${DAN_PHONE_E164}">${escapeXml(notificationText.slice(0, 1200))}</Message>`;
-  }
-
-  if (newLeadAutoReply) {
-    twiml += `<Message>${escapeXml(newLeadAutoReply)}</Message>`;
-  } else if (!isBusinessHours && !suppressAnyReply) {
-    twiml += "<Message>Thanks for reaching out to PNM Fencing! Our office hours are Mon-Fri 8AM-6PM and Sat 9AM-2PM. We'll get back to you on the next business day. For urgent matters, call (908) 503-5473.</Message>";
   }
 
   twiml += '</Response>';
