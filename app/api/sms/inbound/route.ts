@@ -600,12 +600,32 @@ export async function POST(request: NextRequest) {
             last_message_at = NOW(),
             updated_at = NOW(),
             status = CASE
+              -- Never demote Large Promising on a single inbound reply (keyword-only
+              -- follow-ups like aluminum / 4ft must not overwrite large_promising_reply;
+              -- Slobodski FC 12164 2026-09-28).
+              WHEN status = 'large_promising_reply' AND ${replyStatus} IN ('promising_reply', 'neutral_reply', 'real_estate_neutral') THEN status
               WHEN status IN ('large_promising_reply', 'promising_reply', 'real_estate_promising') AND ${replyStatus} IN ('neutral_reply', 'real_estate_neutral') THEN status
               WHEN status IN ('new', 'real_estate_new', 'contacted', 'large_promising_reply', 'promising_reply', 'neutral_reply', 'real_estate_promising', 'real_estate_neutral') THEN ${replyStatus}
               ELSE status
             END
         WHERE id = ${lead.id}
       `;
+      // Log column transitions from inbound classify (previously silent — Slobodski 12164).
+      const prevStatus = String(lead.status || '');
+      const statusRows = await sql`SELECT status FROM crm_leads WHERE id = ${lead.id} LIMIT 1`;
+      const newStatus = String(statusRows[0]?.status || prevStatus);
+      if (newStatus && newStatus !== prevStatus) {
+        await sql`
+          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+          VALUES (
+            ${lead.id},
+            'status_change',
+            ${`Inbound SMS triage: ${prevStatus} → ${newStatus} (classified ${replyStatus})`},
+            false,
+            'sms_inbound'
+          )
+        `;
+      }
       if (lead.campaign_id && !lead.outreach_paused) {
         await sql`
           INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
