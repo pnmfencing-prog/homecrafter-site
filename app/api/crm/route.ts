@@ -1376,7 +1376,9 @@ export async function POST(request: NextRequest) {
         INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
         VALUES (${id}, 'note', ${`🕒 Scheduled SMS #${queued[0].id} for ${scheduledAt.toLocaleString('en-US', { timeZone: 'America/New_York' })}: ${smsBody}`}, false, 'Dan')
       `;
-      await sql`UPDATE crm_leads SET updated_at = NOW(), is_read = true WHERE id = ${id}`;
+      // Dan rule (2026-09-28): note/ack/schedule paths must NOT force is_read.
+      // Only CRM UI open (toggle_read / chat markRead) marks a lead read.
+      await sql`UPDATE crm_leads SET updated_at = NOW() WHERE id = ${id}`;
       return NextResponse.json({ success: true, scheduled: true, id: queued[0].id });
     }
 
@@ -1481,6 +1483,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Dan rule (2026-09-28): triage/classify/ack/campaign/status notes leave is_read unchanged.
+    // Conversation sms/email: inbound → unread; outbound reply still marks read (separate product decision from triage).
+    // Only CRM UI open (toggle_read) or chat markRead is the human-open setter of is_read=true from browsing.
     const isConversationMessage = activity_type === 'sms' || activity_type === 'email' || activity_type === 'customer_message';
     if (isConversationMessage) {
       const sender = isFromCustomer ? 'customer' : 'you';

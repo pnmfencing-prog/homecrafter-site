@@ -190,7 +190,8 @@ export async function POST(request: NextRequest) {
       INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
       VALUES (${leadId}, 'note', ${`🕒 Scheduled SMS #${queued[0].id} for ${scheduledAt.toLocaleString('en-US', { timeZone: 'America/New_York' })}: ${text}`}, false, 'staff_chat')
     `;
-    await sql`UPDATE crm_leads SET updated_at = NOW(), is_read = true WHERE id = ${leadId}`;
+    // Dan rule (2026-09-28): schedule/note paths must NOT force is_read — only UI open (markRead).
+    await sql`UPDATE crm_leads SET updated_at = NOW() WHERE id = ${leadId}`;
     return NextResponse.json({ success: true, scheduled: true, id: queued[0].id });
   }
 
