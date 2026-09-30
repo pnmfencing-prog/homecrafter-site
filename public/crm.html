@@ -496,7 +496,7 @@ var THREAD_EMAIL_SENDER = 'fencecrafters@homecrafter.ai';
 var THREAD_EMAIL_SUBJECT = 'Following up from FenceCrafters';
 var CRM_FILTER_STATE_KEY = 'crm_dashboard_filter_state_v2';
 var PROFILE_SEND_HOLD_TIMER = null;
-var PROFILE_SEND_HOLD_OPENED = false;
+var PROFILE_SEND_SUPPRESS_UNTIL = 0;
 
 var CRM_PROFILES = {
   fencecrafters: {
@@ -2426,10 +2426,25 @@ function startProfileSendHold(event) {
   cancelProfileSendHold();
   PROFILE_SEND_HOLD_TIMER = setTimeout(function() {
     PROFILE_SEND_HOLD_TIMER = null;
-    PROFILE_SEND_HOLD_OPENED = true;
+    // Only suppress the click from THIS hold gesture, not the next intentional Send.
+    PROFILE_SEND_SUPPRESS_UNTIL = Date.now() + 800;
     if (event && event.cancelable) event.preventDefault();
     showProfileSendLater();
   }, 550);
+}
+
+function setProfileSendBusy(busy, label) {
+  var btn = document.getElementById('profile-send-btn');
+  if (!btn) return;
+  if (busy) {
+    if (!btn.dataset.prevLabel) btn.dataset.prevLabel = btn.textContent || 'Send';
+    btn.disabled = true;
+    btn.textContent = label || 'Sending…';
+  } else {
+    btn.disabled = false;
+    btn.textContent = btn.dataset.prevLabel || 'Send';
+    delete btn.dataset.prevLabel;
+  }
 }
 
 function cancelProfileSendHold() {
@@ -2453,27 +2468,29 @@ function clearProfileSchedule() {
 }
 
 function addNote(id) {
-  if (PROFILE_SEND_HOLD_OPENED) {
-    PROFILE_SEND_HOLD_OPENED = false;
-    return;
-  }
+  if (Date.now() < PROFILE_SEND_SUPPRESS_UNTIL) return;
   var type = document.getElementById('note-type').value;
   var text = normalizeText(document.getElementById('note-text').value).trim();
   var fileInput = document.getElementById('message-attachments');
   var hasFiles = fileInput && fileInput.files && fileInput.files.length > 0;
   if (!text && !hasFiles) return;
+  var sendBtn = document.getElementById('profile-send-btn');
+  if (sendBtn && sendBtn.disabled) return;
   var subject = (document.getElementById('email-subject')?.value || '').trim();
   if (type === 'note') {
     var noteDesc = text
       ? ('📝 ' + text)
       : ('📎 Internal ' + (hasFiles ? (fileInput.files.length === 1 ? 'photo/file' : 'photos/files') : 'note') + ' saved on lead (not sent to customer)');
+    setProfileSendBusy(true, hasFiles ? 'Preparing…' : 'Saving…');
     selectedAttachments().then(function(attachments) {
-      if (!text && !attachments.length) return;
+      if (!text && !attachments.length) return null;
+      setProfileSendBusy(true, 'Saving…');
       return fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: 'note', description: noteDesc, attachments: attachments }));
     }).then(function(r) {
       if (!r) return null;
       return r.text().then(function(txt) { var d={}; try { d=JSON.parse(txt||'{}'); } catch(e) { d={ error: (txt||'').slice(0,180) || undefined }; } return { ok: r.ok, status: r.status, data: d }; });
     }).then(function(result) {
+      setProfileSendBusy(false);
       if (!result) return;
       if (!result.ok) {
         alert(formatAttachError(result, 'Could not save to record.'));
@@ -2485,6 +2502,7 @@ function addNote(id) {
       autoGrowTextarea(document.getElementById('note-text'));
       openLeadDetail(id);
     }).catch(function(err) {
+      setProfileSendBusy(false);
       alert((err && err.message) || 'Could not save attachment.');
     });
     return;
@@ -2537,11 +2555,14 @@ function addNote(id) {
     }
     scheduledFor = scheduledDate.toISOString();
   }
+  setProfileSendBusy(true, hasFiles ? 'Preparing…' : 'Sending…');
   selectedAttachments().then(function(attachments) {
+    setProfileSendBusy(true, 'Sending…');
     return fetch('/api/crm', api('POST', { action: 'add_note', id: id, activity_type: type, description: desc, subject: subject, attachments: attachments, scheduled_for: scheduledFor }));
   }).then(function(r) {
     return r.text().then(function(txt) { var d={}; try { d=JSON.parse(txt||'{}'); } catch(e) { d={ error: (txt||'').slice(0,180) || undefined }; } return { ok: r.ok, status: r.status, data: d }; });
   }).then(function(result) {
+    setProfileSendBusy(false);
     if (!result.ok) {
       alert(formatAttachError(result, 'Could not send message.'));
       return;
@@ -2555,6 +2576,7 @@ function addNote(id) {
     if (subj && type === 'email') subj.value = subject;
     openLeadDetail(id);
   }).catch(function(err) {
+    setProfileSendBusy(false);
     alert((err && err.message) || 'Could not send attachment.');
   });
 }
