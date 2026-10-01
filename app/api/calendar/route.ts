@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
              cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
              cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
              camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
-             CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+             CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE AND COALESCE(cl.status, '') NOT IN ('lost', 'sold', 'won') THEN true ELSE false END AS crm_campaign_active,
              p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
              cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
              cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
              camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
-             CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+             CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE AND COALESCE(cl.status, '') NOT IN ('lost', 'sold', 'won') THEN true ELSE false END AS crm_campaign_active,
              p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
              cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
              cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
              camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
-             CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+             CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE AND COALESCE(cl.status, '') NOT IN ('lost', 'sold', 'won') THEN true ELSE false END AS crm_campaign_active,
              p.estimate_no AS proposal_estimate_no
       FROM calendar_events ce
       LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
                cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
                cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
                camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
-               CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+               CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE AND COALESCE(cl.status, '') NOT IN ('lost', 'sold', 'won') THEN true ELSE false END AS crm_campaign_active,
                p.estimate_no AS proposal_estimate_no
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
                cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
                cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
                camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
-               CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+               CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE AND COALESCE(cl.status, '') NOT IN ('lost', 'sold', 'won') THEN true ELSE false END AS crm_campaign_active,
                p.estimate_no AS proposal_estimate_no
         FROM calendar_events ce
         LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
            cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
            cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
            camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
-           CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+           CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE AND COALESCE(cl.status, '') NOT IN ('lost', 'sold', 'won') THEN true ELSE false END AS crm_campaign_active,
            p.estimate_no AS proposal_estimate_no
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
            cl.campaign_id AS crm_campaign_id, cl.campaign_started_at AS crm_campaign_started_at,
            cl.customer_responded AS crm_customer_responded, cl.outreach_paused AS crm_outreach_paused,
            camp.name AS crm_campaign_name, camp.is_active AS crm_campaign_is_active,
-           CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE THEN true ELSE false END AS crm_campaign_active,
+           CASE WHEN cl.campaign_id IS NOT NULL AND camp.is_active IS TRUE AND cl.customer_responded IS NOT TRUE AND cl.outreach_paused IS NOT TRUE AND COALESCE(cl.status, '') NOT IN ('lost', 'sold', 'won') THEN true ELSE false END AS crm_campaign_active,
            p.estimate_no AS proposal_estimate_no
     FROM calendar_events ce
     LEFT JOIN crm_leads cl ON ce.crm_lead_id = cl.id

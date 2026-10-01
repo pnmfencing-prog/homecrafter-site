@@ -161,15 +161,32 @@ async function enrichCampaignStatus(leads: any[]) {
     const campaignId = row.campaign_id || lead.campaign_id || null;
     const hasCampaign = Boolean(campaignId);
     const hasSteps = smsSteps > 0 || emailSteps > 0;
-    const customerRepliedDuringCampaign = Boolean(row.campaign_customer_reply_at);
+    // Autorespond stops on customer_responded / pause / terminal status even when
+    // campaign_id is kept for attribution. Activity-only reply detection misses
+    // backfills that set customer_responded=true with campaign_started_at after
+    // the last inbound (Sept 11 quote FU class) — those must never show Active.
+    const terminalStatus = ['lost', 'sold', 'won'].includes(String(lead.status || '').toLowerCase());
+    const customerFlagResponded = lead.customer_responded === true;
+    const customerRepliedDuringCampaign = Boolean(row.campaign_customer_reply_at) || customerFlagResponded;
+    const leadPaused = lead.outreach_paused === true;
     const campaignMatured = hasSteps && smsSent >= smsSteps && emailSent >= emailSteps;
     const campaignCompleted = hasCampaign && (
       campaignMatured
       || customerRepliedDuringCampaign
+      || leadPaused
+      || terminalStatus
     );
+    let campaignCompletionReason = null;
+    if (campaignCompleted) {
+      if (terminalStatus) campaignCompletionReason = 'lost';
+      else if (customerRepliedDuringCampaign) campaignCompletionReason = 'customer_replied';
+      else if (leadPaused) campaignCompletionReason = 'paused';
+      else campaignCompletionReason = 'matured';
+    }
     const campaignStartedAt = row.campaign_started_at || lead.campaign_started_at || null;
     const campaignHasStarted = !campaignStartedAt || new Date(campaignStartedAt).getTime() <= Date.now();
-    const campaignAssigned = hasCampaign && row.campaign_is_active === true && !campaignCompleted && !customerRepliedDuringCampaign && !lead.outreach_paused;
+    // Active/Assigned only when the drip is still runnable.
+    const campaignAssigned = hasCampaign && row.campaign_is_active === true && !campaignCompleted;
     const campaignActiveNow = campaignAssigned && campaignHasStarted;
     return {
       ...lead,
@@ -184,9 +201,7 @@ async function enrichCampaignStatus(leads: any[]) {
       campaign_assigned: campaignAssigned,
       campaign_pending_start: campaignAssigned && !campaignHasStarted,
       campaign_completed: campaignCompleted,
-      campaign_completion_reason: campaignCompleted
-        ? (customerRepliedDuringCampaign ? 'customer_replied' : 'matured')
-        : null,
+      campaign_completion_reason: campaignCompletionReason,
       campaign_customer_reply_at: row.campaign_customer_reply_at || null,
       campaign_active_now: campaignActiveNow,
     };
@@ -379,6 +394,9 @@ export async function GET(request: NextRequest) {
             OR (${campaignFilter || 'all'} = 'campaign_assigned'
               AND ec.effective_campaign_id IS NOT NULL
               AND camp_filter.is_active IS TRUE
+              AND l.customer_responded IS NOT TRUE
+              AND l.outreach_paused IS NOT TRUE
+              AND COALESCE(l.status, '') NOT IN ('lost', 'sold', 'won')
               AND NOT (
                 (COALESCE(cm.sms_steps, 0) > 0 OR COALESCE(cm.email_steps, 0) > 0)
                 AND COALESCE(l.outreach_count, 0) >= COALESCE(cm.sms_steps, 0)
@@ -390,8 +408,7 @@ export async function GET(request: NextRequest) {
                   AND reply.is_from_customer = true
                   AND reply.activity_type IN ('sms', 'email', 'customer_message')
                   AND reply.created_at >= COALESCE(l.campaign_started_at, l.created_at)
-              )
-              AND l.outreach_paused IS NOT TRUE)
+              ))
             OR (${campaignFilter || 'all'} = 'campaign_completed'
               AND ec.effective_campaign_id IS NOT NULL
               AND (
@@ -407,6 +424,9 @@ export async function GET(request: NextRequest) {
                     AND reply.activity_type IN ('sms', 'email', 'customer_message')
                     AND reply.created_at >= COALESCE(l.campaign_started_at, l.created_at)
                 )
+                OR l.customer_responded IS TRUE
+                OR l.outreach_paused IS TRUE
+                OR COALESCE(l.status, '') IN ('lost', 'sold', 'won')
               ))
             OR (${campaignFilter || 'all'} IN ('no_campaign', 'no_active') AND ec.effective_campaign_id IS NULL))
       ), ranked AS (
@@ -942,6 +962,9 @@ export async function GET(request: NextRequest) {
                   AND COALESCE(crm_leads.email_outreach_count, 0) >= COALESCE(cm.email_steps, 0)
                 )
                 OR campaign_reply.last_customer_reply_at IS NOT NULL
+                OR crm_leads.customer_responded IS TRUE
+                OR crm_leads.outreach_paused IS TRUE
+                OR COALESCE(crm_leads.status, '') IN ('lost', 'sold', 'won')
               )
             ) AS campaign_completed
           ) campaign_state ON true
@@ -970,7 +993,9 @@ export async function GET(request: NextRequest) {
                 AND ec.effective_campaign_id IS NOT NULL
                 AND camp_filter.is_active IS TRUE
                 AND campaign_state.campaign_completed IS NOT TRUE
-                AND crm_leads.outreach_paused IS NOT TRUE)
+                AND crm_leads.customer_responded IS NOT TRUE
+                AND crm_leads.outreach_paused IS NOT TRUE
+                AND COALESCE(crm_leads.status, '') NOT IN ('lost', 'sold', 'won'))
               OR (${campaignFilter || 'all'} = 'campaign_completed'
                 AND campaign_state.campaign_completed IS TRUE)
               OR (${campaignFilter || 'all'} IN ('no_campaign', 'no_active')

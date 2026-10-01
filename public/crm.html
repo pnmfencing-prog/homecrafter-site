@@ -916,10 +916,20 @@ function campaignName(id) {
 
 function campaignStatusLabel(l) {
   if (!l || !l.campaign_id) return 'None assigned';
-  if (l.campaign_completed) return l.campaign_completion_reason === 'customer_replied' ? 'Completed — customer replied' : 'Completed';
+  if (l.campaign_completed) {
+    if (l.campaign_completion_reason === 'customer_replied') return 'Completed — customer replied';
+    if (l.campaign_completion_reason === 'paused') return 'Completed — paused';
+    if (l.campaign_completion_reason === 'lost') return 'Completed — closed';
+    if (l.campaign_completion_reason === 'matured') return 'Completed — all steps sent';
+    return 'Completed';
+  }
+  // Defensive UI fallback if API fields are stale: never show Active when stopped.
+  if (l.customer_responded) return 'Completed — customer replied';
+  if (l.outreach_paused) return 'Completed — paused';
+  var st = String(l.status || '').toLowerCase();
+  if (st === 'lost' || st === 'sold' || st === 'won') return 'Completed — closed';
   if (l.campaign_pending_start) return 'Assigned';
   if (l.campaign_active_now) return 'Active';
-  if (l.outreach_paused) return 'Paused';
   if (l.campaign_is_active === false) return 'Campaign inactive';
   return 'Assigned';
 }
@@ -933,14 +943,14 @@ function campaignStatusColor(l) {
 }
 
 function campaignTileBadge(l) {
-  var assigned = !!(l && l.campaign_assigned);
-  var active = !!(l && l.campaign_active_now);
-  var pending = !!(l && l.campaign_pending_start);
-  var completed = !!(l && l.campaign_completed);
-  var paused = !!(l && l.outreach_paused && l.campaign_id && !completed);
-  var label = completed ? 'Campaign Completed' : active ? 'Active Campaign' : pending || assigned ? 'Campaign Assigned' : paused ? 'Campaign Paused' : 'No Campaign Assigned';
-  var bg = (assigned || completed) ? '#ecfdf5' : paused ? '#fff7ed' : '#f3f4f6';
-  var color = (assigned || completed) ? '#047857' : paused ? '#d97706' : '#6b7280';
+  var completed = !!(l && (l.campaign_completed || l.customer_responded || l.outreach_paused || ['lost','sold','won'].indexOf(String(l.status || '').toLowerCase()) >= 0) && l.campaign_id);
+  var assigned = !!(l && l.campaign_assigned && !completed);
+  var active = !!(l && l.campaign_active_now && !completed);
+  var pending = !!(l && l.campaign_pending_start && !completed);
+  var paused = false; // pause is a stop reason → Completed, never Active
+  var label = completed ? 'Campaign Completed' : active ? 'Active Campaign' : pending || assigned ? 'Campaign Assigned' : 'No Campaign Assigned';
+  var bg = (assigned || completed) ? '#ecfdf5' : '#f3f4f6';
+  var color = (assigned || completed) ? '#047857' : '#6b7280';
   var detail = '';
   if (assigned && (l.campaign_name || l.campaign_id)) detail = (pending ? 'Starts ' + formatMessageDate(l.campaign_started_at) + ' · ' : '') + (l.campaign_name || ('Campaign #' + l.campaign_id));
   if (completed && l) detail = campaignStatusLabel(l);
