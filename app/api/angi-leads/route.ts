@@ -109,6 +109,65 @@ async function defaultCampaignIdForProfile(crmProfile: CrmProfileKey) {
   return defaultCampaign[0]?.id || null;
 }
 
+// Same mapping as CRM status→neutral_reply Casual enroll (crm/route.ts).
+// Angi never assigns Lowes unless the request names that profile.
+const CASUAL_CAMPAIGN_BY_PROFILE: Partial<Record<CrmProfileKey, number>> = {
+  pnm_fencing: 10,
+  fencecrafters: 11,
+  lowes_fencing: 14,
+};
+
+// Product Casual enroll treats any non-null campaign_id as already assigned
+// and will not replace it (completed/paused drips still keep campaign_id).
+// Terminal nurture exclusions match campaign completion + SMS opt-out filter.
+function isTerminalOrOptedOut(lead: any): boolean {
+  const status = String(lead?.status || '').toLowerCase();
+  if (status === 'lost' || status === 'sold' || status === 'won') return true;
+  return String(lead?.lost_reason || '') === 'SMS opt-out (STOP/END)';
+}
+
+async function enrollCasualOnSameProfileDuplicate(lead: any, crmProfile: CrmProfileKey) {
+  if (!lead?.id || isTerminalOrOptedOut(lead)) return lead;
+  const existingCampaignId = lead.campaign_id == null || lead.campaign_id === ''
+    ? null
+    : Number(lead.campaign_id);
+  // Active campaign = campaign_id is set. Do not override progress.
+  if (existingCampaignId != null && !Number.isNaN(existingCampaignId)) return lead;
+
+  const casualCampaignId = CASUAL_CAMPAIGN_BY_PROFILE[crmProfile];
+  if (!casualCampaignId) return lead;
+
+  const startRows = await sql`
+    SELECT (((NOW() AT TIME ZONE 'America/New_York')::date + INTERVAL '1 day' + TIME '10:00') AT TIME ZONE 'America/New_York') AS start_at
+  `;
+  const campaignStartAt = startRows[0].start_at;
+  const campRows = await sql`
+    SELECT name FROM crm_campaigns WHERE id = ${casualCampaignId} LIMIT 1
+  `;
+  const campaignName = campRows[0]?.name || `Campaign #${casualCampaignId}`;
+  const enrollRows = await sql`
+    UPDATE crm_leads
+    SET campaign_id = ${casualCampaignId},
+        campaign_started_at = COALESCE(campaign_started_at, ${campaignStartAt}::timestamptz),
+        outreach_count = 0,
+        email_outreach_count = 0,
+        last_outreach_at = NULL,
+        customer_responded = false,
+        updated_at = NOW()
+    WHERE id = ${lead.id}
+      AND campaign_id IS NULL
+      AND LOWER(COALESCE(status, '')) NOT IN ('lost', 'sold', 'won')
+      AND lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)'
+    RETURNING *
+  `;
+  if (!enrollRows.length) return lead;
+  await sql`
+    INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+    VALUES (${lead.id}, 'status_change', ${`Auto-enrolled Casual on same-profile duplicate: ${campaignName}`}, false, 'campaign_system')
+  `;
+  return enrollRows[0];
+}
+
 export async function POST(request: NextRequest) {
   let body: any;
   try {
@@ -152,8 +211,9 @@ export async function POST(request: NextRequest) {
     if (leadOid) {
       const existingByOid = await sql`SELECT * FROM crm_leads WHERE source = 'angi' AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} AND notes ILIKE ${`%Angi leadOid: ${leadOid}%`} LIMIT 1`;
       if (existingByOid.length) {
-        duplicateLeads.push(existingByOid[0]);
-        leads.push(existingByOid[0]);
+        const enrolled = await enrollCasualOnSameProfileDuplicate(existingByOid[0], crmProfile);
+        duplicateLeads.push(enrolled);
+        leads.push(enrolled);
         continue;
       }
     }
@@ -162,8 +222,9 @@ export async function POST(request: NextRequest) {
       const existing = await sql`SELECT * FROM crm_leads WHERE customer_phone = ${phone} AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
       if (existing.length) {
         await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${existing[0].id}, 'note', ${`Duplicate Angi lead received for ${crmProfile}${leadOid ? ` (leadOid ${leadOid})` : ''}.`}, false)`;
-        duplicateLeads.push(existing[0]);
-        leads.push(existing[0]);
+        const enrolled = await enrollCasualOnSameProfileDuplicate(existing[0], crmProfile);
+        duplicateLeads.push(enrolled);
+        leads.push(enrolled);
         continue;
       }
     }
@@ -172,8 +233,9 @@ export async function POST(request: NextRequest) {
       const existing = await sql`SELECT * FROM crm_leads WHERE customer_email = ${email} AND COALESCE(crm_profile, 'fencecrafters') = ${crmProfile} LIMIT 1`;
       if (existing.length) {
         await sql`INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer) VALUES (${existing[0].id}, 'note', ${`Duplicate Angi lead received for ${crmProfile}${leadOid ? ` (leadOid ${leadOid})` : ''}.`}, false)`;
-        duplicateLeads.push(existing[0]);
-        leads.push(existing[0]);
+        const enrolled = await enrollCasualOnSameProfileDuplicate(existing[0], crmProfile);
+        duplicateLeads.push(enrolled);
+        leads.push(enrolled);
         continue;
       }
     }
