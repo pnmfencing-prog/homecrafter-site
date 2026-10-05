@@ -208,6 +208,52 @@ async function enrichCampaignStatus(leads: any[]) {
   });
 }
 
+const CRM_ACTIVITY_PAGE_SIZE = 50;
+
+// Lead thread activity, newest first, one page at a time. Cursor is the id of the
+// oldest activity the client already has; ordering ties on created_at break by id.
+async function fetchLeadActivityPage(leadId: number, beforeId: number | null) {
+  const fetchLimit = CRM_ACTIVITY_PAGE_SIZE + 1;
+  const rows: any[] = beforeId
+    ? await sql`
+        SELECT a.*
+        FROM crm_activity a
+        JOIN crm_activity cur ON cur.id = ${beforeId} AND cur.crm_lead_id = ${leadId}
+        WHERE a.crm_lead_id = ${leadId}
+          AND (a.created_at, a.id) < (cur.created_at, cur.id)
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT ${fetchLimit}
+      `
+    : await sql`
+        SELECT * FROM crm_activity
+        WHERE crm_lead_id = ${leadId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT ${fetchLimit}
+      `;
+  const hasMore = rows.length > CRM_ACTIVITY_PAGE_SIZE;
+  const activity = hasMore ? rows.slice(0, CRM_ACTIVITY_PAGE_SIZE) : rows;
+  const activityIds = activity.map((a) => a.id);
+  const attachments = activityIds.length
+    ? await sql`
+        SELECT id, crm_activity_id, file_name, mime_type, size_bytes, direction, created_at
+        FROM crm_attachments
+        WHERE crm_activity_id = ANY(${activityIds})
+        ORDER BY id ASC
+      `
+    : [];
+  const attachmentsByActivity = new Map<number, any[]>();
+  for (const att of attachments) {
+    const list = attachmentsByActivity.get(att.crm_activity_id) || [];
+    list.push(att);
+    attachmentsByActivity.set(att.crm_activity_id, list);
+  }
+  return {
+    activity: activity.map((a) => ({ ...a, attachments: attachmentsByActivity.get(a.id) || [] })),
+    has_more: hasMore,
+    next_before: hasMore && activity.length ? activity[activity.length - 1].id : null,
+  };
+}
+
 export async function GET(request: NextRequest) {
   if (!isAdmin(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -245,6 +291,23 @@ export async function GET(request: NextRequest) {
   // Single lead with activity
   if (id) {
     const leadId = parseInt(id);
+    // Older thread page: ?id=<lead>&activity_before=<oldest activity id shown>.
+    // Returns only the activity page (no lead/quote payload, no read-state changes).
+    const activityBeforeRaw = searchParams.get('activity_before');
+    if (activityBeforeRaw !== null) {
+      const beforeId = parseInt(activityBeforeRaw, 10);
+      if (!Number.isFinite(leadId) || !Number.isFinite(beforeId) || beforeId <= 0) {
+        return NextResponse.json({ error: 'Invalid activity_before' }, { status: 400 });
+      }
+      const activityPage = await fetchLeadActivityPage(leadId, beforeId);
+      return NextResponse.json({
+        lead_id: leadId,
+        activity: activityPage.activity,
+        activity_has_more: activityPage.has_more,
+        activity_next_before: activityPage.next_before,
+        activity_page_size: CRM_ACTIVITY_PAGE_SIZE,
+      });
+    }
     const leads = await sql`SELECT * FROM crm_leads WHERE id = ${leadId}`;
     if (leads.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const activeEvents = await sql`
@@ -298,25 +361,16 @@ export async function GET(request: NextRequest) {
       previous_campaign_name: previousCampaignName,
       previous_campaign_assigned_at: previousCampaignRows[0]?.created_at || null,
     };
-    const activity = await sql`SELECT * FROM crm_activity WHERE crm_lead_id = ${leadId} ORDER BY created_at DESC LIMIT 50`;
-    const activityIds = activity.map((a) => a.id);
-    const attachments = activityIds.length
-      ? await sql`
-          SELECT id, crm_activity_id, file_name, mime_type, size_bytes, direction, created_at
-          FROM crm_attachments
-          WHERE crm_activity_id = ANY(${activityIds})
-          ORDER BY id ASC
-        `
-      : [];
-    const attachmentsByActivity = new Map<number, any[]>();
-    for (const att of attachments) {
-      const list = attachmentsByActivity.get(att.crm_activity_id) || [];
-      list.push(att);
-      attachmentsByActivity.set(att.crm_activity_id, list);
-    }
-    const activityWithAttachments = activity.map((a) => ({ ...a, attachments: attachmentsByActivity.get(a.id) || [] }));
+    const activityPage = await fetchLeadActivityPage(leadId, null);
     const quotes = await sql`SELECT * FROM crm_quotes WHERE crm_lead_id = ${leadId} ORDER BY created_at DESC`;
-    return NextResponse.json({ lead, activity: activityWithAttachments, quotes });
+    return NextResponse.json({
+      lead,
+      activity: activityPage.activity,
+      activity_has_more: activityPage.has_more,
+      activity_next_before: activityPage.next_before,
+      activity_page_size: CRM_ACTIVITY_PAGE_SIZE,
+      quotes,
+    });
   }
 
   // Build filtered query using tagged templates.
