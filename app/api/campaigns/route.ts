@@ -135,8 +135,8 @@ export async function GET(request: NextRequest) {
       ), campaign_steps AS (
         SELECT
           campaign_id,
-          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
-          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
+          COALESCE(COUNT(DISTINCT id) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
+          COALESCE(COUNT(DISTINCT id) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
         FROM crm_campaign_messages
         WHERE is_active = true
         GROUP BY campaign_id
@@ -213,8 +213,8 @@ export async function GET(request: NextRequest) {
       ), campaign_steps AS (
         SELECT
           campaign_id,
-          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
-          COALESCE(MAX(step_number) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
+          COALESCE(COUNT(DISTINCT id) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
+          COALESCE(COUNT(DISTINCT id) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
         FROM crm_campaign_messages
         WHERE is_active = true
         GROUP BY campaign_id

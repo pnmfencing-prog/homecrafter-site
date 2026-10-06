@@ -125,8 +125,8 @@ async function enrichCampaignStatus(leads: any[]) {
       reply_after_start.last_customer_reply_at AS campaign_customer_reply_at,
       COALESCE(l.outreach_count, 0)::int AS campaign_sms_sent,
       COALESCE(l.email_outreach_count, 0)::int AS campaign_email_sent,
-      COALESCE(MAX(m.step_number) FILTER (WHERE m.channel IN ('sms', 'both') AND COALESCE(m.sms_body, '') <> ''), 0)::int AS campaign_sms_steps,
-      COALESCE(MAX(m.step_number) FILTER (WHERE m.channel IN ('email', 'both') AND COALESCE(m.email_body, m.sms_body, '') <> ''), 0)::int AS campaign_email_steps
+      COALESCE(COUNT(DISTINCT m.id) FILTER (WHERE m.channel IN ('sms', 'both') AND COALESCE(m.sms_body, '') <> ''), 0)::int AS campaign_sms_steps,
+      COALESCE(COUNT(DISTINCT m.id) FILTER (WHERE m.channel IN ('email', 'both') AND COALESCE(m.email_body, m.sms_body, '') <> ''), 0)::int AS campaign_email_steps
     FROM lead_base l
     LEFT JOIN crm_campaigns camp ON camp.id = l.effective_campaign_id
     LEFT JOIN crm_campaign_messages m ON m.campaign_id = camp.id AND m.is_active = true
@@ -420,8 +420,8 @@ export async function GET(request: NextRequest) {
         ) ec ON true
         LEFT JOIN LATERAL (
           SELECT
-            COALESCE(MAX(step_number) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
-            COALESCE(MAX(step_number) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
+            COALESCE(COUNT(DISTINCT id) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
+            COALESCE(COUNT(DISTINCT id) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
           FROM crm_campaign_messages
           WHERE campaign_id = ec.effective_campaign_id
         ) cm ON true
@@ -993,8 +993,8 @@ export async function GET(request: NextRequest) {
           ) ec ON true
           LEFT JOIN LATERAL (
             SELECT
-              COALESCE(MAX(step_number) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
-              COALESCE(MAX(step_number) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
+              COALESCE(COUNT(DISTINCT id) FILTER (WHERE channel IN ('sms', 'both') AND COALESCE(sms_body, '') <> ''), 0)::int AS sms_steps,
+              COALESCE(COUNT(DISTINCT id) FILTER (WHERE channel IN ('email', 'both') AND COALESCE(email_body, sms_body, '') <> ''), 0)::int AS email_steps
             FROM crm_campaign_messages
             WHERE campaign_id = ec.effective_campaign_id
           ) cm ON true
