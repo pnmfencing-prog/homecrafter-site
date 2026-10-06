@@ -365,6 +365,17 @@ export async function GET(request: NextRequest) {
     };
     const activityPage = await fetchLeadActivityPage(leadId, null);
     const quotes = await sql`SELECT * FROM crm_quotes WHERE crm_lead_id = ${leadId} ORDER BY created_at DESC`;
+    let invoices: any[] = [];
+    try {
+      invoices = await sql`
+        SELECT * FROM crm_invoices
+        WHERE crm_lead_id = ${leadId}
+        ORDER BY created_at DESC, id DESC
+      `;
+    } catch (e) {
+      console.error("crm invoices fetch failed", e);
+      invoices = [];
+    }
     return NextResponse.json({
       lead,
       activity: activityPage.activity,
@@ -372,6 +383,7 @@ export async function GET(request: NextRequest) {
       activity_next_before: activityPage.next_before,
       activity_page_size: CRM_ACTIVITY_PAGE_SIZE,
       quotes,
+      invoices,
     });
   }
 

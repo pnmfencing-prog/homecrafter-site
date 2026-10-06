@@ -379,6 +379,7 @@ body.lead-modal-open > .portal-home { display: none; }
   <div class="view-toggle">
     <button class="btn active" data-view="board" onclick="setView('board')">Board</button>
     <button class="btn" data-view="list" onclick="setView('list')">List</button>
+    <button class="btn" data-view="invoices" onclick="setView('invoices')">Invoices</button>
   </div>
   <div id="sourceFilters"></div>
   <label class="btn btn-outline" style="cursor:pointer">📁 Import CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(this)"></label>
@@ -420,6 +421,7 @@ body.lead-modal-open > .portal-home { display: none; }
 
 <!-- List View -->
 <div class="list-view" id="listView"></div>
+<div class="list-view" id="invoicesView" style="display:none"></div>
 
 <!-- Lead Detail Page -->
 <div class="modal-overlay" id="leadModal">
@@ -472,6 +474,217 @@ body.lead-modal-open > .portal-home { display: none; }
 
 <script>
 var ADMIN_TOKEN = localStorage.getItem('hc_admin_token') || 'hc-admin-2026';
+var CRM_PAGE_BASE = '/crm.html';
+var invoiceStatusFilter = 'all';
+var invoicesCache = [];
+
+function invoiceAmountLabel(inv) {
+  if (inv.amount_pending || inv.amount === null || inv.amount === undefined || inv.amount === '') {
+    return 'Amount pending';
+  }
+  return '$' + Number(inv.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function invoiceStatusColor(status) {
+  if (status === 'paid') return '#2d8a4e';
+  if (status === 'void') return '#94a3b8';
+  return '#b45309';
+}
+
+function invoicesViewHref() {
+  var base = (typeof CRM_PAGE_BASE === 'string' && CRM_PAGE_BASE) ? CRM_PAGE_BASE : '/crm.html';
+  return base + '?view=invoices&profile=' + encodeURIComponent(profileKey(currentCrmProfile));
+}
+
+function renderLeadInvoicesSection(leadId, invoices) {
+  var list = invoices || [];
+  var html = '<div id="lead-invoices-section" style="margin-top:1.25rem;border-top:1px solid var(--cream-dark);padding-top:1rem">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap">' +
+      '<div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted)">Invoices</div>' +
+      '<a href="' + invoicesViewHref() + '" style="font-size:0.62rem;color:var(--midnight);font-weight:600">View all invoices</a>' +
+    '</div>';
+  if (!list.length) {
+    html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.65rem">No invoices on this lead yet.</div>';
+  } else {
+    list.forEach(function(inv) {
+      var color = invoiceStatusColor(inv.status);
+      html += '<div style="background:var(--cream);border-radius:8px;padding:0.85rem;margin-bottom:0.5rem;border-left:3px solid ' + color + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.35rem">' +
+          '<div style="font-size:0.85rem;font-weight:700;color:var(--midnight)">' + esc(invoiceAmountLabel(inv)) +
+            (inv.invoice_no ? ' <span style="font-size:0.68rem;font-weight:600;color:var(--text-muted)">#' + esc(inv.invoice_no) + '</span>' : '') +
+          '</div>' +
+          '<span style="font-size:0.55rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:' + color + '">' + esc(inv.status || 'unpaid') + '</span>' +
+        '</div>' +
+        '<div style="font-size:0.78rem;color:var(--text);line-height:1.45;margin-bottom:0.45rem">' + esc(inv.description || '') + '</div>' +
+        (inv.paid_at ? '<div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:0.35rem">Paid ' + new Date(inv.paid_at).toLocaleString() + (inv.payment_reference ? ' · ref ' + esc(inv.payment_reference) : '') + '</div>' : '') +
+        '<div style="display:flex;gap:0.4rem;flex-wrap:wrap">' +
+          (inv.status === 'unpaid' ? '<button class="btn btn-green" style="font-size:0.62rem;padding:0.35rem 0.65rem" onclick="markInvoicePaid(' + inv.id + ',' + leadId + ')">Mark paid</button>' : '') +
+          (inv.status === 'paid' ? '<button class="btn btn-outline" style="font-size:0.62rem;padding:0.35rem 0.65rem" onclick="markInvoiceUnpaid(' + inv.id + ',' + leadId + ')">Mark unpaid</button>' : '') +
+          (inv.status !== 'void' ? '<button class="btn btn-outline" style="font-size:0.62rem;padding:0.35rem 0.65rem;color:var(--red)" onclick="voidInvoice(' + inv.id + ',' + leadId + ')">Void</button>' : '') +
+        '</div>' +
+      '</div>';
+    });
+  }
+  html += '<details style="margin-top:0.5rem;background:#fff;border:1px solid #e8e3d9;border-radius:8px;padding:0.65rem">' +
+    '<summary style="cursor:pointer;font-size:0.72rem;font-weight:700;color:var(--midnight)">+ Create invoice</summary>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.65rem">' +
+      '<div class="form-group" style="grid-column:span 2"><label>Description</label><input id="inv-desc" placeholder="e.g. Repair invoice"></div>' +
+      '<div class="form-group"><label>Amount ($)</label><input id="inv-amount" type="number" step="0.01" min="0" placeholder="Leave blank if pending"></div>' +
+      '<div class="form-group"><label>Invoice # (optional)</label><input id="inv-no" placeholder="INV-..."></div>' +
+      '<label style="grid-column:span 2;font-size:0.72rem;display:flex;gap:0.4rem;align-items:center"><input type="checkbox" id="inv-amount-pending"> Amount pending (fill later)</label>' +
+      '<button class="btn btn-primary" style="grid-column:span 2" onclick="createLeadInvoice(' + leadId + ')">Save unpaid invoice</button>' +
+      '<div id="inv-create-feedback" style="grid-column:span 2;font-size:0.68rem;color:var(--text-muted)"></div>' +
+    '</div>' +
+  '</details></div>';
+  return html;
+}
+
+function createLeadInvoice(leadId) {
+  var desc = (document.getElementById('inv-desc').value || '').trim();
+  var amountRaw = (document.getElementById('inv-amount').value || '').trim();
+  var invoiceNo = (document.getElementById('inv-no').value || '').trim();
+  var pending = document.getElementById('inv-amount-pending').checked || !amountRaw;
+  var fb = document.getElementById('inv-create-feedback');
+  if (!desc) { if (fb) fb.textContent = 'Description required'; return; }
+  var body = {
+    action: 'create',
+    crm_lead_id: leadId,
+    description: desc,
+    invoice_no: invoiceNo || null,
+    amount_pending: pending,
+    amount: pending ? null : amountRaw,
+    created_by: 'Dan',
+    crm_profile: profileKey(currentCrmProfile)
+  };
+  if (fb) fb.textContent = 'Saving…';
+  fetch('/api/crm/invoices', api('POST', body)).then(function(r) { return r.json(); }).then(function(data) {
+    if (!data || !data.success) {
+      if (fb) fb.textContent = (data && data.error) || 'Failed';
+      return;
+    }
+    if (fb) fb.textContent = 'Saved';
+    openLeadDetail(leadId, true);
+    if (currentView === 'invoices') loadInvoicesView();
+  }).catch(function(err) {
+    if (fb) fb.textContent = String(err && err.message || err);
+  });
+}
+
+function markInvoicePaid(id, leadId) {
+  var ref = prompt('Payment reference / note (optional)', '') || '';
+  fetch('/api/crm/invoices', api('POST', {
+    action: 'mark_paid',
+    id: id,
+    payment_reference: ref.trim() || null,
+    payment_note: ref.trim() || null,
+    marked_by: 'Dan'
+  })).then(function(r) { return r.json(); }).then(function(data) {
+    if (!data || !data.success) { alert((data && data.error) || 'Failed to mark paid'); return; }
+    if (leadId) openLeadDetail(leadId, true);
+    if (currentView === 'invoices') loadInvoicesView();
+  });
+}
+
+function markInvoiceUnpaid(id, leadId) {
+  if (!confirm('Mark this invoice unpaid again?')) return;
+  fetch('/api/crm/invoices', api('POST', { action: 'mark_unpaid', id: id, marked_by: 'Dan' }))
+    .then(function(r) { return r.json(); }).then(function(data) {
+      if (!data || !data.success) { alert((data && data.error) || 'Failed'); return; }
+      if (leadId) openLeadDetail(leadId, true);
+      if (currentView === 'invoices') loadInvoicesView();
+    });
+}
+
+function voidInvoice(id, leadId) {
+  if (!confirm('Void this invoice?')) return;
+  fetch('/api/crm/invoices', api('POST', { action: 'void', id: id, marked_by: 'Dan' }))
+    .then(function(r) { return r.json(); }).then(function(data) {
+      if (!data || !data.success) { alert((data && data.error) || 'Failed'); return; }
+      if (leadId) openLeadDetail(leadId, true);
+      if (currentView === 'invoices') loadInvoicesView();
+    });
+}
+
+function setInvoiceStatusFilter(status) {
+  invoiceStatusFilter = status || 'all';
+  document.querySelectorAll('[data-inv-status]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.invStatus === invoiceStatusFilter);
+  });
+  renderInvoicesView();
+  saveCrmFilterState();
+}
+
+function loadInvoicesView() {
+  var el = document.getElementById('invoicesView');
+  if (el) el.innerHTML = '<div style="padding:1rem;color:var(--text-muted)">Loading invoices…</div>';
+  var url = '/api/crm/invoices?profile=' + encodeURIComponent(profileKey(currentCrmProfile)) + '&status=all';
+  fetch(url, api('GET')).then(function(r) { return r.json(); }).then(function(data) {
+    invoicesCache = (data && data.invoices) || [];
+    window._invoiceStats = data && data.stats;
+    renderInvoicesView();
+  }).catch(function(err) {
+    if (el) el.innerHTML = '<div style="padding:1rem;color:var(--red)">Failed to load invoices: ' + esc(String(err && err.message || err)) + '</div>';
+  });
+}
+
+function renderInvoicesView() {
+  var el = document.getElementById('invoicesView');
+  if (!el) return;
+  var stats = window._invoiceStats || {};
+  var rows = invoicesCache.filter(function(inv) {
+    if (invoiceStatusFilter === 'all') return inv.status !== 'void';
+    return inv.status === invoiceStatusFilter;
+  });
+  var html = '';
+  html += '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin:0.75rem 0 1rem">' +
+    '<div style="background:var(--cream);border-radius:10px;padding:0.75rem 1rem;min-width:120px"><div style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted)">Unpaid</div><div style="font-size:1.1rem;font-weight:800;color:#b45309">' + (stats.unpaid_count || 0) + '</div><div style="font-size:0.72rem">$' + Number(stats.unpaid_value || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div></div>' +
+    '<div style="background:var(--cream);border-radius:10px;padding:0.75rem 1rem;min-width:120px"><div style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted)">Paid</div><div style="font-size:1.1rem;font-weight:800;color:#2d8a4e">' + (stats.paid_count || 0) + '</div><div style="font-size:0.72rem">$' + Number(stats.paid_value || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div></div>' +
+  '</div>';
+  html += '<div class="read-filter" style="margin-bottom:0.85rem;display:flex;gap:0.35rem;flex-wrap:wrap">' +
+    '<button class="btn' + (invoiceStatusFilter === 'all' ? ' active' : '') + '" data-inv-status="all" onclick="setInvoiceStatusFilter(\'all\')">Open + paid</button>' +
+    '<button class="btn' + (invoiceStatusFilter === 'unpaid' ? ' active' : '') + '" data-inv-status="unpaid" onclick="setInvoiceStatusFilter(\'unpaid\')">Unpaid</button>' +
+    '<button class="btn' + (invoiceStatusFilter === 'paid' ? ' active' : '') + '" data-inv-status="paid" onclick="setInvoiceStatusFilter(\'paid\')">Paid</button>' +
+    '<button class="btn' + (invoiceStatusFilter === 'void' ? ' active' : '') + '" data-inv-status="void" onclick="setInvoiceStatusFilter(\'void\')">Void</button>' +
+  '</div>';
+  if (!rows.length) {
+    html += '<div style="padding:1.25rem;background:var(--cream);border-radius:10px;color:var(--text-muted)">No invoices in this filter.</div>';
+    el.innerHTML = html;
+    return;
+  }
+  html += '<div style="display:flex;flex-direction:column;gap:0.55rem">';
+  rows.forEach(function(inv) {
+    var color = invoiceStatusColor(inv.status);
+    var leadBase = (typeof CRM_PAGE_BASE === 'string' && CRM_PAGE_BASE.indexOf('lowes') >= 0) ? '/lowes-crm.html' : '/crm.html';
+    var leadHref = leadBase + '?lead=' + encodeURIComponent(inv.crm_lead_id) + '&profile=' + encodeURIComponent(profileKey(inv.crm_profile || currentCrmProfile));
+    html += '<div style="background:#fff;border:1px solid #e8e3d9;border-left:4px solid ' + color + ';border-radius:10px;padding:0.9rem 1rem">' +
+      '<div style="display:flex;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;align-items:flex-start">' +
+        '<div>' +
+          '<div style="font-size:0.95rem;font-weight:800;color:var(--midnight)">' + esc(inv.lead_name || ('Lead #' + inv.crm_lead_id)) +
+            (inv.lead_code ? ' <span style="font-size:0.7rem;color:var(--text-muted)">#' + esc(inv.lead_code) + '</span>' : '') +
+          '</div>' +
+          '<div style="font-size:0.78rem;margin-top:0.25rem">' + esc(inv.description || '') + '</div>' +
+          '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.25rem">' +
+            (inv.invoice_no ? '#' + esc(inv.invoice_no) + ' · ' : '') +
+            'Created ' + (inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '') +
+            (inv.twister_work_order ? ' · WO ' + esc(inv.twister_work_order) : '') +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:right">' +
+          '<div style="font-size:1.05rem;font-weight:800;color:var(--midnight)">' + esc(invoiceAmountLabel(inv)) + '</div>' +
+          '<div style="font-size:0.58rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:' + color + '">' + esc(inv.status) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.65rem">' +
+        '<a class="btn btn-outline" style="font-size:0.62rem;text-decoration:none" href="' + leadHref + '">Open lead</a>' +
+        (inv.status === 'unpaid' ? '<button class="btn btn-green" style="font-size:0.62rem" onclick="markInvoicePaid(' + inv.id + ',' + inv.crm_lead_id + ')">Mark paid</button>' : '') +
+        (inv.status === 'paid' ? '<button class="btn btn-outline" style="font-size:0.62rem" onclick="markInvoiceUnpaid(' + inv.id + ',' + inv.crm_lead_id + ')">Mark unpaid</button>' : '') +
+      '</div>' +
+    '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
 var allLeads = [];
 var exactBoardStats = null;
 var campaigns = [];
@@ -601,7 +814,7 @@ function restoreCrmFilterState() {
   try {
     var saved = JSON.parse(localStorage.getItem(CRM_FILTER_STATE_KEY) || '{}');
     if (saved && saved.savedAt) {
-      currentView = saved.currentView === 'list' ? 'list' : 'board';
+      currentView = (saved.currentView === 'list' || saved.currentView === 'invoices') ? saved.currentView : 'board';
       currentCrmProfile = profileKey(saved.currentCrmProfile);
       currentFilter = saved.currentFilter || 'all';
       currentSource = saved.currentSource || 'all';
@@ -1361,6 +1574,7 @@ function filterByStatus(status) {
 }
 
 function setView(view) {
+  if (view !== 'board' && view !== 'list' && view !== 'invoices') view = 'board';
   currentView = view;
   var board = document.getElementById('board');
   // Do not force `display:grid` inline here: it overrides the mobile CSS that
@@ -1369,10 +1583,20 @@ function setView(view) {
   board.style.display = view === 'board' ? '' : 'none';
   document.getElementById('boardFilterBar').style.display = view === 'board' ? 'flex' : 'none';
   document.getElementById('listView').style.display = view === 'list' ? 'block' : 'none';
+  var invEl = document.getElementById('invoicesView');
+  if (invEl) invEl.style.display = view === 'invoices' ? 'block' : 'none';
   document.querySelectorAll('.view-toggle .btn').forEach(function(b) {
     b.classList.toggle('active', b.dataset.view === view);
   });
   if (view === 'list') renderList();
+  if (view === 'invoices') loadInvoicesView();
+  try {
+    var u = new URL(window.location.href);
+    if (view === 'invoices') u.searchParams.set('view', 'invoices');
+    else u.searchParams.delete('view');
+    u.searchParams.set('profile', profileKey(currentCrmProfile));
+    history.replaceState(null, '', u.pathname + u.search);
+  } catch (e) {}
   saveCrmFilterState();
 }
 
@@ -3142,10 +3366,15 @@ restoreCrmFilterState();
 if (profileKey(currentCrmProfile) === 'lowes_fencing') {
   var params = new URLSearchParams(window.location.search);
   var lead = params.get('lead') || params.get('id');
-  var dest = '/lowes-crm.html?profile=lowes_fencing' + (lead ? '&lead=' + encodeURIComponent(lead) : '');
+  var view = params.get('view');
+  var dest = '/lowes-crm.html?profile=lowes_fencing' + (lead ? '&lead=' + encodeURIComponent(lead) : '') + (view ? '&view=' + encodeURIComponent(view) : '');
   window.location.replace(dest);
 } else {
   applyCrmProfileUi();
+  try {
+    var v = new URLSearchParams(window.location.search).get('view');
+    if (v === 'invoices' || v === 'list' || v === 'board') currentView = v;
+  } catch (e) {}
   loadCampaigns().then(loadLeads);
   setView(currentView);
   initSwipeDots();
