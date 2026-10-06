@@ -31,10 +31,12 @@ Lead detail `GET /api/crm?id=` now also returns `invoices`.
 
 ### UI (not a board column)
 1. **Lead profile → Invoices section** (create / list / mark paid / void)
-2. **Profile-wide list**
+2. **Top-level Invoices nav tab** (separate from Proposals — proposals flow unchanged)
+   - Header nav on CRM + portal pages: **Invoices** next to Proposals
    - FenceCrafters / PNM: `https://homecrafter.ai/crm.html?view=invoices&profile=fencecrafters` (or `pnm_fencing`)
    - Lowes: `https://homecrafter.ai/lowes-crm.html?view=invoices&profile=lowes_fencing`
    - `crm.html?view=invoices&profile=lowes_fencing` redirects to the Lowes URL and preserves `view`.
+3. **Toolbar Board / List / Invoices toggle** still works as a shortcut inside the CRM page.
 
 Filters on the invoices view: Open+paid / Unpaid / Paid / Void.
 

@@ -355,10 +355,11 @@ body.lead-modal-open > .portal-home { display: none; }
   </div>
   <div class="profile-meta" id="profileMeta">From: fencecrafters@homecrafter.ai · Signature: Scott / FenceCrafters</div>
   <div class="header-nav">
-    <a data-profile-link="/crm.html" href="/crm.html" class="active">Sales Board</a>
+    <a data-nav="sales" data-profile-link="/crm.html" href="/crm.html" class="active">Sales Board</a>
     <a href="/lowes-crm.html">Lowes Board</a>
     <a data-profile-link="/calendar.html" href="/calendar.html">Calendar</a>
     <a data-profile-link="/proposals.html" href="/proposals.html">Proposals</a>
+    <a data-nav="invoices" data-profile-link="/crm.html?view=invoices" href="/crm.html?view=invoices">Invoices</a>
     <a data-profile-link="/operations.html" href="/operations.html">Operations</a>
     <a href="/campaigns.html">Campaigns</a>
     <a href="/imports.html">Imports</a>
@@ -753,12 +754,22 @@ function applyCrmProfileUi() {
   if (logo) logo.textContent = p.label.toUpperCase();
   document.querySelectorAll('[data-profile-link]').forEach(function(a) {
     var base = a.dataset.profileLink || a.getAttribute('href') || '#';
-    if (String(base).indexOf('/crm.html') === 0 && currentCrmProfile === 'lowes_fencing') {
-      base = '/lowes-crm.html';
-    }
     var u = new URL(base, window.location.origin);
+    if (u.pathname === '/crm.html' && currentCrmProfile === 'lowes_fencing') {
+      u.pathname = '/lowes-crm.html';
+    }
     u.searchParams.set('profile', currentCrmProfile);
     a.href = u.pathname + u.search;
+  });
+  syncHeaderNavActive();
+}
+
+function syncHeaderNavActive() {
+  var onInvoices = currentView === 'invoices';
+  document.querySelectorAll('.header-nav a[data-nav]').forEach(function(a) {
+    var nav = a.getAttribute('data-nav');
+    if (nav === 'invoices') a.classList.toggle('active', onInvoices);
+    else if (nav === 'sales') a.classList.toggle('active', !onInvoices);
   });
 }
 
@@ -1588,6 +1599,7 @@ function setView(view) {
   document.querySelectorAll('.view-toggle .btn').forEach(function(b) {
     b.classList.toggle('active', b.dataset.view === view);
   });
+  syncHeaderNavActive();
   if (view === 'list') renderList();
   if (view === 'invoices') loadInvoicesView();
   try {

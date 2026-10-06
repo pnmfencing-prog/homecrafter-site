@@ -356,9 +356,10 @@ body.lead-modal-open > .portal-home { display: none; }
   <div class="profile-meta" id="profileMeta">From: lowesfencingnj@homecrafter.ai · Signature: Lowes Fencing NJ</div>
   <div class="header-nav">
     <a href="/crm.html">Sales Board</a>
-    <a href="/lowes-crm.html" class="active">Lowes Board</a>
+    <a data-nav="sales" href="/lowes-crm.html" class="active">Lowes Board</a>
     <a href="/calendar.html?profile=lowes_fencing">Calendar</a>
     <a href="/proposals.html?profile=lowes_fencing">Proposals</a>
+    <a data-nav="invoices" href="/lowes-crm.html?view=invoices&profile=lowes_fencing">Invoices</a>
     <a href="/operations.html?profile=lowes_fencing">Operations</a>
     <a href="/campaigns.html?profile=lowes_fencing">Campaigns</a>
     <a href="/imports.html?profile=lowes_fencing">Imports</a>
@@ -751,7 +752,19 @@ function applyCrmProfileUi() {
   if (meta) meta.textContent = p.meta;
   var logo = document.querySelector('.logo');
   if (logo) logo.textContent = 'LOWES FENCING NJ';
-  document.title = 'Sales Board — Lowes Fencing NJ CRM';
+  document.title = currentView === 'invoices'
+    ? 'Invoices — Lowes Fencing NJ CRM'
+    : 'Sales Board — Lowes Fencing NJ CRM';
+  syncHeaderNavActive();
+}
+
+function syncHeaderNavActive() {
+  var onInvoices = currentView === 'invoices';
+  document.querySelectorAll('.header-nav a[data-nav]').forEach(function(a) {
+    var nav = a.getAttribute('data-nav');
+    if (nav === 'invoices') a.classList.toggle('active', onInvoices);
+    else if (nav === 'sales') a.classList.toggle('active', !onInvoices);
+  });
 }
 
 function setCrmProfile(profile) {
@@ -1561,6 +1574,7 @@ function setView(view) {
   document.querySelectorAll('.view-toggle .btn').forEach(function(b) {
     b.classList.toggle('active', b.dataset.view === view);
   });
+  syncHeaderNavActive();
   if (view === 'list') renderList();
   if (view === 'invoices') loadInvoicesView();
   try {
