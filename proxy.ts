@@ -6,7 +6,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'pnm-fencing-session-secret
 const PROTECTED_PAGES = ['/calendar.html', '/crm.html', '/lowes-crm.html', '/proposals.html', '/operations.html'];
 
 // Public API routes (no auth needed)
-const PUBLIC_API = ['/api/auth', '/api/proposals/sign', '/api/proposals/pdf'];
+const PUBLIC_API = ['/api/auth', '/api/proposals/sign', '/api/proposals/pdf', '/api/crm/invoices/pdf'];
 
 async function sha256(message: string): Promise<string> {
   const encoder = new TextEncoder();
