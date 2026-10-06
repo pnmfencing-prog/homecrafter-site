@@ -38,6 +38,35 @@ export async function findActiveVendorByPhone(
   return matches[0] || null;
 }
 
+
+/** Active Ops vendor matching email (primary_email or email_aliases). */
+export async function findActiveVendorByEmail(
+  email: unknown,
+  preferredProfile?: string | null,
+): Promise<any | null> {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized || !normalized.includes('@')) return null;
+  const preferred = preferredProfile ? normalizeCrmProfile(preferredProfile) : null;
+  const matches = await sql`
+    SELECT id, display_name, company, primary_phone, primary_email, email_aliases, crm_profile, profile_type, status
+    FROM crm_vendor_profiles
+    WHERE status <> 'archived'
+      AND (
+        lower(coalesce(primary_email, '')) = ${normalized}
+        OR EXISTS (
+          SELECT 1 FROM unnest(coalesce(email_aliases, '{}'::text[])) a
+          WHERE lower(a) = ${normalized}
+        )
+      )
+    ORDER BY
+      CASE WHEN ${preferred}::text IS NOT NULL AND crm_profile = ${preferred} THEN 0 ELSE 1 END,
+      last_activity_at DESC NULLS LAST,
+      updated_at DESC
+    LIMIT 1
+  `;
+  return matches[0] || null;
+}
+
 /** All active vendor last-10 phones — hide vendor-mirrored sales leads. */
 export async function loadActiveVendorPhoneDigits(): Promise<Set<string>> {
   const rows = await sql`
