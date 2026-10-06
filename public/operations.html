@@ -404,6 +404,7 @@ var selectedVendorId = null;
 var selectedThreadId = null;
 var detailChannel = 'sms';
 var cardChannels = {};
+var vendorThreadsById = {};
 var searchTimer = null;
 
 function profileKey(v) {
@@ -835,6 +836,19 @@ function setDetailChannel(channel) {
   document.getElementById('detail-channel-note').classList.toggle('active', channel === 'in_app');
   updateComposerMeta();
 }
+/** Map a top thread's channel → bottom compose tab. Never forces Note. */
+function composeChannelFromThread(thread) {
+  if (!thread) return null;
+  var ch = String(thread.channel || thread.message_kind || '').toLowerCase().trim();
+  if (ch === 'email' || ch === 'mail') return 'email';
+  if (ch === 'sms' || ch === 'text' || ch === 'twilio' || ch === 'phone') return 'sms';
+  return null;
+}
+function syncComposeToSelectedThread(threadId) {
+  var thread = vendorThreadsById[threadId] || vendorThreadsById[String(threadId)];
+  var composeCh = composeChannelFromThread(thread);
+  if (composeCh) setDetailChannel(composeCh);
+}
 
 function openVendorFromTile(event, id) {
   if (event) {
@@ -864,11 +878,7 @@ function openVendor(id, preferredThreadId) {
   document.getElementById('messages').innerHTML = '<div class="empty">Select a thread to view messages</div>';
   document.getElementById('sendBtn').disabled = false;
   document.getElementById('threadList').innerHTML = '<div class="empty">Loading threads...</div>';
-  if (v) {
-    if (v.phone || v.primary_phone) setDetailChannel('sms');
-    else if (v.email || v.primary_email) setDetailChannel('email');
-    else setDetailChannel('in_app');
-  }
+  vendorThreadsById = {};
 
   fetch('/api/crm/vendors/' + encodeURIComponent(id) + '/threads', api('GET'))
     .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
@@ -881,8 +891,17 @@ function openVendor(id, preferredThreadId) {
         document.getElementById('threadSub').textContent = 'Start a thread by sending a message';
         document.getElementById('messages').innerHTML = '<div class="empty">No thread yet — send SMS, email, or a note below.</div>';
         selectedThreadId = null;
+        if (v) {
+          if (v.phone || v.primary_phone) setDetailChannel('sms');
+          else if (v.email || v.primary_email) setDetailChannel('email');
+          else setDetailChannel('in_app');
+        }
         return;
       }
+      vendorThreadsById = {};
+      threads.forEach(function(t) {
+        if (t && t.id != null) vendorThreadsById[t.id] = t;
+      });
       document.getElementById('threadList').innerHTML = threads.map(function(t) {
         var unread = Number(t.unread_count || 0);
         return '<div class="thread-item" id="thread-' + esc(t.id) + '" onclick="openThread(\'' + esc(t.id) + '\')">' +
@@ -908,6 +927,7 @@ function openVendor(id, preferredThreadId) {
 function openThread(id) {
   selectedThreadId = id;
   syncOpsDeepLink();
+  syncComposeToSelectedThread(id);
   document.querySelectorAll('.thread-item').forEach(function(el) { el.classList.remove('active'); });
   var el = document.getElementById('thread-' + id);
   if (el) el.classList.add('active');
