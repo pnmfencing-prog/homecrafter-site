@@ -300,6 +300,9 @@ export async function POST(request: NextRequest) {
     const description = body.description != null ? String(body.description).trim() : existing[0].description;
     if (!description) return NextResponse.json({ error: 'description required' }, { status: 400 });
     const invoiceNo = body.invoice_no !== undefined ? (body.invoice_no ? String(body.invoice_no).trim() : null) : existing[0].invoice_no;
+    const pdfPath = body.pdf_path !== undefined
+      ? (body.pdf_path ? String(body.pdf_path).trim() : null)
+      : existing[0].pdf_path;
     let amountPending = existing[0].amount_pending;
     let amount = existing[0].amount;
     if (body.amount_pending === true) {
@@ -319,6 +322,7 @@ export async function POST(request: NextRequest) {
           invoice_no = ${invoiceNo},
           amount = ${amount},
           amount_pending = ${amountPending},
+          pdf_path = ${pdfPath},
           updated_at = NOW()
       WHERE id = ${id}
       RETURNING *

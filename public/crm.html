@@ -492,6 +492,19 @@ function invoiceStatusColor(status) {
   return '#b45309';
 }
 
+function invoicePdfUrl(invOrId) {
+  var id = (invOrId && typeof invOrId === 'object') ? invOrId.id : invOrId;
+  if (!id) return '';
+  var token = (typeof ADMIN_TOKEN === 'string' && ADMIN_TOKEN) ? ADMIN_TOKEN : 'hc-admin-2026';
+  return '/api/crm/invoices/pdf?id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(token);
+}
+
+function viewInvoicePdf(invOrId) {
+  var url = invoicePdfUrl(invOrId);
+  if (!url) { alert('Invoice PDF unavailable'); return; }
+  window.open(url, '_blank');
+}
+
 function invoicesViewHref() {
   var base = (typeof CRM_PAGE_BASE === 'string' && CRM_PAGE_BASE) ? CRM_PAGE_BASE : '/crm.html';
   return base + '?view=invoices&profile=' + encodeURIComponent(profileKey(currentCrmProfile));
@@ -511,14 +524,15 @@ function renderLeadInvoicesSection(leadId, invoices) {
       var color = invoiceStatusColor(inv.status);
       html += '<div style="background:var(--cream);border-radius:8px;padding:0.85rem;margin-bottom:0.5rem;border-left:3px solid ' + color + '">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.35rem">' +
-          '<div style="font-size:0.85rem;font-weight:700;color:var(--midnight)">' + esc(invoiceAmountLabel(inv)) +
-            (inv.invoice_no ? ' <span style="font-size:0.68rem;font-weight:600;color:var(--text-muted)">#' + esc(inv.invoice_no) + '</span>' : '') +
-          '</div>' +
+          '<a href="' + invoicePdfUrl(inv) + '" target="_blank" rel="noopener" title="View invoice PDF" style="font-size:0.85rem;font-weight:700;color:var(--midnight);text-decoration:none;border-bottom:1px solid rgba(30,24,69,0.25)">' + esc(invoiceAmountLabel(inv)) +
+            (inv.invoice_no ? ' <span style="font-size:0.68rem;font-weight:600;color:var(--text-muted)">#' + esc(inv.invoice_no) + '</span>' : ' <span style="font-size:0.68rem;font-weight:600;color:var(--text-muted)">#' + inv.id + '</span>') +
+          '</a>' +
           '<span style="font-size:0.55rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:' + color + '">' + esc(inv.status || 'unpaid') + '</span>' +
         '</div>' +
         '<div style="font-size:0.78rem;color:var(--text);line-height:1.45;margin-bottom:0.45rem">' + esc(inv.description || '') + '</div>' +
         (inv.paid_at ? '<div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:0.35rem">Paid ' + new Date(inv.paid_at).toLocaleString() + (inv.payment_reference ? ' · ref ' + esc(inv.payment_reference) : '') + '</div>' : '') +
         '<div style="display:flex;gap:0.4rem;flex-wrap:wrap">' +
+          '<a class="btn btn-outline" style="font-size:0.62rem;padding:0.35rem 0.65rem;text-decoration:none" href="' + invoicePdfUrl(inv) + '" target="_blank" rel="noopener">📄 View PDF</a>' +
           (inv.status === 'unpaid' ? '<button class="btn btn-green" style="font-size:0.62rem;padding:0.35rem 0.65rem" onclick="markInvoicePaid(' + inv.id + ',' + leadId + ')">Mark paid</button>' : '') +
           (inv.status === 'paid' ? '<button class="btn btn-outline" style="font-size:0.62rem;padding:0.35rem 0.65rem" onclick="markInvoiceUnpaid(' + inv.id + ',' + leadId + ')">Mark unpaid</button>' : '') +
           (inv.status !== 'void' ? '<button class="btn btn-outline" style="font-size:0.62rem;padding:0.35rem 0.65rem;color:var(--red)" onclick="voidInvoice(' + inv.id + ',' + leadId + ')">Void</button>' : '') +
@@ -665,17 +679,20 @@ function renderInvoicesView() {
           '</div>' +
           '<div style="font-size:0.78rem;margin-top:0.25rem">' + esc(inv.description || '') + '</div>' +
           '<div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.25rem">' +
-            (inv.invoice_no ? '#' + esc(inv.invoice_no) + ' · ' : '') +
-            'Created ' + (inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '') +
+            '<a href="' + invoicePdfUrl(inv) + '" target="_blank" rel="noopener" style="color:var(--midnight);font-weight:700;text-decoration:none;border-bottom:1px solid rgba(30,24,69,0.25)">' +
+              (inv.invoice_no ? '#' + esc(inv.invoice_no) : 'Invoice #' + inv.id) +
+            '</a>' +
+            ' · Created ' + (inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '') +
             (inv.twister_work_order ? ' · WO ' + esc(inv.twister_work_order) : '') +
           '</div>' +
         '</div>' +
         '<div style="text-align:right">' +
-          '<div style="font-size:1.05rem;font-weight:800;color:var(--midnight)">' + esc(invoiceAmountLabel(inv)) + '</div>' +
+          '<a href="' + invoicePdfUrl(inv) + '" target="_blank" rel="noopener" title="View invoice PDF" style="font-size:1.05rem;font-weight:800;color:var(--midnight);text-decoration:none;border-bottom:1px solid rgba(30,24,69,0.25);display:inline-block">' + esc(invoiceAmountLabel(inv)) + '</a>' +
           '<div style="font-size:0.58rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:' + color + '">' + esc(inv.status) + '</div>' +
         '</div>' +
       '</div>' +
       '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.65rem">' +
+        '<a class="btn btn-outline" style="font-size:0.62rem;text-decoration:none" href="' + invoicePdfUrl(inv) + '" target="_blank" rel="noopener">📄 View PDF</a>' +
         '<a class="btn btn-outline" style="font-size:0.62rem;text-decoration:none" href="' + leadHref + '">Open lead</a>' +
         (inv.status === 'unpaid' ? '<button class="btn btn-green" style="font-size:0.62rem" onclick="markInvoicePaid(' + inv.id + ',' + inv.crm_lead_id + ')">Mark paid</button>' : '') +
         (inv.status === 'paid' ? '<button class="btn btn-outline" style="font-size:0.62rem" onclick="markInvoiceUnpaid(' + inv.id + ',' + inv.crm_lead_id + ')">Mark unpaid</button>' : '') +

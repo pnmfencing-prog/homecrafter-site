@@ -55,6 +55,17 @@ Filters on the invoices view: Open+paid / Unpaid / Paid / Void.
 - Lead URL: `https://homecrafter.ai/lowes-crm.html?lead=12065&profile=lowes_fencing`
 - No customer SMS/email was sent.
 
+
+### Invoice PDF view (2026-10-06)
+- Click invoice # / amount / **View PDF** on the Invoices tab or lead Invoices section → opens printable invoice.
+- URL: `/api/crm/invoices/pdf?id=<crm_invoice_id>&token=<ADMIN_TOKEN>` (also accepts `invoice_no=`).
+- Auth: Bearer admin token **or** `token` query param (same pattern as `/api/proposals/pdf`).
+- If `crm_invoices.pdf_path` points at a public `/invoices/...` asset, the API **redirects** to that static PDF/HTML (handcrafted invoices).
+- Otherwise generates a branded printable HTML invoice from ledger + lead fields (Print / Save PDF).
+- `?generate=1` forces the dynamic HTML even when `pdf_path` is set.
+- Mark paid / unpaid / void buttons stay separate — they do not open the PDF.
+- Proposals PDF/create/edit/sign flow is untouched.
+
 ### Out of scope this build
 - Invoice-monitor bot
 - Auto Twister Comp Paid sync
