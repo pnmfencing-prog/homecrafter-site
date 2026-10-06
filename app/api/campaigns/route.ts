@@ -168,7 +168,6 @@ export async function GET(request: NextRequest) {
               )
               OR reply_after_start.last_customer_reply_at IS NOT NULL
               OR l.customer_responded IS TRUE
-              OR l.outreach_paused IS TRUE
               OR COALESCE(l.status, '') IN ('lost', 'sold', 'won')
             )
           ) AS campaign_completed
@@ -247,7 +246,6 @@ export async function GET(request: NextRequest) {
             )
             OR reply_after_start.last_customer_reply_at IS NOT NULL
             OR l.customer_responded IS TRUE
-            OR l.outreach_paused IS TRUE
             OR COALESCE(l.status, '') IN ('lost', 'sold', 'won')
           )
         ) AS campaign_completed
