@@ -842,7 +842,9 @@ function restoreCrmFilterState() {
   try {
     var saved = JSON.parse(localStorage.getItem(CRM_FILTER_STATE_KEY) || '{}');
     if (saved && saved.savedAt) {
-      currentView = (saved.currentView === 'list' || saved.currentView === 'invoices') ? saved.currentView : 'board';
+      // Landing view comes from ?view= only (applied at init). Restoring
+      // currentView here trapped every bare /crm.html open on Invoices after
+      // one visit, because setView() writes that choice back to localStorage.
       currentCrmProfile = profileKey(saved.currentCrmProfile);
       currentFilter = saved.currentFilter || 'all';
       currentSource = saved.currentSource || 'all';
@@ -3400,6 +3402,9 @@ if (profileKey(currentCrmProfile) === 'lowes_fencing') {
   window.location.replace(dest);
 } else {
   applyCrmProfileUi();
+  // Bare /crm.html (and ?lead= deep links) stay on the sales board.
+  // Invoices/list open only when the URL asks for them.
+  currentView = 'board';
   try {
     var v = new URLSearchParams(window.location.search).get('view');
     if (v === 'invoices' || v === 'list' || v === 'board') currentView = v;
