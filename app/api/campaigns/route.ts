@@ -130,6 +130,61 @@ function describeContinue(r: ContinueResult | null): string {
   return `continuing at step ${r.next_step}${when}`;
 }
 
+// Dan 2026-10-09: explicit "Restart from step 1" (CRM Assign row). Default Assign on the same
+// campaign still CONTINUES; only this explicit action resets the step counters to 0. The sender
+// guards stay on: the 20h pacing is honoured across the restart by never starting step 1 sooner
+// than 20h after the lead's last campaign SMS (last_outreach_at) / campaign email, and the 7-day
+// same-text guard (claw scripts/campaign_send_guard.py) still skips any step whose exact text the
+// customer already got in the last 7 days. Mirrors claw scripts/campaign_restart.py.
+const RESTART_MIN_GAP_HOURS = Number(process.env.CAMPAIGN_MIN_STEP_GAP_HOURS || 20) || 20;
+const RESTART_NOTE = 'Campaign restarted from step 1 by user';
+
+function isRestartFlag(value: unknown): boolean {
+  return value === true || value === 1 || value === 'true' || value === '1';
+}
+
+async function restartFromStep1(leadId: number, campaignId: number, profile: string, baseStart: unknown) {
+  const rows = await sql`
+    WITH l AS (
+      SELECT id, last_outreach_at FROM crm_leads
+      WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
+    ), last_email AS (
+      SELECT MAX(a.created_at) AS at FROM crm_activity a
+      WHERE a.crm_lead_id = ${leadId} AND a.activity_type = 'email' AND a.created_by = 'crm_email_bridge'
+        AND COALESCE(a.is_from_customer, false) = false
+    ), plan AS (
+      SELECT l.id,
+             GREATEST(
+               COALESCE(${baseStart as any}::timestamptz, NOW()),
+               l.last_outreach_at + make_interval(hours => ${RESTART_MIN_GAP_HOURS}::int),
+               (SELECT at FROM last_email) + make_interval(hours => ${RESTART_MIN_GAP_HOURS}::int)
+             ) AS start_at
+      FROM l
+    )
+    UPDATE crm_leads t
+    SET campaign_id = ${campaignId}, campaign_started_at = plan.start_at,
+        outreach_count = 0,
+        email_outreach_count = 0,
+        customer_responded = false,
+        outreach_paused = false,
+        updated_at = NOW()
+    FROM plan
+    WHERE t.id = plan.id
+    RETURNING t.id, plan.start_at
+  `;
+  return rows[0] || null;
+}
+
+function describeRestartStart(startAt: unknown): string {
+  if (!startAt) return '';
+  const due = new Date(startAt as string);
+  if (due.getTime() <= Date.now() + 60 * 1000) return 'step 1 is due now (sends at the next sender cycle; quiet hours 9 PM-8 AM ET apply)';
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', weekday: 'short', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit',
+  });
+  return `step 1 is due ${fmt.format(due)} ET`;
+}
+
 async function ensureSchema() {
   await sql`
     CREATE TABLE IF NOT EXISTS crm_campaigns (
@@ -473,6 +528,21 @@ export async function POST(request: NextRequest) {
       const campaign = campaignRows[0] || null;
       const campaignName = campaign?.name || null;
       const currentCampaignId = leadRows[0].campaign_id == null ? null : Number(leadRows[0].campaign_id);
+      const restart = isRestartFlag(body.restart);
+      if (restart) {
+        // Explicit "Restart from step 1" (Dan 2026-10-09): counters to 0, unpause, clear responded.
+        if (!campaignId) return NextResponse.json({ error: 'Pick a campaign to restart' }, { status: 400 });
+        const startExpr = await nextCampaignStartExpression(campaignId, campaign);
+        const res = await restartFromStep1(leadId, campaignId, profile, startExpr);
+        if (!res) return NextResponse.json({ error: 'Lead not found in this profile' }, { status: 404 });
+        const label = campaignName || `Campaign #${campaignId}`;
+        const whenText = describeRestartStart(res.start_at);
+        await sql`
+          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+          VALUES (${leadId}, 'note', ${`${RESTART_NOTE} (${label})${whenText ? ` — ${whenText}` : ''}.`}, false, 'crm_user')
+        `;
+        return NextResponse.json({ success: true, campaign_name: campaignName, restarted: true, start_at: res.start_at });
+      }
       if (campaignId && currentCampaignId === campaignId) {
         // Same campaign: continue where it left off (Dan 2026-10-08). No counter reset.
         const cont = await continueSameCampaign(leadId, campaignId, profile);

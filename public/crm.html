@@ -2003,6 +2003,7 @@ function openLeadDetail(id, skipHistory) {
           '<span style="font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--midnight)">Campaign</span>' +
           '<select id="lead-campaign-select" onchange="refreshCampaignSelectVisual()" style="flex:1;min-width:210px;border:1px solid ' + (l.campaign_id ? 'var(--green)' : '#e0ddd6') + ';background:' + (l.campaign_id ? 'var(--green-bg)' : '#fff') + ';color:' + (l.campaign_id ? 'var(--green)' : 'var(--midnight)') + ';border-radius:8px;padding:0.45rem 0.6rem;font-family:Montserrat,sans-serif;font-size:0.75rem;font-weight:700">' + campaignOptions(l.campaign_id) + '</select>' +
           '<button id="campaign-assign-btn" class="btn btn-primary" style="font-size:0.65rem;padding:0.45rem 0.75rem" onclick="assignLeadCampaign(' + l.id + ')">Assign</button>' +
+          (l.campaign_id ? '<button id="campaign-restart-btn" class="btn btn-outline" style="font-size:0.65rem;padding:0.45rem 0.75rem" title="Reset this lead to step 1 of the selected campaign (Assign alone continues where it left off)" onclick="restartLeadCampaign(' + l.id + ')">↺ Restart from step 1</button>' : '') +
           '<span id="campaign-assign-feedback" style="font-size:0.68rem;font-weight:800;color:' + (l.campaign_id ? campaignStatusColor(l) : 'var(--text-muted)') + ';width:100%">' + (l.campaign_id ? '✓ Campaign assignment saved — ' + campaignStatusText : 'None assigned yet') + '</span>' +
           campaignSummaryHtml +
         '</div>' +
@@ -3013,6 +3014,44 @@ function addNote(id) {
     setProfileSendBusy(false);
     alert((err && err.message) || 'Could not send attachment.');
   });
+}
+
+function restartLeadCampaign(id) {
+  // Dan 2026-10-09: explicit restart. Plain "Assign" on the same campaign continues where it left off.
+  var sel = document.getElementById('lead-campaign-select');
+  if (!sel) return;
+  var campaignId = sel.value ? Number(sel.value) : null;
+  if (!campaignId) { alert('Pick a campaign first, then press Restart from step 1.'); return; }
+  var lead = allLeads.find(function(l) { return l.id === id; }) || activeLeadDetail || {};
+  var cname = campaignName(campaignId) || ('Campaign #' + campaignId);
+  var who = lead.customer_name ? ' for ' + lead.customer_name : '';
+  var msg = 'Restart "' + cname + '" from step 1' + who + '?\n\n' +
+    '• Step count goes back to 0, so step 1 will be sent again.\n' +
+    '• Unpauses the campaign and clears "customer responded".\n\n' +
+    'Safety guards stay on:\n' +
+    '• Any step whose exact text this customer already got in the last 7 days is skipped (marked done, not re-sent).\n' +
+    '• Step 1 will not go out sooner than 20 hours after the last campaign text/email.\n\n' +
+    'To pick up where it left off instead, press Cancel and use Assign.';
+  if (!window.confirm(msg)) return;
+  var btn = document.getElementById('campaign-restart-btn');
+  var feedback = document.getElementById('campaign-assign-feedback');
+  if (btn) { btn.disabled = true; btn.textContent = 'Restarting…'; }
+  fetch('/api/campaigns?profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('POST', { action: 'assign_lead', lead_id: id, campaign_id: campaignId, restart: true, crm_profile: profileKey(currentCrmProfile) }))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error || !d.restarted) {
+        if (btn) { btn.disabled = false; btn.textContent = '↺ Restart from step 1'; }
+        if (feedback) { feedback.style.color = 'var(--red)'; feedback.textContent = d.error || 'Could not restart campaign.'; }
+        return;
+      }
+      if (feedback) { feedback.style.color = 'var(--green)'; feedback.textContent = '✓ Restarted ' + cname + ' from step 1 — refreshing status…'; }
+      if (btn) { btn.textContent = 'Restarted ✓'; }
+      campaignsLoaded = false;
+      loadCampaigns().then(function() { return loadLeads(); }).then(function() { openLeadDetail(id, true); });
+    }).catch(function() {
+      if (btn) { btn.disabled = false; btn.textContent = '↺ Restart from step 1'; }
+      if (feedback) { feedback.style.color = 'var(--red)'; feedback.textContent = 'Could not restart campaign. Try again.'; }
+    });
 }
 
 function assignLeadCampaign(id) {
