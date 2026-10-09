@@ -551,8 +551,8 @@ export async function POST(request: NextRequest) {
           outreach_count = 0,
           email_outreach_count = 0,
           last_outreach_at = NULL,
-          customer_responded = CASE WHEN ${campaignId} IS NOT NULL THEN false ELSE customer_responded END,
-          outreach_paused = CASE WHEN ${campaignId} IS NOT NULL THEN false ELSE outreach_paused END,
+          customer_responded = CASE WHEN ${campaignId}::int IS NOT NULL THEN false ELSE customer_responded END,
+          outreach_paused = CASE WHEN ${campaignId}::int IS NOT NULL THEN false ELSE outreach_paused END,
           updated_at = NOW()
       WHERE id = ANY(${leadIds}) AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
         AND (${campaignId}::int IS NULL OR campaign_id IS DISTINCT FROM ${campaignId}::int)
