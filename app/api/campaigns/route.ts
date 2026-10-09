@@ -31,6 +31,105 @@ async function nextCampaignStartExpression(campaignId: number | null, campaign: 
   return rows[0].start_at;
 }
 
+// Dan rule 2026-10-08 8:34 PM ET: (re)assigning a lead to the SAME campaign it is already on
+// continues where it left off (outreach_count / email_outreach_count kept, never back to step 1).
+// Only a DIFFERENT campaign starts at step 1. campaign_started_at is kept unless the next unsent
+// step is already overdue; then the schedule shifts so exactly that ONE step is due now (sent at the
+// next sender cycle, quiet hours apply) and later steps keep their spacing — no burst of overdue
+// steps. A future (deferred) start is never pulled earlier. Mirrors claw scripts/campaign_continue.py.
+// Root cause of Michele Nargi 12144 getting step 1 three times on 10/6 (Assign pressed again).
+const OUTREACH_FLOOR = process.env.CRM_AUTO_OUTREACH_START_AT || '2026-08-20T00:00:00Z';
+
+type ContinueResult = {
+  id: number;
+  oc: number;
+  ec: number;
+  next_step: number | null;
+  next_due_at: string | Date | null;
+};
+
+async function continueSameCampaign(leadId: number, campaignId: number, profile: string): Promise<ContinueResult | null> {
+  const rows = await sql`
+    WITH l AS (
+      SELECT id, campaign_id,
+             COALESCE(outreach_count, 0) AS oc,
+             COALESCE(email_outreach_count, 0) AS ec,
+             COALESCE(campaign_started_at, created_at) AS base,
+             campaign_started_at,
+             COALESCE(customer_phone, '') <> '' AS has_phone,
+             COALESCE(customer_email, '') <> '' AS has_email
+      FROM crm_leads
+      WHERE id = ${leadId} AND campaign_id = ${campaignId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
+    ), stag AS (
+      SELECT EXISTS (
+        SELECT 1 FROM crm_campaign_messages x JOIN l ON x.campaign_id = l.campaign_id
+        WHERE x.is_active = true AND x.channel = 'email'
+      ) AS s
+    ), sms_track AS (
+      SELECT m.step_number, m.send_day, ROW_NUMBER() OVER (ORDER BY m.step_number) AS rn
+      FROM crm_campaign_messages m JOIN l ON m.campaign_id = l.campaign_id
+      WHERE m.is_active = true AND m.channel IN ('sms', 'both') AND COALESCE(m.sms_body, '') <> ''
+    ), email_track AS (
+      SELECT m.step_number, m.send_day, ROW_NUMBER() OVER (ORDER BY m.step_number) AS rn
+      FROM crm_campaign_messages m JOIN l ON m.campaign_id = l.campaign_id
+      WHERE m.is_active = true AND m.channel IN ('email', 'both') AND COALESCE(m.email_body, m.sms_body, '') <> ''
+    ), nxt AS (
+      SELECT
+        (SELECT s.step_number FROM sms_track s, l WHERE s.rn = l.oc + 1 AND l.has_phone) AS sms_step,
+        (SELECT s.send_day    FROM sms_track s, l WHERE s.rn = l.oc + 1 AND l.has_phone) AS sms_day,
+        (SELECT e.step_number FROM email_track e, l, stag WHERE e.rn = l.ec + 1 AND l.has_email AND (stag.s OR NOT l.has_phone)) AS email_step,
+        (SELECT e.send_day    FROM email_track e, l, stag WHERE e.rn = l.ec + 1 AND l.has_email AND (stag.s OR NOT l.has_phone)) AS email_day
+    ), plan AS (
+      SELECT l.id, l.oc, l.ec,
+             LEAST(nxt.sms_day, nxt.email_day) AS next_day,
+             CASE
+               WHEN nxt.sms_day IS NULL THEN nxt.email_step
+               WHEN nxt.email_day IS NULL THEN nxt.sms_step
+               WHEN nxt.email_day < nxt.sms_day THEN nxt.email_step
+               ELSE nxt.sms_step
+             END AS next_step,
+             CASE
+               WHEN LEAST(nxt.sms_day, nxt.email_day) IS NULL THEN l.campaign_started_at
+               WHEN l.base < ${OUTREACH_FLOOR}::timestamptz
+                 THEN GREATEST(${OUTREACH_FLOOR}::timestamptz, NOW() - LEAST(nxt.sms_day, nxt.email_day) * INTERVAL '1 day')
+               ELSE GREATEST(l.base, NOW() - LEAST(nxt.sms_day, nxt.email_day) * INTERVAL '1 day')
+             END AS new_started_at
+      FROM l, nxt
+    )
+    UPDATE crm_leads t
+    SET outreach_paused = false,
+        customer_responded = false,
+        campaign_started_at = plan.new_started_at,
+        updated_at = NOW()
+    FROM plan
+    WHERE t.id = plan.id
+      AND t.campaign_id = ${campaignId}
+      AND COALESCE(t.outreach_count, 0) = plan.oc
+      AND COALESCE(t.email_outreach_count, 0) = plan.ec
+    RETURNING plan.id, plan.oc, plan.ec, plan.next_step,
+              (plan.new_started_at + plan.next_day * INTERVAL '1 day') AS next_due_at
+  `;
+  return (rows[0] as ContinueResult) || null;
+}
+
+function describeContinue(r: ContinueResult | null): string {
+  if (!r) return 'lead changed during assign; nothing updated';
+  if (r.next_step == null) return 'no steps left on this campaign (already complete); nothing new will send';
+  let when = '';
+  if (r.next_due_at) {
+    const due = new Date(r.next_due_at as string);
+    if (due.getTime() <= Date.now()) {
+      when = ' (due now: sends at the next sender cycle; quiet hours 9 PM-8 AM ET apply)';
+    } else {
+      const fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York', weekday: 'short', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit',
+      });
+      when = ` (due ${fmt.format(due)} ET)`;
+    }
+  }
+  return `continuing at step ${r.next_step}${when}`;
+}
+
 async function ensureSchema() {
   await sql`
     CREATE TABLE IF NOT EXISTS crm_campaigns (
@@ -367,12 +466,23 @@ export async function POST(request: NextRequest) {
       const leadId = Number(body.lead_id);
       const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
       if (!leadId) return NextResponse.json({ error: 'Lead id required' }, { status: 400 });
-      const leadRows = await sql`SELECT id FROM crm_leads WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1`;
+      const leadRows = await sql`SELECT id, campaign_id FROM crm_leads WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1`;
       if (!leadRows.length) return NextResponse.json({ error: 'Lead not found in this profile' }, { status: 404 });
       const campaignRows = campaignId ? await sql`SELECT name, source FROM crm_campaigns WHERE id = ${campaignId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1` : [];
       if (campaignId && !campaignRows.length) return NextResponse.json({ error: 'Campaign not found in this profile' }, { status: 404 });
       const campaign = campaignRows[0] || null;
       const campaignName = campaign?.name || null;
+      const currentCampaignId = leadRows[0].campaign_id == null ? null : Number(leadRows[0].campaign_id);
+      if (campaignId && currentCampaignId === campaignId) {
+        // Same campaign: continue where it left off (Dan 2026-10-08). No counter reset.
+        const cont = await continueSameCampaign(leadId, campaignId, profile);
+        const contText = describeContinue(cont);
+        await sql`
+          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+          VALUES (${leadId}, 'status_change', ${`Reassigned to same campaign (${campaignName || `Campaign #${campaignId}`}) — ${contText}. Not restarted from step 1.`}, false, 'campaign_system')
+        `;
+        return NextResponse.json({ success: true, campaign_name: campaignName, continued: true, next_step: cont?.next_step ?? null });
+      }
       const campaignStartAt = await nextCampaignStartExpression(campaignId, campaign);
       const description = campaignId ? `Assigned to campaign: ${campaignName || `Campaign #${campaignId}`}` : 'Campaign assignment removed';
       if (campaignId) {
@@ -418,7 +528,24 @@ export async function POST(request: NextRequest) {
     const campaign = campaignRows[0] || null;
     const campaignName = campaign?.name || null;
     const campaignStartAt = await nextCampaignStartExpression(campaignId, campaign);
-    await sql`
+    // Same campaign: continue where it left off (Dan 2026-10-08); only the rest restart at step 1.
+    let continuedCount = 0;
+    if (campaignId) {
+      const sameRows = await sql`
+        SELECT id FROM crm_leads
+        WHERE id = ANY(${leadIds}) AND campaign_id = ${campaignId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
+      `;
+      for (const row of sameRows) {
+        const leadId = Number(row.id);
+        const cont = await continueSameCampaign(leadId, campaignId, profile);
+        await sql`
+          INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+          VALUES (${leadId}, 'status_change', ${`Reassigned to same campaign (${campaignName || `Campaign #${campaignId}`}) — ${describeContinue(cont)}. Not restarted from step 1.`}, false, 'campaign_system')
+        `;
+        continuedCount += 1;
+      }
+    }
+    const resetRows = await sql`
       UPDATE crm_leads
       SET campaign_id = ${campaignId}, campaign_started_at = ${campaignStartAt},
           outreach_count = 0,
@@ -428,14 +555,19 @@ export async function POST(request: NextRequest) {
           outreach_paused = CASE WHEN ${campaignId} IS NOT NULL THEN false ELSE outreach_paused END,
           updated_at = NOW()
       WHERE id = ANY(${leadIds}) AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
+        AND (${campaignId}::int IS NULL OR campaign_id IS DISTINCT FROM ${campaignId}::int)
+      RETURNING id
     `;
-    await sql`
-      INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
-      SELECT id, 'status_change', ${campaignId ? `Assigned to campaign: ${campaignName || `Campaign #${campaignId}`}` : 'Campaign assignment removed'}, false, 'campaign_system'
-      FROM crm_leads
-      WHERE id = ANY(${leadIds}) AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
-    `;
-    return NextResponse.json({ success: true, count: leadIds.length, campaign_name: campaignName });
+    const resetIds = resetRows.map((r) => Number(r.id));
+    if (resetIds.length) {
+      await sql`
+        INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+        SELECT id, 'status_change', ${campaignId ? `Assigned to campaign: ${campaignName || `Campaign #${campaignId}`}` : 'Campaign assignment removed'}, false, 'campaign_system'
+        FROM crm_leads
+        WHERE id = ANY(${resetIds})
+      `;
+    }
+    return NextResponse.json({ success: true, count: leadIds.length, campaign_name: campaignName, continued: continuedCount, restarted: resetIds.length });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
