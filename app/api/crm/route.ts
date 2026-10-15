@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import {
+  CRM_PROFILES,
   crmProfileConfig,
   normalizeCrmProfile,
   PNM_FENCING_EMAIL_SENDING_PAUSED,
@@ -34,6 +35,38 @@ function twilioFromForProfile(profileValue: unknown): string {
 
 function normalizePhone(phone: string): string {
   return normalizeSmsPhone(phone);
+}
+
+
+/** Strip any known CRM brand SMS signature, then append the lead profile's signature. */
+function ensureOutboundSmsSignature(body: string, profileValue: unknown): string {
+  const cfg = crmProfileConfig(profileValue);
+  const want = String(cfg.smsSignature || '').trim();
+  let text = normalizeText(body || '').trim();
+  if (!text) return text;
+  const known = Object.values(CRM_PROFILES).map((p) => String(p.smsSignature || '').trim()).filter(Boolean);
+  const extras = ['Lowes Fencing NJ', 'PNM Fencing', 'FenceCrafters'];
+  const all = Array.from(new Set([...known, ...extras])).sort((a, b) => b.length - a.length);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const sig of all) {
+      if (!sig) continue;
+      const dbl = '\n\n' + sig;
+      if (text.endsWith(dbl)) {
+        text = text.slice(0, -dbl.length).trimEnd();
+        changed = true;
+        break;
+      }
+      if (text.endsWith(sig)) {
+        text = text.slice(0, -sig.length).trimEnd();
+        changed = true;
+        break;
+      }
+    }
+  }
+  if (want && text.indexOf(want) === -1) text = text + '\n\n' + want;
+  return text;
 }
 
 async function sendTwilioSms(to: string, body: string, mediaUrls: string[] = [], profileValue?: unknown): Promise<string | null> {
@@ -1434,7 +1467,7 @@ export async function POST(request: NextRequest) {
 
   if (action === 'add_note') {
     const { id, activity_type, subject } = body;
-    const description = normalizeText(body.description || '');
+    let description = normalizeText(body.description || '');
     const attachments = Array.isArray(body.attachments) ? body.attachments : [];
     const scheduledForRaw = String(body.scheduled_for || body.scheduledFor || '').trim();
     const isFromCustomer = description?.startsWith('📥') || false;
@@ -1451,7 +1484,10 @@ export async function POST(request: NextRequest) {
       if (attachments.length) return NextResponse.json({ error: 'Scheduled texts cannot include attachments yet' }, { status: 400 });
       const leads = await sql`SELECT customer_phone, crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
       const to = leads[0]?.customer_phone;
-      const smsBody = normalizeText(description || '').replace(/^(📤|📥)\s*/, '');
+      const smsBody = ensureOutboundSmsSignature(
+        normalizeText(description || '').replace(/^(📤|📥)\s*/, ''),
+        leads[0]?.crm_profile,
+      );
       if (!to) return NextResponse.json({ error: 'Customer phone is missing' }, { status: 400 });
       if (!smsBody) return NextResponse.json({ error: 'SMS body is missing' }, { status: 400 });
       const scheduledAt = new Date(scheduledForRaw);
@@ -1486,7 +1522,14 @@ export async function POST(request: NextRequest) {
       const leads = await sql`SELECT customer_phone, crm_profile FROM crm_leads WHERE id = ${id} LIMIT 1`;
       outboundSmsTo = leads[0]?.customer_phone || '';
       outboundSmsProfile = normalizeCrmProfile(leads[0]?.crm_profile);
-      outboundSmsBody = normalizeText(description || '').replace(/^(📤|📥)\s*/, '');
+      outboundSmsBody = ensureOutboundSmsSignature(
+        normalizeText(description || '').replace(/^(📤|📥)\s*/, ''),
+        outboundSmsProfile,
+      );
+      // Persist the corrected body (fixes client Lowes signature on PNM/FC leads).
+      description = description.startsWith('📤') || description.startsWith('📥')
+        ? `${description.slice(0, 2)} ${outboundSmsBody}`
+        : outboundSmsBody;
       if (!outboundSmsTo) return NextResponse.json({ error: 'Customer phone is missing' }, { status: 400 });
       if (!outboundSmsBody) return NextResponse.json({ error: 'SMS body is missing' }, { status: 400 });
       const unsupported = attachments

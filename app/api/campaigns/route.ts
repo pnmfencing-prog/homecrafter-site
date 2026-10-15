@@ -521,10 +521,21 @@ export async function POST(request: NextRequest) {
       const leadId = Number(body.lead_id);
       const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
       if (!leadId) return NextResponse.json({ error: 'Lead id required' }, { status: 400 });
-      const leadRows = await sql`SELECT id, campaign_id FROM crm_leads WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1`;
-      if (!leadRows.length) return NextResponse.json({ error: 'Lead not found in this profile' }, { status: 404 });
-      const campaignRows = campaignId ? await sql`SELECT name, source FROM crm_campaigns WHERE id = ${campaignId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1` : [];
-      if (campaignId && !campaignRows.length) return NextResponse.json({ error: 'Campaign not found in this profile' }, { status: 404 });
+      // Always resolve the lead by id, then enforce campaign.crm_profile === lead.crm_profile.
+      // Request profile is advisory; cross-profile assign is rejected even if the client lies.
+      const leadRows = await sql`SELECT id, campaign_id, crm_profile FROM crm_leads WHERE id = ${leadId} LIMIT 1`;
+      if (!leadRows.length) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+      const leadProfile = normalizeCrmProfile(leadRows[0].crm_profile);
+      if (leadProfile !== profile) {
+        return NextResponse.json({ error: 'Lead belongs to a different CRM profile' }, { status: 400 });
+      }
+      const campaignRows = campaignId
+        ? await sql`SELECT name, source, crm_profile FROM crm_campaigns WHERE id = ${campaignId} LIMIT 1`
+        : [];
+      if (campaignId && !campaignRows.length) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+      if (campaignId && normalizeCrmProfile(campaignRows[0].crm_profile) !== leadProfile) {
+        return NextResponse.json({ error: 'Campaign belongs to a different CRM profile' }, { status: 400 });
+      }
       const campaign = campaignRows[0] || null;
       const campaignName = campaign?.name || null;
       const currentCampaignId = leadRows[0].campaign_id == null ? null : Number(leadRows[0].campaign_id);
@@ -593,8 +604,11 @@ export async function POST(request: NextRequest) {
     const leadIds = Array.isArray(body.lead_ids) ? body.lead_ids.map(Number).filter(Boolean) : [];
     const campaignId = body.campaign_id ? Number(body.campaign_id) : null;
     if (!leadIds.length) return NextResponse.json({ error: 'No leads selected' }, { status: 400 });
-    const campaignRows = campaignId ? await sql`SELECT name, source FROM crm_campaigns WHERE id = ${campaignId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile} LIMIT 1` : [];
-    if (campaignId && !campaignRows.length) return NextResponse.json({ error: 'Campaign not found in this profile' }, { status: 404 });
+    const campaignRows = campaignId ? await sql`SELECT name, source, crm_profile FROM crm_campaigns WHERE id = ${campaignId} LIMIT 1` : [];
+    if (campaignId && !campaignRows.length) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+    if (campaignId && normalizeCrmProfile(campaignRows[0].crm_profile) !== profile) {
+      return NextResponse.json({ error: 'Campaign belongs to a different CRM profile' }, { status: 400 });
+    }
     const campaign = campaignRows[0] || null;
     const campaignName = campaign?.name || null;
     const campaignStartAt = await nextCampaignStartExpression(campaignId, campaign);

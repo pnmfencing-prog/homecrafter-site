@@ -708,6 +708,8 @@ var exactBoardStats = null;
 var campaigns = [];
 var campaignsLoaded = false;
 var campaignsLoadPromise = null;
+var campaignsLoadSeq = 0;
+var campaignsLoadedProfile = null;
 var currentView = 'board';
 var currentCrmProfile = 'fencecrafters';
 var currentFilter = 'all';
@@ -797,6 +799,7 @@ function setCrmProfile(profile) {
   campaigns = [];
   campaignsLoaded = false;
   campaignsLoadPromise = null;
+  campaignsLoadedProfile = null;
   closeModal();
   applyCrmProfileUi();
   saveCrmFilterState();
@@ -1146,12 +1149,30 @@ function tileMessageHistoryHtml(l) {
 }
 
 function loadCampaigns() {
-  if (campaignsLoadPromise) return campaignsLoadPromise;
   var profile = profileKey(currentCrmProfile);
+  // Reuse in-flight only for the same profile. A profile switch must not adopt a stale list
+  // (root cause of wrong-profile campaigns in the lead picker after tab switches).
+  if (campaignsLoadPromise && campaignsLoadedProfile === profile) return campaignsLoadPromise;
+  var seq = ++campaignsLoadSeq;
+  campaignsLoadedProfile = profile;
   campaignsLoadPromise = fetch('/api/campaigns?profile=' + encodeURIComponent(profile), api('GET'))
     .then(function(r) { return r.json(); })
-    .then(function(data) { campaigns = data.campaigns || []; campaignsLoaded = true; campaignsLoadPromise = null; return campaigns; })
-    .catch(function() { campaigns = []; campaignsLoaded = true; campaignsLoadPromise = null; return campaigns; });
+    .then(function(data) {
+      if (seq !== campaignsLoadSeq || profileKey(currentCrmProfile) !== profile) return campaigns;
+      campaigns = (data.campaigns || []).filter(function(c) {
+        return profileKey(c.crm_profile) === profile;
+      });
+      campaignsLoaded = true;
+      campaignsLoadPromise = null;
+      return campaigns;
+    })
+    .catch(function() {
+      if (seq !== campaignsLoadSeq || profileKey(currentCrmProfile) !== profile) return campaigns;
+      campaigns = [];
+      campaignsLoaded = true;
+      campaignsLoadPromise = null;
+      return campaigns;
+    });
   return campaignsLoadPromise;
 }
 
@@ -1211,16 +1232,35 @@ function campaignTileBadge(l) {
   return '<div title="' + escAttr(title) + '" style="display:inline-block;margin-top:0.35rem;padding:0.18rem 0.4rem;border-radius:999px;background:' + bg + ';color:' + color + ';font-size:0.55rem;font-weight:900;letter-spacing:0.06em;text-transform:uppercase">' + label + '</div>';
 }
 
-function campaignOptions(selectedId) {
+function campaignOptions(selectedId, leadOrProfile) {
+  var want = profileKey(
+    (typeof leadOrProfile === 'string')
+      ? leadOrProfile
+      : ((leadOrProfile && leadOrProfile.crm_profile) || currentCrmProfile)
+  );
   var html = '<option value="">None</option>';
+  var seen = {};
   campaigns.forEach(function(c) {
+    if (profileKey(c.crm_profile) !== want) return;
+    seen[String(c.id)] = true;
     var selected = String(c.id) === String(selectedId || '');
     var label = (selected ? '✓ ' : '') + c.name + (c.source ? ' (' + c.source + ')' : '') + (selected ? ' — currently assigned' : '');
     html += '<option value="' + c.id + '" ' + (selected ? 'selected' : '') + '>' + esc(label) + '</option>';
   });
+  // Keep the currently assigned campaign visible even if the cached list is stale/wrong-profile.
+  if (selectedId && !seen[String(selectedId)]) {
+    var fallbackName = '';
+    if (leadOrProfile && typeof leadOrProfile === 'object' && leadOrProfile.campaign_name && String(leadOrProfile.campaign_id) === String(selectedId)) {
+      fallbackName = leadOrProfile.campaign_name;
+    } else if (activeLeadDetail && String(activeLeadDetail.campaign_id) === String(selectedId) && activeLeadDetail.campaign_name) {
+      fallbackName = activeLeadDetail.campaign_name;
+    } else {
+      fallbackName = campaignName(selectedId) || ('Campaign #' + selectedId);
+    }
+    html += '<option value="' + selectedId + '" selected>✓ ' + esc(fallbackName) + ' — currently assigned</option>';
+  }
   return html;
 }
-
 function refreshCampaignSelectVisual() {
   var sel = document.getElementById('lead-campaign-select');
   if (!sel) return;
@@ -1917,6 +1957,7 @@ function openLeadDetail(id, skipHistory) {
         campaigns = [];
         campaignsLoaded = false;
         campaignsLoadPromise = null;
+        campaignsLoadedProfile = null;
         applyCrmProfileUi();
         saveCrmFilterState();
         history.replaceState(null, '', '/crm.html?lead=' + encodeURIComponent(l.id) + '&profile=' + encodeURIComponent(actualProfile));
@@ -2001,7 +2042,7 @@ function openLeadDetail(id, skipHistory) {
 
         '<div style="margin-bottom:1rem;padding:0.7rem 0.85rem;background:#fff;border:1px solid #e8e3d9;border-radius:10px;display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">' +
           '<span style="font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--midnight)">Campaign</span>' +
-          '<select id="lead-campaign-select" onchange="refreshCampaignSelectVisual()" style="flex:1;min-width:210px;border:1px solid ' + (l.campaign_id ? 'var(--green)' : '#e0ddd6') + ';background:' + (l.campaign_id ? 'var(--green-bg)' : '#fff') + ';color:' + (l.campaign_id ? 'var(--green)' : 'var(--midnight)') + ';border-radius:8px;padding:0.45rem 0.6rem;font-family:Montserrat,sans-serif;font-size:0.75rem;font-weight:700">' + campaignOptions(l.campaign_id) + '</select>' +
+          '<select id="lead-campaign-select" onchange="refreshCampaignSelectVisual()" style="flex:1;min-width:210px;border:1px solid ' + (l.campaign_id ? 'var(--green)' : '#e0ddd6') + ';background:' + (l.campaign_id ? 'var(--green-bg)' : '#fff') + ';color:' + (l.campaign_id ? 'var(--green)' : 'var(--midnight)') + ';border-radius:8px;padding:0.45rem 0.6rem;font-family:Montserrat,sans-serif;font-size:0.75rem;font-weight:700">' + campaignOptions(l.campaign_id, l) + '</select>' +
           '<button id="campaign-assign-btn" class="btn btn-primary" style="font-size:0.65rem;padding:0.45rem 0.75rem" onclick="assignLeadCampaign(' + l.id + ')">Assign</button>' +
           (l.campaign_id ? '<button id="campaign-restart-btn" class="btn btn-outline" style="font-size:0.65rem;padding:0.45rem 0.75rem" title="Reset this lead to step 1 of the selected campaign (Assign alone continues where it left off)" onclick="restartLeadCampaign(' + l.id + ')">↺ Restart from step 1</button>' : '') +
           '<span id="campaign-assign-feedback" style="font-size:0.68rem;font-weight:800;color:' + (l.campaign_id ? campaignStatusColor(l) : 'var(--text-muted)') + ';width:100%">' + (l.campaign_id ? '✓ Campaign assignment saved — ' + campaignStatusText : 'None assigned yet') + '</span>' +
@@ -3036,7 +3077,8 @@ function restartLeadCampaign(id) {
   var btn = document.getElementById('campaign-restart-btn');
   var feedback = document.getElementById('campaign-assign-feedback');
   if (btn) { btn.disabled = true; btn.textContent = 'Restarting…'; }
-  fetch('/api/campaigns?profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('POST', { action: 'assign_lead', lead_id: id, campaign_id: campaignId, restart: true, crm_profile: profileKey(currentCrmProfile) }))
+  var leadProfile = profileKey((allLeads.find(function(l) { return l.id === id; }) || activeLeadDetail || {}).crm_profile || currentCrmProfile);
+  fetch('/api/campaigns?profile=' + encodeURIComponent(leadProfile), api('POST', { action: 'assign_lead', lead_id: id, campaign_id: campaignId, restart: true, crm_profile: leadProfile }))
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (d.error || !d.restarted) {
@@ -3061,7 +3103,8 @@ function assignLeadCampaign(id) {
   var feedback = document.getElementById('campaign-assign-feedback');
   var campaignId = sel.value ? Number(sel.value) : null;
   if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
-  fetch('/api/campaigns?profile=' + encodeURIComponent(profileKey(currentCrmProfile)), api('POST', { action: 'assign_lead', lead_id: id, campaign_id: campaignId, crm_profile: profileKey(currentCrmProfile) }))
+  var leadProfile = profileKey((allLeads.find(function(l) { return l.id === id; }) || activeLeadDetail || {}).crm_profile || currentCrmProfile);
+  fetch('/api/campaigns?profile=' + encodeURIComponent(leadProfile), api('POST', { action: 'assign_lead', lead_id: id, campaign_id: campaignId, crm_profile: leadProfile }))
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (d.error) {
@@ -3087,7 +3130,7 @@ function assignLeadCampaign(id) {
         feedback.style.color = campaignId ? 'var(--green)' : 'var(--text-muted)';
         feedback.textContent = campaignId ? '✓ Assigned to ' + campaignName(campaignId) + ' — refreshing status…' : '✓ Campaign removed — refreshing status…';
       }
-      sel.innerHTML = campaignOptions(campaignId);
+      sel.innerHTML = campaignOptions(campaignId, allLeads.find(function(x) { return x.id === id; }) || activeLeadDetail || { crm_profile: currentCrmProfile, campaign_id: campaignId });
       refreshCampaignSelectVisual();
       if (btn) { btn.textContent = 'Assigned ✓'; }
       campaignsLoaded = false;
@@ -3433,27 +3476,32 @@ function openLinkedLeadFromUrl() {
 
 // Init
 restoreCrmFilterState();
-if (profileKey(currentCrmProfile) === 'lowes_fencing') {
+(function bootCrm() {
   var params = new URLSearchParams(window.location.search);
   var lead = params.get('lead') || params.get('id');
   var view = params.get('view');
-  var dest = '/lowes-crm.html?profile=lowes_fencing' + (lead ? '&lead=' + encodeURIComponent(lead) : '') + (view ? '&view=' + encodeURIComponent(view) : '');
-  window.location.replace(dest);
-} else {
+  // Only send the bare Lowes board to lowes-crm.html. If a lead is deep-linked,
+  // stay here so openLeadDetail can switch to that lead's real crm_profile.
+  // Blind redirect previously opened PNM/FC leads on the Lowes board and stamped
+  // "Lowes Fencing NJ" on manual SMS (Todd Sackawitch lead_code 3745 / id 11892).
+  if (profileKey(currentCrmProfile) === 'lowes_fencing' && !lead) {
+    var dest = '/lowes-crm.html?profile=lowes_fencing' + (view ? '&view=' + encodeURIComponent(view) : '');
+    window.location.replace(dest);
+    return;
+  }
   applyCrmProfileUi();
   // Bare /crm.html (and ?lead= deep links) stay on the sales board.
   // Invoices/list open only when the URL asks for them.
   currentView = 'board';
   try {
-    var v = new URLSearchParams(window.location.search).get('view');
-    if (v === 'invoices' || v === 'list' || v === 'board') currentView = v;
+    if (view === 'invoices' || view === 'list' || view === 'board') currentView = view;
   } catch (e) {}
   loadCampaigns().then(loadLeads);
   setView(currentView);
   initSwipeDots();
   openLinkedLeadFromUrl();
   setInterval(refreshCrmQuietly, CRM_REFRESH_MS);
-}
+})();
 </script>
 </body>
 </html>
