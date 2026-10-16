@@ -324,6 +324,11 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
         <textarea id="composerBody" placeholder="Write a message to this vendor..."></textarea>
         <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()" disabled>Send</button>
       </div>
+      <div class="composer-attach" id="composerAttach" style="display:none;gap:0.35rem;flex-wrap:wrap;align-items:center;font-size:0.65rem">
+        <select id="attachInvoicePick" class="btn btn-outline" onchange="pickInvoiceAttachment(this)"><option value="">📎 Attach invoice…</option></select>
+        <label class="btn btn-outline" style="cursor:pointer">⬆ Upload PDF/photo<input type="file" id="attachUpload" accept="application/pdf,image/*" style="display:none" onchange="uploadComposerAttachment(this)"></label>
+        <span id="attachChips"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -821,7 +826,57 @@ function sendTileQuickReply(event, id) {
     });
 }
 
+
+var composerAttachments = [];
+function renderAttachChips() {
+  var el = document.getElementById('attachChips'); if (!el) return;
+  el.innerHTML = composerAttachments.map(function(a, i) {
+    return '<span class="btn btn-outline" style="padding:2px 6px">' + esc(a.label) + ' <a href="#" onclick="composerAttachments.splice(' + i + ',1);renderAttachChips();return false">✕</a></span>';
+  }).join(' ');
+}
+function refreshAttachPicker() {
+  var wrap = document.getElementById('composerAttach'); if (!wrap) return;
+  wrap.style.display = (detailChannel === 'email' && selectedVendorId) ? 'flex' : 'none';
+  if (wrap.style.display === 'none' || wrap.dataset.vendor === String(selectedVendorId)) return;
+  wrap.dataset.vendor = String(selectedVendorId);
+  composerAttachments = []; renderAttachChips();
+  fetch('/api/ops/comm/attachments?vendor_id=' + encodeURIComponent(selectedVendorId), api('GET'))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var sel = document.getElementById('attachInvoicePick');
+      sel.innerHTML = '<option value="">📎 Attach invoice…</option>' + (d.invoices || []).map(function(i) {
+        var opened = i.open_count ? ' · opened ' + i.open_count + 'x' : '';
+        return '<option value="' + i.id + '">' + esc((i.invoice_no || ('#' + i.id)) + ' · ' + (i.lead_name || '') + ' · $' + (i.amount || '?') + ' · ' + i.status + opened) + '</option>';
+      }).join('');
+    });
+}
+function pickInvoiceAttachment(sel) {
+  var id = Number(sel.value); if (!id) return;
+  if (!composerAttachments.some(function(a) { return a.invoice_id === id; }))
+    composerAttachments.push({ invoice_id: id, label: sel.options[sel.selectedIndex].text.split(' · ')[0] });
+  sel.value = ''; renderAttachChips();
+}
+function uploadComposerAttachment(input) {
+  var f = input.files && input.files[0]; if (!f) return;
+  if (f.size > 8 * 1024 * 1024) { alert('Max 8MB'); input.value = ''; return; }
+  var rd = new FileReader();
+  rd.onload = function() {
+    var b64 = String(rd.result).split(',')[1] || '';
+    fetch('/api/ops/comm/attachments', api('POST', { vendor_id: selectedVendorId, file_name: f.name, content_base64: b64 }))
+      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+      .then(function(res) {
+        if (!res.ok) throw new Error(res.d.error || 'Upload failed');
+        composerAttachments.push({ attachment_id: res.d.attachment.id, label: res.d.attachment.file_name });
+        renderAttachChips();
+      })
+      .catch(function(e) { alert(e.message); })
+      .then(function() { input.value = ''; });
+  };
+  rd.readAsDataURL(f);
+}
+
 function updateComposerMeta() {
+  refreshAttachPicker();
   var p = activeProfileConfig();
   var el = document.getElementById('composerMeta');
   if (!el) return;
@@ -994,11 +1049,17 @@ function sendMessage() {
   if (selectedThreadId && channel === 'in_app') {
     payload.thread_id = selectedThreadId;
   }
+  if (channel === 'email' && composerAttachments.length) {
+    payload.attachments = composerAttachments.map(function(a) {
+      return a.invoice_id ? { invoice_id: a.invoice_id } : { attachment_id: a.attachment_id };
+    });
+  }
   fetch('/api/ops/comm/messages', api('POST', payload))
     .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
     .then(function(res) {
       if (!res.ok) throw new Error(res.d.error || 'Send failed');
       document.getElementById('composerBody').value = '';
+      composerAttachments = []; renderAttachChips();
       return openVendor(selectedVendorId);
     })
     .catch(function(err) {
