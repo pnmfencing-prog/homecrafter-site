@@ -7,6 +7,8 @@ import {
   PNM_FENCING_EMAIL_SENDING_PAUSED,
   pnmFencingEmailPausedResponse,
 } from '@/lib/email-policy';
+import { resolveAttachments, type ResolvedAttachment } from '@/lib/ops-attachments';
+import { trackedInvoiceUrl } from '@/lib/ops-attachments-core.mjs';
 import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
 
 export const dynamic = 'force-dynamic';
@@ -61,7 +63,8 @@ async function sendBrevoEmail(opts: {
   toName?: string;
   subject: string;
   bodyText: string;
-}): Promise<void> {
+  attachments?: ResolvedAttachment[];
+}): Promise<string | null> {
   if (!process.env.BREVO_API_KEY) {
     throw new Error('Brevo email is not configured');
   }
@@ -79,6 +82,9 @@ async function sendBrevoEmail(opts: {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')}</div>`,
+    ...(opts.attachments && opts.attachments.length
+      ? { attachment: opts.attachments.map((a) => ({ name: a.fileName, content: a.bytes.toString('base64') })) }
+      : {}),
   };
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -89,6 +95,8 @@ async function sendBrevoEmail(opts: {
     const errorText = await res.text();
     throw new Error(`Email send failed: ${errorText}`);
   }
+  const out = await res.json().catch(() => ({}));
+  return out.messageId || null;
 }
 
 function appendSignature(bodyText: string, profileValue: unknown): string {
@@ -209,7 +217,24 @@ export async function POST(request: NextRequest) {
     ? String(body.delivery_status)
     : (actorType === 'staff' ? 'sent' : null);
 
+  let attachments: ResolvedAttachment[] = [];
+  if (Array.isArray(body.attachments) && body.attachments.length) {
+    if (channel !== 'email') return NextResponse.json({ error: 'Attachments are only supported on email' }, { status: 400 });
+    try {
+      attachments = await resolveAttachments(body.attachments, String(vendorId));
+    } catch (err: unknown) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Bad attachments' }, { status: 400 });
+    }
+  }
+
   if (deliver) {
+    const invoiceAtts = attachments.filter((a) => a.invoiceNo);
+    if (channel === 'email' && invoiceAtts.length) {
+      const origin = process.env.PUBLIC_SITE_ORIGIN || 'https://homecrafter.ai';
+      const toEmail = String(vendorRow.primary_email || '').trim();
+      bodyText += '\n\n' + invoiceAtts
+        .map((a) => `View invoice ${a.invoiceNo}: ${trackedInvoiceUrl(origin, a.invoiceNo, toEmail)}`).join('\n');
+    }
     if (channel === 'sms' || channel === 'email') {
       bodyText = appendSignature(bodyText, crmProfile);
     }
@@ -225,13 +250,15 @@ export async function POST(request: NextRequest) {
         if (!toEmail) return NextResponse.json({ error: 'Vendor email is missing' }, { status: 400 });
         const profile = crmProfileConfig(crmProfile);
         const subject = emailSubject || profile.defaultSubject;
-        await sendBrevoEmail({
+        const brevoId = await sendBrevoEmail({
           profileValue: crmProfile,
           toEmail,
           toName: vendorRow.display_name || '',
           subject,
           bodyText,
+          attachments,
         });
+        externalMessageId = brevoId || externalMessageId;
         deliveryStatus = 'sent';
       }
     } catch (err: unknown) {
@@ -241,7 +268,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const preview = previewText(bodyText);
+  const preview = previewText(bodyText + (attachments.length ? ` [${attachments.length} attachment(s)]` : ''));
   const bumpUnread = actorType === 'bot' || actorType === 'vendor';
 
   const messageRows = await sql`
@@ -261,6 +288,16 @@ export async function POST(request: NextRequest) {
     )
     RETURNING *
   `;
+
+  for (const a of attachments) {
+    if (!a.attachmentId) continue;
+    await sql`INSERT INTO crm_comm_message_attachments (message_id, attachment_id, crm_invoice_id)
+      VALUES (${messageRows[0].id}::uuid, ${a.attachmentId}, ${a.invoiceId}) ON CONFLICT DO NOTHING`;
+    if (a.invoiceId && deliver) {
+      await sql`UPDATE crm_invoices SET sent_at = COALESCE(sent_at, NOW()),
+        vendor_id = COALESCE(vendor_id, ${vendorId}::uuid), updated_at = NOW() WHERE id = ${a.invoiceId}`;
+    }
+  }
 
   await sql`
     UPDATE crm_comm_threads
@@ -286,5 +323,6 @@ export async function POST(request: NextRequest) {
     crm_profile: crmProfile,
     delivered: deliver,
     message: messageRows[0],
+    attachments: attachments.map((a) => ({ attachment_id: a.attachmentId, invoice_id: a.invoiceId, file_name: a.fileName })),
   });
 }
