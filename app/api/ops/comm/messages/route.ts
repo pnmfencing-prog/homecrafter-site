@@ -9,6 +9,7 @@ import {
 } from '@/lib/email-policy';
 import { resolveAttachments, type ResolvedAttachment } from '@/lib/ops-attachments';
 import { trackedInvoiceUrl } from '@/lib/ops-attachments-core.mjs';
+import { brevoAttachmentField } from '@/lib/brevo-attachments-core.mjs';
 import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
 
 export const dynamic = 'force-dynamic';
@@ -82,9 +83,7 @@ async function sendBrevoEmail(opts: {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')}</div>`,
-    ...(opts.attachments && opts.attachments.length
-      ? { attachment: opts.attachments.map((a) => ({ name: a.fileName, content: a.bytes.toString('base64') })) }
-      : {}),
+    ...brevoAttachmentField((opts.attachments || []).map((a) => ({ name: a.fileName, content: a.bytes.toString('base64') }))),
   };
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',

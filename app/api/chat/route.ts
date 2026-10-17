@@ -8,6 +8,7 @@ import {
 } from '@/lib/email-policy';
 import { normalizeText, normalizeTrimmedText } from '@/lib/text';
 import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
+import { brevoAttachmentField } from '@/lib/brevo-attachments-core.mjs';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -209,6 +210,33 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  if (fromStaff && channel === 'email' && process.env.BREVO_API_KEY) {
+    // Send BEFORE logging the activity so a failed send is never recorded as a sent email.
+    let res: Response;
+    try {
+      res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: { name: profile.senderName, email: profile.senderEmail },
+          replyTo: { name: profile.senderName, email: profile.replyToEmail },
+          to: [{ email: leads[0].customer_email, name: leads[0].customer_name || undefined }],
+          subject,
+          textContent: text,
+          htmlContent: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;white-space:pre-wrap">${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
+          // Brevo rejects `attachment: []`; the key is omitted when there are no attachments.
+          ...brevoAttachmentField(attachments.slice(0, 5).map((att: { name?: string; dataBase64?: string }) => ({
+            name: String(att.name || 'attachment').slice(0, 180),
+            content: String(att.dataBase64 || '').replace(/^data:[^;]+;base64,/, ''),
+          }))),
+        }),
+      });
+    } catch (err: unknown) {
+      return NextResponse.json({ error: `Email send failed: ${err instanceof Error ? err.message : 'network error'}` }, { status: 502 });
+    }
+    if (!res.ok) return NextResponse.json({ error: `Email send failed: ${await res.text()}` }, { status: 502 });
+  }
+
   const inserted = await sql`
     INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
     VALUES (${leadId}, ${channel}, ${desc}, ${!fromStaff}, ${fromStaff ? 'staff_chat' : 'customer_chat'})
@@ -225,26 +253,6 @@ export async function POST(request: NextRequest) {
       INSERT INTO crm_attachments (crm_activity_id, crm_lead_id, file_name, mime_type, content_base64, size_bytes, direction)
       VALUES (${activityId}, ${leadId}, ${fileName}, ${mimeType}, ${dataBase64}, ${sizeBytes}, ${fromStaff ? 'outbound' : 'inbound'})
     `;
-  }
-
-  if (fromStaff && channel === 'email' && process.env.BREVO_API_KEY) {
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sender: { name: profile.senderName, email: profile.senderEmail },
-        replyTo: { name: profile.senderName, email: profile.replyToEmail },
-        to: [{ email: leads[0].customer_email, name: leads[0].customer_name || undefined }],
-        subject,
-        textContent: text,
-            htmlContent: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;white-space:pre-wrap">${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
-            attachment: attachments.slice(0, 5).map((att: { name?: string; dataBase64?: string }) => ({
-              name: String(att.name || 'attachment').slice(0, 180),
-              content: String(att.dataBase64 || '').replace(/^data:[^;]+;base64,/, ''),
-            })).filter((att: { content: string }) => att.content),
-          }),
-    });
-    if (!res.ok) return NextResponse.json({ error: `Email send failed: ${await res.text()}` }, { status: 502 });
   }
 
   await sql`
