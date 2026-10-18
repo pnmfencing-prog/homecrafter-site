@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { crmProfileConfig, type CrmProfileKey } from '@/lib/email-policy';
+import { saveVendorInboundSms } from '@/lib/ops-vendor-mms-core.mjs';
 
 const DAN_PHONE = '9086924847';
 const DAN_PHONE_E164 = '+19086924847';
@@ -348,71 +349,25 @@ function isCarrierSysMsg(body: string): boolean {
     || /Delivery (failed|receipt|report)/i.test(text);
 }
 
-async function appendVendorInboundSms(vendor: any, from: string, body: string): Promise<void> {
+async function appendVendorInboundSms(
+  vendor: any,
+  from: string,
+  body: string,
+  attachments: Array<{ fileName: string; mimeType: string; contentBase64: string; sizeBytes: number }> = [],
+  expectedMediaCount = 0,
+  messageSid: string | null = null,
+): Promise<void> {
   // Store carrier SYS-MSG for thread history but do not bump unread / wake triage.
-  const rawBody = (body || '').trim();
-  const carrierNoise = isCarrierSysMsg(rawBody);
-  const bodyText = rawBody || '[attachment / empty inbound SMS]';
-  const preview = bodyText.slice(0, 240);
-
-  const existing = await sql`
-    SELECT id FROM crm_comm_threads
-    WHERE vendor_id = ${vendor.id}::uuid
-      AND channel = 'sms'
-      AND title = 'SMS'
-    ORDER BY updated_at DESC
-    LIMIT 1
-  `;
-
-  let threadId = existing[0]?.id as string | undefined;
-  if (!threadId) {
-    const created = await sql`
-      INSERT INTO crm_comm_threads (vendor_id, channel, title)
-      VALUES (${vendor.id}::uuid, 'sms', 'SMS')
-      RETURNING id
-    `;
-    threadId = created[0].id;
-  }
-
-  // Avoid duplicate rows if Twilio retries the webhook.
-  const duplicate = await sql`
-    SELECT id FROM crm_comm_messages
-    WHERE thread_id = ${threadId}::uuid
-      AND actor_type = 'vendor'
-      AND direction = 'inbound'
-      AND body_text = ${bodyText}
-      AND created_at > NOW() - INTERVAL '10 minutes'
-    LIMIT 1
-  `;
-  if (!duplicate.length) {
-    await sql`
-      INSERT INTO crm_comm_messages (
-        thread_id, actor_type, actor_label, body_text, message_kind, direction
-      ) VALUES (
-        ${threadId}::uuid,
-        'vendor',
-        ${vendor.display_name || formatPhone(from)},
-        ${bodyText},
-        'chat',
-        'inbound'
-      )
-    `;
-    await sql`
-      UPDATE crm_comm_threads
-      SET
-        last_message_preview = ${preview},
-        last_message_at = NOW(),
-        updated_at = NOW(),
-        unread_count = CASE WHEN ${carrierNoise} THEN unread_count ELSE unread_count + 1 END
-      WHERE id = ${threadId}::uuid
-    `;
-  }
-
-  await sql`
-    UPDATE crm_vendor_profiles
-    SET last_activity_at = NOW(), updated_at = NOW()
-    WHERE id = ${vendor.id}::uuid
-  `;
+  // MMS media is saved like lead MMS (crm_attachments), linked to the Ops message.
+  await saveVendorInboundSms(sql, {
+    vendor,
+    actorLabel: vendor.display_name || formatPhone(from),
+    body,
+    attachments,
+    expectedMediaCount,
+    messageSid,
+    carrierNoise: isCarrierSysMsg((body || '').trim()),
+  });
 }
 
 async function findOrCreateLead(from: string, crmProfile: CrmProfileKey): Promise<{ lead: any; created: boolean }> {
@@ -518,7 +473,7 @@ export async function POST(request: NextRequest) {
       // Ops vendors / GC partners: route onto Materials vendor tile SMS thread only.
       const vendor = await findVendorByPhone(from, inboundProfile);
       if (vendor) {
-        await appendVendorInboundSms(vendor, from, body);
+        await appendVendorInboundSms(vendor, from, body, inboundAttachments, expectedMediaCount, String(form.get('MessageSid') || form.get('SmsMessageSid') || '') || null);
         suppressAnyReply = true;
         if (normalizePhone(from) !== DAN_PHONE && !isCarrierSysMsg(body)) {
           const profile = crmProfileConfig(vendor.crm_profile || inboundProfile);

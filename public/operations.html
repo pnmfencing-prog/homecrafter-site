@@ -508,6 +508,19 @@ function linkifyEscaped(escaped) {
 function renderMessageBodyHtml(raw) {
   return linkifyEscaped(esc(raw));
 }
+/** Inline photos / file links for message attachments (vendor MMS, Ops email attachments). */
+function renderMessageAttachmentsHtml(list) {
+  if (!list || !list.length) return '';
+  return '<div class="msg-attachments">' + list.map(function(a) {
+    var url = '/api/crm-attachments/' + encodeURIComponent(a.id);
+    var name = esc(a.file_name || 'attachment');
+    if (/^image\//i.test(a.mime_type || '')) {
+      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">' +
+        '<img src="' + url + '" alt="' + name + '" loading="lazy" style="display:block;max-width:220px;max-height:260px;border-radius:8px;margin-top:6px"></a>';
+    }
+    return '<div style="margin-top:6px"><a href="' + url + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">📎 ' + name + '</a></div>';
+  }).join('') + '</div>';
+}
 function syncOpsDeepLink() {
   try {
     var u = new URL(window.location.href);
@@ -735,7 +748,7 @@ function refreshOpenThreadQuietly() {
         var cls = m.actor_type === 'staff' ? 'staff' : (m.actor_type === 'vendor' ? 'vendor' : 'bot');
         return '<div class="bubble ' + cls + '">' +
           '<div class="who">' + esc(m.actor_label || m.actor_type) + '</div>' +
-          '<div>' + renderMessageBodyHtml(m.body_text) + '</div>' +
+          '<div>' + renderMessageBodyHtml(m.body_text) + '</div>' + renderMessageAttachmentsHtml(m.attachments) +
           '<div class="when">' + esc(fmtWhen(m.created_at)) + '</div>' +
         '</div>';
       }).join('');
@@ -1003,7 +1016,7 @@ function openThread(id) {
           var cls = m.actor_type === 'staff' ? 'staff' : (m.actor_type === 'vendor' ? 'vendor' : 'bot');
           return '<div class="bubble ' + cls + '">' +
             '<div class="who">' + esc(m.actor_label || m.actor_type) + '</div>' +
-            '<div>' + renderMessageBodyHtml(m.body_text) + '</div>' +
+            '<div>' + renderMessageBodyHtml(m.body_text) + '</div>' + renderMessageAttachmentsHtml(m.attachments) +
             '<div class="when">' + esc(fmtWhen(m.created_at)) + '</div>' +
           '</div>';
         }).join('');
