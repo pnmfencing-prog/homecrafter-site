@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { isCrmAdmin, previewText } from '@/lib/crm-admin';
+import { groupMessageAttachments } from '@/lib/ops-vendor-mms-core.mjs';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -37,7 +38,17 @@ export async function GET(
     ORDER BY created_at ASC, id ASC
   `;
 
-  return NextResponse.json({ thread: thread[0], messages });
+  // Media/attachments linked to each message (vendor MMS photos, Ops email attachments).
+  const attachmentRows = await sql`
+    SELECT ma.message_id, a.id, a.file_name, a.mime_type, a.size_bytes
+    FROM crm_comm_message_attachments ma
+    JOIN crm_comm_messages m ON m.id = ma.message_id
+    JOIN crm_attachments a ON a.id = ma.attachment_id
+    WHERE m.thread_id = ${id}::uuid
+    ORDER BY a.id ASC
+  `;
+
+  return NextResponse.json({ thread: thread[0], messages: groupMessageAttachments(messages, attachmentRows) });
 }
 
 export async function POST(
