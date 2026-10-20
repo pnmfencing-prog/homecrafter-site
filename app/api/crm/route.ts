@@ -8,6 +8,7 @@ import {
   pnmFencingEmailPausedResponse,
 } from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
+import { validateUpdateBody, validateStatusBody, persistedMismatches } from '@/lib/crm-update-core.mjs';
 import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
 import {
   appendVendorOutboundSms,
@@ -1245,7 +1246,10 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === 'update_status') {
-    const { id, status, lost_reason } = body;
+    const statusCheck = validateStatusBody(body);
+    if (!statusCheck.ok) return NextResponse.json({ success: false, error: statusCheck.error }, { status: statusCheck.httpStatus });
+    const { id, status } = statusCheck;
+    const { lost_reason } = body;
     const prevRows = await sql`
       SELECT id, status, campaign_id, campaign_started_at, crm_profile
       FROM crm_leads
@@ -1255,8 +1259,17 @@ export async function POST(request: NextRequest) {
     if (!prevRows.length) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     const prev = prevRows[0];
     const prevStatus = String(prev.status || '');
+    let msgRcvdHold = false;
 
-    await sql`UPDATE crm_leads SET status = ${status}, updated_at = NOW() WHERE id = ${id}`;
+    const statusRows = await sql`UPDATE crm_leads SET status = ${status}, updated_at = NOW() WHERE id = ${id}
+      RETURNING status`;
+    const statusMismatch = persistedMismatches({ status }, statusRows[0]);
+    if (statusMismatch.length) {
+      return NextResponse.json(
+        { success: false, error: `Status change to ${status} was not applied`, persisted_status: statusRows[0]?.status ?? null },
+        { status: 409 },
+      );
+    }
 
     if (status === 'contacted') await sql`UPDATE crm_leads SET contacted_at = NOW() WHERE id = ${id}`;
     if (status === 'quoted') await sql`UPDATE crm_leads SET quoted_at = NOW() WHERE id = ${id}`;
@@ -1304,7 +1317,7 @@ export async function POST(request: NextRequest) {
           const campaignName = campRows[0]?.name || `Campaign #${quoteCampaignId}`;
           // New enroll or switch-from-other: set Quote FU id + start (tomorrow 10 ET, same as manual assign).
           // campaign_started_at only preserved when already null-path is handled above (alreadyOnCampaign).
-          await sql`
+          const enrolled = await sql`
             UPDATE crm_leads
             SET campaign_id = ${quoteCampaignId},
                 campaign_started_at = ${campaignStartAt},
@@ -1315,7 +1328,10 @@ export async function POST(request: NextRequest) {
                 outreach_paused = false,
                 updated_at = NOW()
             WHERE id = ${id}
+            RETURNING campaign_id, outreach_paused
           `;
+          // MSG RCVD trigger may keep outreach_paused=true (by design). Surface it instead of hiding it.
+          if (enrolled[0]?.outreach_paused) msgRcvdHold = true;
           await sql`
             INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
             VALUES (${id}, 'status_change', ${`Auto-enrolled Quote Follow Up on quoted: ${campaignName}`}, false, 'campaign_system')
@@ -1391,30 +1407,51 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, status, ...(msgRcvdHold ? { msg_rcvd_hold: true, warning: 'Campaign enrolled but kept paused: unanswered customer message (MSG RCVD hold).' } : {}) });
   }
 
   if (action === 'update') {
-    const { id, quoted_amount, job_value, assigned_to, next_follow_up, notes, service_type, customer_email, customer_phone, customer_name, customer_address, customer_city, customer_state, customer_zip, twister_work_order, lowes_store, source, install_start } = body;
-    if (quoted_amount !== undefined) await sql`UPDATE crm_leads SET quoted_amount = ${quoted_amount}, updated_at = NOW() WHERE id = ${id}`;
-    if (job_value !== undefined) await sql`UPDATE crm_leads SET job_value = ${job_value}, updated_at = NOW() WHERE id = ${id}`;
-    if (assigned_to !== undefined) await sql`UPDATE crm_leads SET assigned_to = ${assigned_to}, updated_at = NOW() WHERE id = ${id}`;
-    if (next_follow_up !== undefined) await sql`UPDATE crm_leads SET next_follow_up = ${next_follow_up}, updated_at = NOW() WHERE id = ${id}`;
+    // 2026-10-20: never report success for a change that did not happen.
+    // Unknown keys (status, campaign_id, typos…) are rejected BEFORE any write.
+    const check = validateUpdateBody(body);
+    if (!check.ok) {
+      return NextResponse.json(
+        { success: false, error: check.error, unsupported_fields: check.unsupported_fields, use: check.use },
+        { status: check.httpStatus },
+      );
+    }
+    const id = check.id;
+    const { quoted_amount, job_value, assigned_to, next_follow_up, notes, service_type, customer_email, customer_phone, customer_name, customer_address, customer_city, customer_state, customer_zip, twister_work_order, lowes_store, source, install_start } = body;
+    const exists = await sql`SELECT id FROM crm_leads WHERE id = ${id} LIMIT 1`;
+    if (!exists.length) return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
+
+    const notApplied: string[] = [];
+    const track = (field: string, rows: Record<string, unknown>[]) => { if (!rows.length) notApplied.push(field); };
+    if (quoted_amount !== undefined) track('quoted_amount', await sql`UPDATE crm_leads SET quoted_amount = ${quoted_amount}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (job_value !== undefined) track('job_value', await sql`UPDATE crm_leads SET job_value = ${job_value}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (assigned_to !== undefined) track('assigned_to', await sql`UPDATE crm_leads SET assigned_to = ${assigned_to}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (next_follow_up !== undefined) track('next_follow_up', await sql`UPDATE crm_leads SET next_follow_up = ${next_follow_up}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
     if (notes !== undefined) {
-      await sql`UPDATE crm_leads SET notes = ${notes}, updated_at = NOW() WHERE id = ${id}`;
+      track('notes', await sql`UPDATE crm_leads SET notes = ${notes}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
       await sql`UPDATE calendar_events SET description = ${notes || null}, updated_at = NOW() WHERE crm_lead_id = ${id}`;
     }
-    if (service_type !== undefined) await sql`UPDATE crm_leads SET service_type = ${service_type}, updated_at = NOW() WHERE id = ${id}`;
-    if (customer_email !== undefined) await sql`UPDATE crm_leads SET customer_email = ${customer_email}, updated_at = NOW() WHERE id = ${id}`;
-    if (customer_phone !== undefined) await sql`UPDATE crm_leads SET customer_phone = ${customer_phone}, updated_at = NOW() WHERE id = ${id}`;
-    if (customer_name !== undefined) await sql`UPDATE crm_leads SET customer_name = ${customer_name}, updated_at = NOW() WHERE id = ${id}`;
-    if (customer_address !== undefined) await sql`UPDATE crm_leads SET customer_address = ${customer_address}, updated_at = NOW() WHERE id = ${id}`;
-    if (customer_city !== undefined) await sql`UPDATE crm_leads SET customer_city = ${customer_city}, updated_at = NOW() WHERE id = ${id}`;
-    if (customer_state !== undefined) await sql`UPDATE crm_leads SET customer_state = ${customer_state}, updated_at = NOW() WHERE id = ${id}`;
-    if (customer_zip !== undefined) await sql`UPDATE crm_leads SET customer_zip = ${customer_zip}, updated_at = NOW() WHERE id = ${id}`;
-    if (twister_work_order !== undefined) await sql`UPDATE crm_leads SET twister_work_order = ${twister_work_order}, updated_at = NOW() WHERE id = ${id}`;
-    if (lowes_store !== undefined) await sql`UPDATE crm_leads SET lowes_store = ${lowes_store}, updated_at = NOW() WHERE id = ${id}`;
-    if (source !== undefined) await sql`UPDATE crm_leads SET source = ${source}, updated_at = NOW() WHERE id = ${id}`;
+    if (service_type !== undefined) track('service_type', await sql`UPDATE crm_leads SET service_type = ${service_type}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (customer_email !== undefined) track('customer_email', await sql`UPDATE crm_leads SET customer_email = ${customer_email}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (customer_phone !== undefined) track('customer_phone', await sql`UPDATE crm_leads SET customer_phone = ${customer_phone}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (customer_name !== undefined) track('customer_name', await sql`UPDATE crm_leads SET customer_name = ${customer_name}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (customer_address !== undefined) track('customer_address', await sql`UPDATE crm_leads SET customer_address = ${customer_address}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (customer_city !== undefined) track('customer_city', await sql`UPDATE crm_leads SET customer_city = ${customer_city}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (customer_state !== undefined) track('customer_state', await sql`UPDATE crm_leads SET customer_state = ${customer_state}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (customer_zip !== undefined) track('customer_zip', await sql`UPDATE crm_leads SET customer_zip = ${customer_zip}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (twister_work_order !== undefined) track('twister_work_order', await sql`UPDATE crm_leads SET twister_work_order = ${twister_work_order}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (lowes_store !== undefined) track('lowes_store', await sql`UPDATE crm_leads SET lowes_store = ${lowes_store}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (source !== undefined) track('source', await sql`UPDATE crm_leads SET source = ${source}, updated_at = NOW() WHERE id = ${id} RETURNING id`);
+    if (notApplied.length) {
+      return NextResponse.json(
+        { success: false, error: `Update not applied for: ${notApplied.join(', ')}`, not_applied: notApplied },
+        { status: 409 },
+      );
+    }
 
     let twisterPush: any = null;
     if (install_start !== undefined) {
@@ -1429,20 +1466,22 @@ export async function POST(request: NextRequest) {
       const wo = String(lead.twister_work_order || '').trim();
 
       if (installVal === null) {
-        await sql`
+        const cleared = await sql`
           UPDATE crm_leads
           SET install_start = NULL,
               install_start_twister_status = NULL,
               install_start_twister_error = NULL,
               updated_at = NOW()
           WHERE id = ${id}
+          RETURNING id
         `;
+        if (!cleared.length) return NextResponse.json({ success: false, error: 'Update not applied for: install_start', not_applied: ['install_start'] }, { status: 409 });
         twisterPush = { status: 'cleared' };
       } else {
         const isLowes = profile === 'lowes_fencing';
         const pushStatus = isLowes && wo ? 'pending' : 'skipped';
         const skipReason = !isLowes ? 'non-lowes profile' : (!wo ? 'missing twister_work_order' : null);
-        await sql`
+        const saved = await sql`
           UPDATE crm_leads
           SET install_start = ${installVal},
               install_start_twister_status = ${pushStatus},
@@ -1450,7 +1489,9 @@ export async function POST(request: NextRequest) {
               install_start_twister_pushed_at = NULL,
               updated_at = NOW()
           WHERE id = ${id}
+          RETURNING id
         `;
+        if (!saved.length) return NextResponse.json({ success: false, error: 'Update not applied for: install_start', not_applied: ['install_start'] }, { status: 409 });
         const desc = pushStatus === 'pending'
           ? `Install start saved (${installVal}); Twister Schedule Install Date queued for WO ${wo}`
           : `Install start saved (${installVal}); Twister push skipped (${skipReason || 'n/a'})`;
@@ -1462,7 +1503,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, twister_push: twisterPush });
+    return NextResponse.json({ success: true, updated_fields: check.fields, twister_push: twisterPush });
   }
 
   if (action === 'add_note') {

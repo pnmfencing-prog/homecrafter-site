@@ -566,8 +566,9 @@ export async function POST(request: NextRequest) {
       }
       const campaignStartAt = await nextCampaignStartExpression(campaignId, campaign);
       const description = campaignId ? `Assigned to campaign: ${campaignName || `Campaign #${campaignId}`}` : 'Campaign assignment removed';
+      let assignRows: Record<string, unknown>[];
       if (campaignId) {
-        await sql`
+        assignRows = await sql`
           UPDATE crm_leads
           SET campaign_id = ${campaignId}, campaign_started_at = ${campaignStartAt},
               outreach_count = 0,
@@ -577,9 +578,10 @@ export async function POST(request: NextRequest) {
               outreach_paused = false,
               updated_at = NOW()
           WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
+          RETURNING id, campaign_id, outreach_paused
         `;
       } else {
-        await sql`
+        assignRows = await sql`
           UPDATE crm_leads
           SET campaign_id = NULL, campaign_started_at = NULL,
               outreach_count = 0,
@@ -587,13 +589,20 @@ export async function POST(request: NextRequest) {
               last_outreach_at = NULL,
               updated_at = NOW()
           WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
+          RETURNING id, campaign_id, outreach_paused
         `;
       }
+      // 2026-10-20: never log/return success when the scoped UPDATE matched nothing.
+      if (!assignRows.length || (assignRows[0].campaign_id == null ? null : Number(assignRows[0].campaign_id)) !== campaignId) {
+        return NextResponse.json({ success: false, error: 'Campaign change was not applied (lead not found in this profile)' }, { status: 409 });
+      }
+      // MSG RCVD trigger keeps outreach_paused=true while a customer message is unanswered (by design).
+      const msgRcvdHold = Boolean(campaignId && assignRows[0].outreach_paused);
       await sql`
         INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
         VALUES (${leadId}, 'status_change', ${description}, false, 'campaign_system')
       `;
-      return NextResponse.json({ success: true, campaign_name: campaignName });
+      return NextResponse.json({ success: true, campaign_name: campaignName, campaign_id: campaignId, ...(msgRcvdHold ? { msg_rcvd_hold: true, warning: 'Assigned but kept paused: unanswered customer message (MSG RCVD hold).' } : {}) });
     } catch (error: any) {
       console.error('assign_lead failed', error);
       return NextResponse.json({ error: error?.message || 'Could not assign campaign' }, { status: 500 });
