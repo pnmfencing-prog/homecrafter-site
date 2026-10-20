@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { normalizeCrmProfile } from '@/lib/email-policy';
 import { assertSmsCapable } from '@/lib/sms-guard';
+import { closeLeadOnSign, signSmsSuffix } from '@/lib/proposal-sign-core.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,13 +88,19 @@ export async function POST(request: NextRequest) {
 
     const proposal = updated[0] || before;
 
+    // 2026-10-20 (#1300 / lead 12325): signing closes the CRM lead - sold, campaign
+    // cleared, outreach paused - so Quote FU never texts a signed customer. Runs on
+    // every sign (idempotent); never fails the signature itself.
+    const crmClose = await closeLeadOnSign(sql, proposal, signature_name, normalizeCrmProfile);
+    if (!crmClose.ok) console.error('[proposals/sign] CRM lead close failed:', proposal.estimate_no, crmClose.error);
+
     // Real product hook: immediate Dan SMS on first successful sign (not drafts/opens/re-signs)
     if (!alreadySigned) {
       try {
         const leadBit = proposal.crm_lead_id ? ` — lead ${proposal.crm_lead_id}` : '';
         const profile = proposal.crm_profile || 'unknown';
         const text =
-          `✅ Proposal signed: #${proposal.estimate_no} — ${proposal.client_name || 'Customer'} — ${formatMoney(proposal.total)} — ${profile}${leadBit}`;
+          `✅ Proposal signed: #${proposal.estimate_no} — ${proposal.client_name || 'Customer'} — ${formatMoney(proposal.total)} — ${profile}${leadBit}${signSmsSuffix(crmClose)}`;
         await sendDanSignSms(text, proposal.crm_profile);
       } catch (notifyErr: any) {
         console.error('[proposals/sign] Dan notify failed:', notifyErr?.message || notifyErr);
