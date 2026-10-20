@@ -526,8 +526,15 @@ export async function POST(request: NextRequest) {
       const leadRows = await sql`SELECT id, campaign_id, crm_profile FROM crm_leads WHERE id = ${leadId} LIMIT 1`;
       if (!leadRows.length) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
       const leadProfile = normalizeCrmProfile(leadRows[0].crm_profile);
-      if (leadProfile !== profile) {
-        return NextResponse.json({ error: 'Lead belongs to a different CRM profile' }, { status: 400 });
+      // 2026-10-20: when the caller gives no profile (body.crm_profile / ?profile=), use the lead's own.
+      // An explicit profile that disagrees with the lead is still rejected (guard unchanged).
+      const requestedProfileRaw = body.crm_profile || request.nextUrl.searchParams.get('profile');
+      const assignProfile = requestedProfileRaw ? profile : leadProfile;
+      if (leadProfile !== assignProfile) {
+        return NextResponse.json({
+          error: `Lead belongs to a different CRM profile (lead is ${leadProfile}, request says ${assignProfile}). Include crm_profile: "${leadProfile}" (the lead's profile) in the body.`,
+          lead_crm_profile: leadProfile,
+        }, { status: 400 });
       }
       const campaignRows = campaignId
         ? await sql`SELECT name, source, crm_profile FROM crm_campaigns WHERE id = ${campaignId} LIMIT 1`
@@ -544,7 +551,7 @@ export async function POST(request: NextRequest) {
         // Explicit "Restart from step 1" (Dan 2026-10-09): counters to 0, unpause, clear responded.
         if (!campaignId) return NextResponse.json({ error: 'Pick a campaign to restart' }, { status: 400 });
         const startExpr = await nextCampaignStartExpression(campaignId, campaign);
-        const res = await restartFromStep1(leadId, campaignId, profile, startExpr);
+        const res = await restartFromStep1(leadId, campaignId, assignProfile, startExpr);
         if (!res) return NextResponse.json({ error: 'Lead not found in this profile' }, { status: 404 });
         const label = campaignName || `Campaign #${campaignId}`;
         const whenText = describeRestartStart(res.start_at);
@@ -556,7 +563,7 @@ export async function POST(request: NextRequest) {
       }
       if (campaignId && currentCampaignId === campaignId) {
         // Same campaign: continue where it left off (Dan 2026-10-08). No counter reset.
-        const cont = await continueSameCampaign(leadId, campaignId, profile);
+        const cont = await continueSameCampaign(leadId, campaignId, assignProfile);
         const contText = describeContinue(cont);
         await sql`
           INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
@@ -577,7 +584,7 @@ export async function POST(request: NextRequest) {
               customer_responded = false,
               outreach_paused = false,
               updated_at = NOW()
-          WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
+          WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${assignProfile}
           RETURNING id, campaign_id, outreach_paused
         `;
       } else {
@@ -588,7 +595,7 @@ export async function POST(request: NextRequest) {
               email_outreach_count = 0,
               last_outreach_at = NULL,
               updated_at = NOW()
-          WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${profile}
+          WHERE id = ${leadId} AND COALESCE(crm_profile, 'fencecrafters') = ${assignProfile}
           RETURNING id, campaign_id, outreach_paused
         `;
       }

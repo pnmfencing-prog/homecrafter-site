@@ -107,3 +107,17 @@ test('route: assign_lead checks rowcount and reports MSG RCVD hold', () => {
   for (const u of updates) assert.match(u, /RETURNING/);
   assert.match(b, /msg_rcvd_hold/);
 });
+
+test('route: assign_lead falls back to lead profile and error names crm_profile', () => {
+  const b = block(campRoute, "if (action === 'assign_lead') {", "if (action === 'bulk_assign') {");
+  // explicit profile still enforced; omitted profile uses the lead's own
+  assert.match(b, /const requestedProfileRaw = body\.crm_profile \|\| request\.nextUrl\.searchParams\.get\('profile'\);/);
+  assert.match(b, /const assignProfile = requestedProfileRaw \? profile : leadProfile;/);
+  assert.match(b, /if \(leadProfile !== assignProfile\)/);
+  assert.match(b, /Include crm_profile: "\$\{leadProfile\}" \(the lead's profile\) in the body\./);
+  // campaign-vs-lead guard unchanged
+  assert.match(b, /normalizeCrmProfile\(campaignRows\[0\]\.crm_profile\) !== leadProfile/);
+  // every write after the guard is scoped by assignProfile, not the raw request profile
+  const after = b.slice(b.indexOf('const assignProfile'));
+  assert.doesNotMatch(after.replace(/requestedProfileRaw \? profile/, ''), /= \$\{profile\}|, profile[,)]/);
+});
