@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { crmProfileConfig, type CrmProfileKey } from '@/lib/email-policy';
 import { saveVendorInboundSms } from '@/lib/ops-vendor-mms-core.mjs';
+import { collectMedia, mediaCount, shouldRecordInbound } from '@/lib/twilio-media-core.mjs';
 
 const DAN_PHONE = '9086924847';
 const DAN_PHONE_E164 = '+19086924847';
@@ -254,37 +255,13 @@ function extensionFromMime(mimeType: string): string {
 }
 
 async function collectTwilioMedia(form: FormData): Promise<Array<{ fileName: string; mimeType: string; contentBase64: string; sizeBytes: number }>> {
-  const count = Math.min(Number(form.get('NumMedia') || 0) || 0, 10);
-  if (!count) return [];
-
-  const auth = TWILIO_SID && TWILIO_TOKEN ? Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64') : '';
-  const attachments = [];
-  for (let i = 0; i < count; i += 1) {
-    const mediaUrl = String(form.get(`MediaUrl${i}`) || '');
-    const mimeType = String(form.get(`MediaContentType${i}`) || 'application/octet-stream').slice(0, 120);
-    if (!mediaUrl) continue;
-
-    try {
-      const res = await fetch(mediaUrl, {
-        headers: auth ? { Authorization: `Basic ${auth}` } : undefined,
-      });
-      if (!res.ok) {
-        console.error(`Twilio media fetch failed (${res.status}) for ${mediaUrl}`);
-        continue;
-      }
-      const arrayBuffer = await res.arrayBuffer();
-      const buf = Buffer.from(arrayBuffer);
-      if (!buf.length) continue;
-      attachments.push({
-        fileName: `sms-attachment-${Date.now()}-${i + 1}.${extensionFromMime(mimeType)}`.slice(0, 180),
-        mimeType,
-        contentBase64: buf.toString('base64'),
-        sizeBytes: buf.length,
-      });
-    } catch (err) {
-      console.error('Twilio media fetch error', err);
-    }
-  }
+  // 2026-10-20: short retry + overall budget (Twilio webhook timeout is 15s);
+  // failures are counted by the caller via NumMedia (see shouldRecordInbound).
+  const auth = TWILIO_SID && TWILIO_TOKEN ? `Basic ${Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64')}` : '';
+  const { attachments } = await collectMedia((name: string) => form.get(name), {
+    authHeader: auth,
+    extensionFromMime,
+  });
   return attachments;
 }
 
@@ -453,14 +430,17 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const expectedMediaCount = Math.min(Number(form.get('NumMedia') || 0) || 0, 10);
+  const expectedMediaCount = mediaCount(form.get('NumMedia'));
+  const inboundMessageSid = String(form.get('MessageSid') || form.get('SmsMessageSid') || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64);
   const inboundAttachments = await collectTwilioMedia(form);
   let notificationText = '';
   let notificationProfile: CrmProfileKey = inboundProfile;
   let suppressAnyReply = false;
   let lead: any = null;
 
-  if (from && (body || inboundAttachments.length)) {
+  // 2026-10-20 (Gina DAmato 12305): a photo-only MMS whose media download failed
+  // used to be dropped here entirely. Record it whenever Twilio says it had media.
+  if (shouldRecordInbound({ from, body, attachmentCount: inboundAttachments.length, expectedMediaCount })) {
     const contractor = await findContractorByPhone(from);
 
     if (contractor) {
@@ -487,7 +467,7 @@ export async function POST(request: NextRequest) {
       lead = result.lead;
       const attachmentSummary = inboundAttachments.length
         ? `📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}`
-        : (expectedMediaCount ? `⚠️ Customer sent ${expectedMediaCount} media attachment${expectedMediaCount === 1 ? '' : 's'}, but the file${expectedMediaCount === 1 ? '' : 's'} could not be retrieved from Twilio.` : '');
+        : (expectedMediaCount ? `⚠️ Customer sent ${expectedMediaCount} media attachment${expectedMediaCount === 1 ? '' : 's'}, but the file${expectedMediaCount === 1 ? '' : 's'} could not be retrieved from Twilio${inboundMessageSid ? ` (message ${inboundMessageSid})` : ''}.` : '');
       const messageText = body || (expectedMediaCount ? 'Customer sent media.' : 'See attached.');
       const description = `📥 ${messageText}${attachmentSummary ? `\n\n${attachmentSummary}` : ''}`;
       suppressAnyReply = body ? isOptOutOrAngryReply(body) : false;
@@ -545,7 +525,7 @@ export async function POST(request: NextRequest) {
         WHERE id = ${lead.id}
       `;
     } else {
-      const replyStatus = routeReplyStatus(classifyCustomerReply(body || '', inboundAttachments.length), lead);
+      const replyStatus = routeReplyStatus(classifyCustomerReply(body || '', Math.max(inboundAttachments.length, expectedMediaCount)), lead);
       await sql`
         UPDATE crm_leads
         SET customer_responded = true,
@@ -594,7 +574,7 @@ export async function POST(request: NextRequest) {
       const profile = crmProfileConfig(lead.crm_profile || inboundProfile);
       notificationProfile = profile.key;
       const threadUrl = boardUrlForProfile(profile.key, lead.id);
-      notificationText = `New ${profile.label} text from ${name} (${formatPhone(from)}): ${body || '[attachment]'}${inboundAttachments.length ? `\n📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : ''}\n\nOpen thread: ${threadUrl}`;
+      notificationText = `New ${profile.label} text from ${name} (${formatPhone(from)}): ${body || '[attachment]'}${inboundAttachments.length ? `\n📎 ${inboundAttachments.length} attachment${inboundAttachments.length === 1 ? '' : 's'}` : (expectedMediaCount ? `\n⚠️ ${expectedMediaCount} media not retrieved - check Twilio` : '')}\n\nOpen thread: ${threadUrl}`;
 
       // Dan locked 2026-09-28: no immediate customer bot auto-reply on inbound
       // (new-lead welcome / after-hours office-hours TwIML removed). Humans get
