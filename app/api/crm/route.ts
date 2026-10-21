@@ -8,7 +8,7 @@ import {
   pnmFencingEmailPausedResponse,
 } from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
-import { validateUpdateBody, validateStatusBody, persistedMismatches } from '@/lib/crm-update-core.mjs';
+import { validateUpdateBody, validateStatusBody, persistedMismatches, resolveLeadIdBody, LEAD_WRITE_ACTIONS } from '@/lib/crm-update-core.mjs';
 import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
 import {
   appendVendorOutboundSms,
@@ -1155,6 +1155,17 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const { action } = body;
+
+  // 2026-10-21 orphan fix: lead-scoped writes must name an existing lead (id | lead_id | crm_lead_id).
+  if ((LEAD_WRITE_ACTIONS as readonly string[]).includes(action)) {
+    const lr = resolveLeadIdBody(body);
+    if (!lr.ok) return NextResponse.json({ success: false, error: lr.error }, { status: lr.httpStatus });
+    const found = await sql`SELECT id FROM crm_leads WHERE id = ${lr.id} LIMIT 1`;
+    if (!found.length) {
+      return NextResponse.json({ success: false, error: `Lead ${lr.id} not found. Nothing was saved.` }, { status: 400 });
+    }
+    body.id = lr.id;
+  }
 
   if (action === 'find_or_create') {
     const name = (body.customer_name || '').trim();
