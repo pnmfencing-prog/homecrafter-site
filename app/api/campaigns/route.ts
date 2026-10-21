@@ -119,7 +119,7 @@ function describeContinue(r: ContinueResult | null): string {
   if (r.next_due_at) {
     const due = new Date(r.next_due_at as string);
     if (due.getTime() <= Date.now()) {
-      when = ' (due now: sends at the next sender cycle; quiet hours 9 PM-8 AM ET apply)';
+      when = ' (due now: sends at the next sender cycle; campaign texts 8:30 AM-7:15 PM ET, emails 7:59 AM-7:15 PM ET)';
     } else {
       const fmt = new Intl.DateTimeFormat('en-US', {
         timeZone: 'America/New_York', weekday: 'short', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit',
@@ -178,7 +178,7 @@ async function restartFromStep1(leadId: number, campaignId: number, profile: str
 function describeRestartStart(startAt: unknown): string {
   if (!startAt) return '';
   const due = new Date(startAt as string);
-  if (due.getTime() <= Date.now() + 60 * 1000) return 'step 1 is due now (sends at the next sender cycle; quiet hours 9 PM-8 AM ET apply)';
+  if (due.getTime() <= Date.now() + 60 * 1000) return 'step 1 is due now (sends at the next sender cycle; campaign texts 8:30 AM-7:15 PM ET, emails 7:59 AM-7:15 PM ET)';
   const fmt = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York', weekday: 'short', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit',
   });
