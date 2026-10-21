@@ -5,7 +5,7 @@ import { normalizeInstallStart as n } from '../lib/crm-update-core.mjs';
 test('10/22 00:00Z -> Thu 10/22 8:00 AM ET', () => {
   const v = n('2026-10-22T00:00:00Z');
   assert.equal(v, '2026-10-22T12:00:00.000Z');
-  assert.equal(new Date(v).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric' }), 'Thu 8 AM');
+  assert.equal(new Date(v).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric' }), 'Thu, 8 AM');
 });
 test('date-only and midnight forms -> 8 AM ET same date', () => {
   for (const s of ['2026-10-22', '2026-10-22T00:00', '2026-10-22 00:00:00', '2026-10-22T00:00:00.000Z', '2026-10-22T00:00:00+00:00', '2026-10-22T04:00:00.000Z', '2026-10-22T00:00:00-04:00']) {
