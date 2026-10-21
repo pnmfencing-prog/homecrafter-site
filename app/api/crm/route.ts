@@ -8,7 +8,7 @@ import {
   pnmFencingEmailPausedResponse,
 } from '@/lib/email-policy';
 import { normalizeText } from '@/lib/text';
-import { validateUpdateBody, validateStatusBody, persistedMismatches, resolveLeadIdBody, LEAD_WRITE_ACTIONS } from '@/lib/crm-update-core.mjs';
+import { validateUpdateBody, validateStatusBody, persistedMismatches, resolveLeadIdBody, LEAD_WRITE_ACTIONS, normalizeInstallStart } from '@/lib/crm-update-core.mjs';
 import { assertSmsCapable, normalizeSmsPhone } from '@/lib/sms-guard';
 import {
   appendVendorOutboundSms,
@@ -1466,7 +1466,8 @@ export async function POST(request: NextRequest) {
 
     let twisterPush: any = null;
     if (install_start !== undefined) {
-      const installVal = install_start === null || install_start === '' ? null : String(install_start);
+      // 2026-10-21: date-only / midnight values -> that date 8:00 AM ET (installs are AM/PM slots).
+      const installVal = normalizeInstallStart(install_start);
       const leadRows = await sql`
         SELECT id, crm_profile, twister_work_order, install_start
         FROM crm_leads WHERE id = ${id} LIMIT 1
