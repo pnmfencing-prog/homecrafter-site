@@ -488,7 +488,9 @@ export async function GET(request: NextRequest) {
             OR (${readFilter || 'all'} = 'unread' AND l.is_read IS NOT TRUE))
           AND (${messageFilter || 'all'} = 'all'
             OR (${messageFilter || 'all'} = 'you' AND latest.is_from_customer IS FALSE)
-            OR (${messageFilter || 'all'} = 'customer' AND latest.is_from_customer IS TRUE))
+            OR (${messageFilter || 'all'} = 'customer' AND latest.is_from_customer IS TRUE)
+            OR (${messageFilter || 'all'} = 'ui' AND l.status IS DISTINCT FROM 'lost'
+              AND EXISTS (SELECT 1 FROM crm_ui_unresponded u WHERE u.lead_id = l.id)))
           AND (${flaggedOnly} = false OR l.flagged IS TRUE)
           AND (${includeOptOuts} = true OR l.lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
           AND (${validSinceFilter} = false OR COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
@@ -540,6 +542,37 @@ export async function GET(request: NextRequest) {
       SELECT * FROM ranked
       WHERE status_rank <= ${perStatusLimit}
       ORDER BY workflow_activity_at DESC, created_at DESC, id DESC`;
+  } else if (messageFilter === 'ui' && !search) {
+    // 2026-10-22 "ui" button (Unresponded Inbound): the customer's latest inbound has no real (human) reply after it,
+    // even if campaign/auto texts went out since. Read-only view crm_ui_unresponded. Lost leads excluded.
+    leads = await sql`
+      SELECT l.*, LEFT(COALESCE(latest.description, ''), 900) AS latest_message_preview, latest.created_at AS latest_message_at,
+             latest.is_from_customer AS latest_message_from_customer, latest.created_by AS latest_message_created_by,
+             latest.activity_type AS latest_message_type
+      FROM crm_ui_unresponded u
+      JOIN crm_leads l ON l.id = u.lead_id
+      LEFT JOIN LATERAL (
+        SELECT description, created_at, is_from_customer, created_by, activity_type
+        FROM crm_activity
+        WHERE crm_lead_id = l.id AND activity_type IN ('sms', 'email')
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) latest ON true
+      WHERE COALESCE(l.crm_profile, 'fencecrafters') = ${profileFilter}
+        AND l.status IS DISTINCT FROM 'ops_vendor_not_customer'
+        AND l.status IS DISTINCT FROM 'lost'
+        AND NOT EXISTS (
+          SELECT 1 FROM crm_vendor_profiles v
+          WHERE v.status <> 'archived'
+            AND right(regexp_replace(coalesce(v.primary_phone, ''), '[^0-9]', '', 'g'), 10)
+              = right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)
+            AND length(right(regexp_replace(coalesce(l.customer_phone, ''), '[^0-9]', '', 'g'), 10)) = 10
+        )
+        AND (${includeOptOuts} = true OR l.lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
+        AND (${status || 'all'} = 'all' OR l.status = ${status || 'all'})
+        AND (${source || 'all'} = 'all' OR l.source = ${source || 'all'})
+      ORDER BY u.inbound_at DESC, l.id DESC
+      LIMIT ${resultLimit || 1000}`;
   } else if (status && status !== 'all' && search) {
     const normalizedSearch = normalizeText(search).trim().replace(/\s+/g, ' ');
     const searchPat = `%${normalizedSearch}%`;
@@ -827,6 +860,21 @@ export async function GET(request: NextRequest) {
       ORDER BY COALESCE(latest.created_at, l.last_message_at, l.updated_at, l.created_at) DESC, l.created_at DESC, l.id DESC`;
   }
 
+  // 2026-10-22 ui button: tag each lead with its unanswered-inbound time and the >72 weekday-hour flag.
+  if (messageFilter === 'ui' && !search) {
+    const uiIds = leads.map((lead) => Number(lead.id)).filter(Boolean);
+    const uiRows: any[] = uiIds.length
+      ? await sql`SELECT lead_id, inbound_at, over_72 FROM crm_ui_unresponded WHERE lead_id = ANY(${uiIds}::int[])`
+      : [];
+    const uiById = new Map<string, any>(uiRows.map((r: any) => [String(r.lead_id), r]));
+    leads = leads
+      .filter((lead) => uiById.has(String(lead.id)) && lead.status !== 'lost')
+      .map((lead) => {
+        const u: any = uiById.get(String(lead.id));
+        return { ...lead, ui_inbound_at: u.inbound_at, ui_over_72: !!u.over_72 };
+      });
+  }
+
   if (readFilter === 'unread') {
     leads = leads.filter((lead) => lead.is_read !== true);
   } else if (readFilter === 'read') {
@@ -1084,7 +1132,9 @@ export async function GET(request: NextRequest) {
               OR (${readFilter || 'all'} = 'read' AND crm_leads.is_read IS TRUE))
             AND (${messageFilter || 'all'} = 'all'
               OR (${messageFilter || 'all'} = 'you' AND latest.is_from_customer IS FALSE)
-              OR (${messageFilter || 'all'} = 'customer' AND latest.is_from_customer IS TRUE))
+              OR (${messageFilter || 'all'} = 'customer' AND latest.is_from_customer IS TRUE)
+              OR (${messageFilter || 'all'} = 'ui' AND crm_leads.status IS DISTINCT FROM 'lost'
+                AND EXISTS (SELECT 1 FROM crm_ui_unresponded u WHERE u.lead_id = crm_leads.id)))
             AND (${flaggedOnly} = false OR crm_leads.flagged IS TRUE)
             AND (${includeOptOuts} = true OR crm_leads.lost_reason IS DISTINCT FROM 'SMS opt-out (STOP/END)')
             AND (${validSinceFilter} = false OR COALESCE(latest.created_at, crm_leads.last_message_at, crm_leads.updated_at, crm_leads.created_at) >= (${sinceFilter || '1970-01-01'}::date AT TIME ZONE 'America/New_York'))
