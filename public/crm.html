@@ -115,6 +115,11 @@ a.profile-btn { text-decoration: none; display: inline-flex; align-items: center
 .last-msg-tag { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.1rem 0.4rem; border-radius: 4px; float: right; }
 .last-msg-tag.customer { background: var(--red-bg); color: var(--red); }
 .last-msg-tag.you { background: var(--green-bg); color: var(--green); }
+/* 2026-10-22 ui = Unresponded Inbound: lowercase on purpose, Verdana so the i-dot reads clearly */
+.message-filter .btn.ui-btn { text-transform: none !important; font-family: Verdana, Tahoma, 'DejaVu Sans', sans-serif; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; font-variant: normal; }
+.last-msg-tag.ui-age { text-transform: none !important; font-family: Verdana, Tahoma, 'DejaVu Sans', sans-serif; letter-spacing: 0; margin-left: 0.25rem; }
+.last-msg-tag.ui-age.under { background: #fff7ed; color: #c2410c; }
+.last-msg-tag.ui-age.over { background: #fee2e2; color: #991b1b; }
 
 /* Column filters */
 .col-filters { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
@@ -391,6 +396,7 @@ body.lead-modal-open > .portal-home { display: none; }
     <button class="btn active" data-mf="all" onclick="setMessageFilter('all')">All Msgs</button>
     <button class="btn" data-mf="you" onclick="setMessageFilter('you')">Msg Sent</button>
     <button class="btn" data-mf="customer" onclick="setMessageFilter('customer')">Msg Rcvd</button>
+    <button class="btn ui-btn" data-mf="ui" title="Unresponded Inbound" aria-label="Unresponded Inbound" onclick="setMessageFilter('ui')">ui</button>
   </div>
   <label class="active-filter-pill" style="display:inline-flex;align-items:center;gap:0.35rem">Since <input type="date" id="lastMessageSince" onchange="setLastMessageSince(this.value)" style="border:0;background:transparent;color:inherit;font:inherit;max-width:8.2rem"></label>
   <button class="btn btn-outline" style="font-size:0.62rem;padding:0.38rem 0.65rem" onclick="resetCrmFilters()">Reset Filters</button>
@@ -852,7 +858,7 @@ function restoreCrmFilterState() {
       currentFilter = saved.currentFilter || 'all';
       currentSource = saved.currentSource || 'all';
       readFilter = ['all', 'unread', 'read'].indexOf(saved.readFilter) >= 0 ? saved.readFilter : 'all';
-      messageFilter = ['all', 'you', 'customer'].indexOf(saved.messageFilter) >= 0 ? saved.messageFilter : 'all';
+      messageFilter = ['all', 'you', 'customer', 'ui'].indexOf(saved.messageFilter) >= 0 ? saved.messageFilter : 'all';
       campaignFilter = saved.campaignFilter || 'all';
       flaggedFilter = saved.flaggedFilter === true;
       lastMessageSince = saved.lastMessageSince || '';
@@ -1388,6 +1394,7 @@ function visibleLeadsForBoard() {
   if (readFilter === 'unread') leads = leads.filter(function(l) { return !l.is_read; });
   if (readFilter === 'read') leads = leads.filter(function(l) { return l.is_read; });
   if (messageFilter === 'customer') leads = leads.filter(function(l) { return latestMessageDirection(l) === 'customer'; });
+  if (messageFilter === 'ui') leads = leads.filter(function(l) { return !!l.ui_inbound_at; });
   if (messageFilter === 'you') leads = leads.filter(function(l) { return latestMessageDirection(l) === 'you' || latestMessageDirection(l) === 'company'; });
   return leads;
 }
@@ -1399,7 +1406,7 @@ function renderActiveFilterPill() {
   parts.push('Profile: ' + activeProfileConfig().label);
   parts.push('Status: ' + (messageFilter !== 'all' ? 'All' : currentFilter));
   parts.push('Read: ' + readFilter);
-  parts.push('Msgs: ' + (messageFilter === 'customer' ? 'Received' : messageFilter === 'you' ? 'Sent' : 'All'));
+  parts.push('Msgs: ' + (messageFilter === 'ui' ? 'Unresponded Inbound' : messageFilter === 'customer' ? 'Received' : messageFilter === 'you' ? 'Sent' : 'All'));
   if (lastMessageSince) parts.push('Since: ' + lastMessageSince);
   if (campaignFilter !== 'all') parts.push('Campaign: ' + campaignFilter.replace('_', ' '));
   if (flaggedFilter) parts.push('Flagged');
@@ -1499,6 +1506,7 @@ function renderBoard() {
       var activityDate = formatMessageDate(tileActivityAt(l)) || new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       var direction = latestMessageDirection(l);
       var lastMsgTag = direction ? '<span class="last-msg-tag ' + direction + '">' + (direction === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '';
+      lastMsgTag += uiAgeTagHtml(l);
       var unreadBadge = tileReadButtonHtml(l);
       var unreadDot = !l.is_read ? '<span class="unread-dot" aria-hidden="true"></span>' : '';
       var msgSummary = tileMessageHistoryHtml(l);
@@ -1570,6 +1578,13 @@ function setLastMessageSince(value) {
   lastMessageSince = value || '';
   saveCrmFilterState();
   loadLeads();
+}
+
+// 2026-10-22 ui (Unresponded Inbound): weekday hours since the customer's unanswered inbound (Mon-Fri only).
+function uiAgeTagHtml(l) {
+  if (!l || !l.ui_inbound_at) return '';
+  var over = !!l.ui_over_72;
+  return '<span class="last-msg-tag ui-age ' + (over ? 'over' : 'under') + '" title="Unresponded inbound: ' + (over ? 'over' : 'under') + ' 72 weekday hours">' + (over ? '&gt;72h' : '&lt;72h') + '</span>';
 }
 
 function setMessageFilter(filter) {
@@ -2027,7 +2042,7 @@ function openLeadDetail(id, skipHistory) {
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">' +
           '<span class="status-badge ' + l.status + '" style="font-size:0.7rem">' + l.status.toUpperCase() + '</span>' +
           '<div style="display:flex;gap:0.5rem;align-items:center">' +
-            (latestMessageDirection(l) ? '<span class="last-msg-tag ' + latestMessageDirection(l) + '" style="font-size:0.6rem">' + (latestMessageDirection(l) === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '') +
+            (latestMessageDirection(l) ? '<span class="last-msg-tag ' + latestMessageDirection(l) + '" style="font-size:0.6rem">' + (latestMessageDirection(l) === 'customer' ? 'Msg Rcvd' : 'Msg Sent') + '</span>' : '') + uiAgeTagHtml(l) +
             '<button class="btn btn-outline flag-toggle ' + (l.flagged ? 'active' : '') + '" style="font-size:0.6rem;padding:0.25rem 0.5rem" onclick="toggleFlag(event,' + l.id + ',' + (l.flagged ? 'false' : 'true') + ')">' + (l.flagged ? '🚩 Flagged' : '🚩 Flag') + '</button>' +
             unreadButtonHtml(l) +
             '<span style="font-size:0.7rem;color:#bbb">' + (l.source || 'manual') + '</span>' +
