@@ -15,8 +15,8 @@ const PNM_TWILIO_NUMBER = process.env.PNM_TWILIO_NUMBER || process.env.PNM_TWILI
 const LOWES_TWILIO_NUMBER = process.env.LOWES_TWILIO_NUMBER || process.env.LOWES_TWILIO_FROM || '+19086766984';
 const TWILIO_SID = process.env.TWILIO_SID || process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN = process.env.TWILIO_TOKEN || process.env.TWILIO_AUTH_TOKEN || '';
-const HARD_OPTOUT_RE = /^(stop|stopall|unsubscribe|cancel|end|quit)$/i;
-const ANGRY_OPTOUT_RE = /\b(fuck off|f off|leave me alone|do not text|dont text|don't text|remove me|wrong number|not interested|no thanks?|no thank you|i'?m good|im good|i am good|all set|we'?re good|were good)\b/i;
+// 2026-10-22 optout fix: classifier lives in lib/sms-optout-core.mjs (soft phrases need no buying context).
+import { classifyOptOut, HARD_OPTOUT_RE } from '@/lib/sms-optout-core.mjs';
 
 function profileFromTwilioTo(to: string): CrmProfileKey {
   const digits = normalizePhone(to);
@@ -166,8 +166,7 @@ async function logAndNotifyTwisterAssign(from: string, to: string, body: string)
 }
 
 function isOptOutOrAngryReply(body: string): boolean {
-  const normalized = body.trim();
-  return HARD_OPTOUT_RE.test(normalized) || ANGRY_OPTOUT_RE.test(normalized);
+  return classifyOptOut(body).kind !== null;
 }
 
 function isHardOptOutReply(body: string): boolean {
@@ -510,6 +509,8 @@ export async function POST(request: NextRequest) {
 
     if (suppressAnyReply) {
       const hardOptOut = body ? isHardOptOutReply(body) : false;
+      const optMatch = classifyOptOut(body || '');
+      const prevStatusForLost = String(lead.status || 'new');
       await sql`
         UPDATE crm_leads
         SET customer_responded = true,
@@ -523,6 +524,13 @@ export async function POST(request: NextRequest) {
             updated_at = NOW(),
             closed_at = NOW()
         WHERE id = ${lead.id}
+      `;
+      // 2026-10-22: every auto-lost gets a status_change row naming the matched phrase (was silent).
+      await sql`
+        INSERT INTO crm_activity (crm_lead_id, activity_type, description, is_from_customer, created_by)
+        VALUES (${lead.id}, 'status_change',
+          ${`Inbound SMS auto-marked lost: ${prevStatusForLost} → lost. Matched "${optMatch.phrase || ''}" (${optMatch.kind === 'hard' ? 'carrier opt-out keyword' : optMatch.kind === 'strong' ? 'remove/negative request' : 'not-interested phrase'}) in act #${activityId}. Campaign ${lead.campaign_id ?? 'none'} cleared.`},
+          false, 'sms_inbound')
       `;
     } else {
       const replyStatus = routeReplyStatus(classifyCustomerReply(body || '', Math.max(inboundAttachments.length, expectedMediaCount)), lead);
