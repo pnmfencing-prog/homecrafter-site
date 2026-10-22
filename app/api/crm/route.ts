@@ -126,10 +126,75 @@ function isAdmin(request: NextRequest): boolean {
   return token === (process.env.ADMIN_TOKEN || 'hc-admin-2026');
 }
 
+// Dan 2026-10-22: lead-level HOLD badge (hold_kind + hold_until on each lead).
+const HOLD_BADGE_API = process.env.HOLD_BADGE_API !== '0'; // kill switch: env HOLD_BADGE_API=0
+
+// READ-ONLY. Held-leads-only lookup: candidates come from the small hold sources
+// (active crm_campaign_holds, recent manual outbound, crm_ui_unresponded, call-hold window);
+// the hold functions run only for that candidate set, never per row over the full list.
+// kinds: 48h (we sent last), 72h (customer replied, weekday-hour timer), backlog (held, no auto end), call (3h before..3h after).
+async function fetchHoldStates(leadIds: number[]): Promise<Map<number, { hold_kind: string; hold_until: string | null }>> {
+  const out = new Map<number, { hold_kind: string; hold_until: string | null }>();
+  if (!HOLD_BADGE_API || !leadIds.length) return out;
+  try {
+    const rows = await sql`
+      WITH cand AS (
+        SELECT h.crm_lead_id AS id FROM crm_campaign_holds h
+          WHERE h.status = 'active' AND h.hold_until > now() AND h.crm_lead_id = ANY(${leadIds})
+        UNION
+        SELECT a.crm_lead_id FROM crm_activity a
+          WHERE a.crm_lead_id = ANY(${leadIds}) AND a.activity_type IN ('sms', 'email')
+            AND a.created_at > now() - interval '48 hours' AND COALESCE(a.is_from_customer, false) = false
+            AND COALESCE(a.description, '') NOT LIKE '📥 %'
+            AND COALESCE(a.created_by, '') NOT IN ('crm_autorespond', 'crm_email_bridge', 'twilio_sync')
+        UNION
+        SELECT u.lead_id FROM crm_ui_unresponded u WHERE u.lead_id = ANY(${leadIds})
+        UNION
+        SELECT ch.crm_lead_id FROM crm_call_holds ch
+          WHERE NOT ch.cancelled AND ch.crm_lead_id = ANY(${leadIds})
+            AND now() >= ch.call_at - interval '3 hours' AND now() < ch.call_at + interval '3 hours'
+      ), c0 AS (
+        -- ua = customer message we have not answered (NULL when we sent last). One-timer rule:
+        -- ua set -> only the 72h/backlog hold can apply; ua NULL -> only the 48h hold can apply.
+        SELECT x.id, crm_msgrcvd_unanswered_at(x.id::bigint) AS ua
+        FROM cand x JOIN crm_leads l ON l.id = x.id
+        WHERE COALESCE(l.status, '') NOT IN ('lost', 'sold', 'won')
+      ), c AS (
+        SELECT id, ua,
+          CASE WHEN ua IS NULL THEN crm_manual_hold_until(id) END AS mh,              -- = crm_manual_hold_until
+          CASE WHEN ua IS NOT NULL THEN crm_msgrcvd_72bh_applies(id::bigint) END AS a72,
+          CASE WHEN ua IS NOT NULL THEN crm_add_weekday_hours(ua, 72) END AS end72,
+          (SELECT MAX(h.call_at + interval '3 hours') FROM crm_call_holds h
+            WHERE h.crm_lead_id = c0.id AND NOT h.cancelled
+              AND now() >= h.call_at - interval '3 hours' AND now() < h.call_at + interval '3 hours') AS ch
+        FROM c0
+      ), k AS (
+        SELECT id, '48h'::text AS kind, mh AS until FROM c WHERE mh > now()
+        UNION ALL
+        -- mirrors crm_msgrcvd_blocked(): held while < 72 weekday-hours, or backlog (72h rule n/a), or restart not ok
+        SELECT id, CASE WHEN a72 AND now() < end72 THEN '72h' ELSE 'backlog' END,
+                   CASE WHEN a72 AND now() < end72 THEN end72 END
+        FROM c
+        WHERE ua IS NOT NULL
+          AND (NOT a72 OR now() < end72 OR NOT crm_msgrcvd72_restart_ok(id::bigint))
+        UNION ALL
+        SELECT id, 'call', ch FROM c WHERE ch IS NOT NULL
+      )
+      SELECT DISTINCT ON (id) id AS lead_id, kind AS hold_kind, until AS hold_until
+      FROM k ORDER BY id, (until IS NULL) DESC, until DESC
+    `;
+    for (const r of rows as any[]) out.set(Number(r.lead_id), { hold_kind: r.hold_kind, hold_until: r.hold_until ? new Date(r.hold_until).toISOString() : null });
+  } catch (err) {
+    console.error('fetchHoldStates failed (badge hidden, list unaffected):', err);
+  }
+  return out;
+}
+
 async function enrichCampaignStatus(leads: any[]) {
   const leadIds = leads.map((lead) => lead.id).filter(Boolean);
   if (!leadIds.length) return leads;
 
+  const holdStatesPromise = fetchHoldStates(leadIds);
   const rows = await sql`
     WITH lead_base AS (
       SELECT
@@ -186,8 +251,10 @@ async function enrichCampaignStatus(leads: any[]) {
     GROUP BY l.id, l.effective_campaign_id, camp.name, camp.is_active, l.campaign_started_at, inferred_start.started_at, reply_after_start.last_customer_reply_at, l.outreach_count, l.email_outreach_count
   `;
   const byLeadId = new Map(rows.map((row) => [row.lead_id, row]));
+  const holdStates = await holdStatesPromise;
   return leads.map((lead) => {
     const row = byLeadId.get(lead.id) || {};
+    const hold = holdStates.get(Number(lead.id)) || null;
     const smsSent = Number(row.campaign_sms_sent || lead.outreach_count || 0);
     const emailSent = Number(row.campaign_email_sent || lead.email_outreach_count || 0);
     const smsSteps = Number(row.campaign_sms_steps || 0);
@@ -240,6 +307,8 @@ async function enrichCampaignStatus(leads: any[]) {
       campaign_paused: leadPaused && hasCampaign && !campaignCompleted,
       campaign_customer_reply_at: row.campaign_customer_reply_at || null,
       campaign_active_now: campaignActiveNow,
+      hold_kind: hold ? hold.hold_kind : null,
+      hold_until: hold ? hold.hold_until : null,
     };
   });
 }

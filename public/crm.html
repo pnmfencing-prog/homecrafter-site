@@ -1215,6 +1215,35 @@ function campaignStatusColor(l) {
   return 'var(--text-muted)';
 }
 
+// Dan 2026-10-22: lead-level HOLD badge, distinct from PAUSED. Countdown computed at render
+// time from hold_until (no polling / timers / per-lead calls). Set false to hide.
+var SHOW_HOLD_BADGE = true;
+function holdEndEt(iso) {
+  try {
+    return new Date(iso).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }).replace(/,/g, '') + ' ET';
+  } catch (e) { return String(iso); }
+}
+function holdBadgeInfo(l) {
+  if (!SHOW_HOLD_BADGE || !l || !l.hold_kind) return null;
+  var kindText = l.hold_kind === '48h' ? '48h hold (we sent last)' : l.hold_kind === '72h' ? '72h customer-reply hold' : l.hold_kind === 'call' ? 'Call hold (3h before to 3h after call)' : 'Customer-reply hold (before 72h rule)';
+  if (!l.hold_until) return { text: 'Hold \u00b7 awaiting Dan', title: kindText + ' \u2014 no automatic end; waits for Dan' };
+  var ms = new Date(l.hold_until).getTime() - Date.now();
+  if (!isFinite(ms) || ms <= 0) return null;
+  var mins = Math.floor(ms / 60000);
+  var text = mins >= 60 ? 'Hold ' + Math.floor(mins / 60) + 'h' : 'Hold ' + Math.max(1, mins) + 'm';
+  return { text: text, title: kindText + ' \u2014 ends ' + holdEndEt(l.hold_until) };
+}
+function holdBadgeHtml(l, inline) {
+  var h = holdBadgeInfo(l);
+  if (!h) return '';
+  return '<span class="hold-badge" title="' + escAttr(h.title) + '" style="display:inline-block;' + (inline ? 'margin-left:0.35rem;' : 'margin-top:0.35rem;margin-left:0.25rem;') + 'padding:0.18rem 0.4rem;border-radius:999px;background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-size:0.55rem;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;vertical-align:middle">' + esc(h.text) + '</span>';
+}
+function holdDetailHtml(l) {
+  var h = holdBadgeInfo(l);
+  if (!h) return '';
+  return '<span style="display:block;margin-top:0.15rem;font-size:0.6rem;font-weight:700;color:#6d28d9">' + esc(h.title) + '</span>';
+}
+
 function campaignTileBadge(l) {
   var paused = !!(l && l.campaign_id && (l.outreach_paused || l.campaign_paused));
   var completed = !!(l && !paused && (l.campaign_completed || l.customer_responded || ['lost','sold','won'].indexOf(String(l.status || '').toLowerCase()) >= 0) && l.campaign_id);
@@ -1513,7 +1542,7 @@ function renderBoard() {
       var calendarBadge = tileCalendarBadge(l);
       var tileChatButton = l.chat_token ? '<a class="tile-chat-btn" href="/chat.html?t=' + encodeURIComponent(l.chat_token) + '&staff=1" target="_blank" onclick="openTileChat(event,' + l.id + ',\'' + escAttr(l.chat_token) + '\')" title="Open chat thread">💬 Chat</a>' : '';
       var tileSendButton = showInlineReplies ? tileSendButtonHtml(l) : '';
-      var campaignBadge = campaignTileBadge(l);
+      var campaignBadge = campaignTileBadge(l) + holdBadgeHtml(l, false);
       var quickReply = showInlineReplies ? tileQuickReplyHtml(l) : '';
       
       var leadHref = '/crm.html?lead=' + encodeURIComponent(l.id) + '&profile=' + encodeURIComponent(profileKey(l.crm_profile));
@@ -2001,13 +2030,14 @@ function openLeadDetail(id, skipHistory) {
 
       var statusBtns = stagePickerHtml(l.id, l.status);
       var campaignStatus = campaignStatusLabel(l);
-      var campaignStatusText = '<strong style="color:' + campaignStatusColor(l) + '">' + esc(campaignStatus.toUpperCase()) + '</strong>';
+      var campaignStatusText = '<strong style="color:' + campaignStatusColor(l) + '">' + esc(campaignStatus.toUpperCase()) + '</strong>' + holdBadgeHtml(l, true);
+      var holdDetailText = holdDetailHtml(l);
       var campaignProgressText = l.campaign_id ? 'SMS ' + Number(l.campaign_sms_sent || 0) + '/' + Number(l.campaign_sms_steps || 0) + ' · Email ' + Number(l.campaign_email_sent || 0) + '/' + Number(l.campaign_email_steps || 0) : '';
       var campaignStartedText = l.campaign_started_at ? new Date(l.campaign_started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
       var campaignSummaryHtml = l.campaign_id
         ? '<div style="width:100%;margin-top:0.1rem;padding:0.6rem 0.7rem;background:var(--cream);border:1px solid #e8e3d9;border-radius:8px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.35rem 0.8rem;font-size:0.68rem">' +
             '<div><span style="color:var(--text-muted);font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Assigned</span><br><strong style="color:var(--midnight)">' + esc(l.campaign_name || campaignName(l.campaign_id) || ('Campaign #' + l.campaign_id)) + '</strong></div>' +
-            '<div><span style="color:var(--text-muted);font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Status</span><br>' + campaignStatusText + '</div>' +
+            '<div><span style="color:var(--text-muted);font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Status</span><br>' + campaignStatusText + holdDetailText + '</div>' +
             '<div><span style="color:var(--text-muted);font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Progress</span><br><strong>' + esc(campaignProgressText || 'Not started') + '</strong></div>' +
             '<div><span style="color:var(--text-muted);font-weight:800;text-transform:uppercase;letter-spacing:0.06em">Started</span><br><strong>' + esc(campaignStartedText || 'Not started') + '</strong></div>' +
           '</div>'
@@ -2060,7 +2090,7 @@ function openLeadDetail(id, skipHistory) {
           '<select id="lead-campaign-select" onchange="refreshCampaignSelectVisual()" style="flex:1;min-width:210px;border:1px solid ' + (l.campaign_id ? 'var(--green)' : '#e0ddd6') + ';background:' + (l.campaign_id ? 'var(--green-bg)' : '#fff') + ';color:' + (l.campaign_id ? 'var(--green)' : 'var(--midnight)') + ';border-radius:8px;padding:0.45rem 0.6rem;font-family:Montserrat,sans-serif;font-size:0.75rem;font-weight:700">' + campaignOptions(l.campaign_id, l) + '</select>' +
           '<button id="campaign-assign-btn" class="btn btn-primary" style="font-size:0.65rem;padding:0.45rem 0.75rem" onclick="assignLeadCampaign(' + l.id + ')">Assign</button>' +
           (l.campaign_id ? '<button id="campaign-restart-btn" class="btn btn-outline" style="font-size:0.65rem;padding:0.45rem 0.75rem" title="Reset this lead to step 1 of the selected campaign (Assign alone continues where it left off)" onclick="restartLeadCampaign(' + l.id + ')">↺ Restart from step 1</button>' : '') +
-          '<span id="campaign-assign-feedback" style="font-size:0.68rem;font-weight:800;color:' + (l.campaign_id ? campaignStatusColor(l) : 'var(--text-muted)') + ';width:100%">' + (l.campaign_id ? '✓ Campaign assignment saved — ' + campaignStatusText : 'None assigned yet') + '</span>' +
+          '<span id="campaign-assign-feedback" style="font-size:0.68rem;font-weight:800;color:' + (l.campaign_id ? campaignStatusColor(l) : 'var(--text-muted)') + ';width:100%">' + (l.campaign_id ? '✓ Campaign assignment saved — ' + campaignStatusText : 'None assigned yet' + holdBadgeHtml(l, true)) + '</span>' +
           campaignSummaryHtml +
         '</div>' +
 
