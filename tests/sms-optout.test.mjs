@@ -24,3 +24,9 @@ test('soft phrases with buying/scheduling context stay for a human', () => {
     assert.equal(classifyOptOut(s).kind, null, s);
   }
 });
+test('real declines from history still count (audit 10/22)', () => {
+  for (const s of ["Thanks Dan but I think I'm good for now.", "Hello. I'm good for now. Thank you", 'No thank you not at this time',
+                   "I'm not sure how you got my contact information, I'm not interested"]) {
+    assert.equal(classifyOptOut(s).kind, 'soft', s);
+  }
+});
