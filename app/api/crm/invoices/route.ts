@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sql from '@/lib/db';
 import { normalizeCrmProfile } from '@/lib/email-policy';
+import { loadInvoicePdf } from '@/lib/ops-attachments';
+import { parseInvoicePdfInput, checkLinkableAttachment } from '@/lib/invoice-pdf-link-core.mjs';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -36,6 +38,40 @@ async function ensureInvoicesTable() {
   await sql`CREATE INDEX IF NOT EXISTS idx_crm_invoices_profile_status ON crm_invoices(crm_profile, status)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_crm_invoices_created ON crm_invoices(created_at DESC)`;
   await sql`ALTER TABLE crm_invoices ADD COLUMN IF NOT EXISTS proposal_id INTEGER REFERENCES proposals(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE crm_invoices ADD COLUMN IF NOT EXISTS pdf_attachment_id INTEGER`;
+}
+
+type PdfLink =
+  | { ok: true; attachmentId: number | null; createdAttachmentId: number | null }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Resolve the PDF to link on create/update: an existing crm_attachments id (pdf_attachment_id) or an
+ * inline PDF (pdf_base64 + pdf_file_name) stored now. attachmentId null = no PDF supplied (leave as is).
+ */
+async function resolvePdfLink(body: Record<string, unknown>, leadId: number, invoiceId: number | null): Promise<PdfLink> {
+  const parsed = parseInvoicePdfInput(body) as {
+    ok: boolean; mode?: string; attachmentId?: number; upload?: { fileName: string; bytes: Buffer }; error?: string;
+  };
+  if (!parsed.ok) return { ok: false, status: 400, error: parsed.error || 'invalid PDF input' };
+  if (parsed.mode === 'none') return { ok: true, attachmentId: null, createdAttachmentId: null };
+  if (parsed.mode === 'attachment') {
+    const attId = parsed.attachmentId as number;
+    const att = await sql`SELECT id, crm_lead_id, mime_type FROM crm_attachments WHERE id = ${attId} LIMIT 1`;
+    const others = await sql`SELECT id FROM crm_invoices WHERE pdf_attachment_id = ${attId}
+      AND (${invoiceId}::int IS NULL OR id <> ${invoiceId}::int)`;
+    const chk = checkLinkableAttachment(att[0] || null, leadId, others.map((r) => r.id as number)) as {
+      ok: boolean; status?: number; error?: string;
+    };
+    if (!chk.ok) return { ok: false, status: chk.status || 400, error: chk.error || 'attachment not linkable' };
+    return { ok: true, attachmentId: attId, createdAttachmentId: null };
+  }
+  const up = parsed.upload as { fileName: string; bytes: Buffer };
+  const ins = await sql`
+    INSERT INTO crm_attachments (crm_lead_id, file_name, mime_type, content_base64, size_bytes, direction)
+    VALUES (${leadId}, ${up.fileName}, 'application/pdf', ${up.bytes.toString('base64')}, ${up.bytes.length}, 'outbound')
+    RETURNING id`;
+  return { ok: true, attachmentId: ins[0].id as number, createdAttachmentId: ins[0].id as number };
 }
 
 function parseAmount(raw: unknown): number | null {
@@ -174,16 +210,34 @@ export async function POST(request: NextRequest) {
       proposalId = parsedProposal;
     }
 
-    const rows = await sql`
-      INSERT INTO crm_invoices (
-        crm_lead_id, crm_profile, invoice_no, description, amount, amount_pending,
-        status, pdf_path, created_by, proposal_id
-      ) VALUES (
-        ${leadId}, ${profile}, ${invoiceNo}, ${description}, ${amount}, ${amountPending},
-        'unpaid', ${pdfPath}, ${createdBy}, ${proposalId}
-      )
-      RETURNING *
-    `;
+    const pdfLink = await resolvePdfLink(body, leadId, null);
+    if (!pdfLink.ok) return NextResponse.json({ error: pdfLink.error }, { status: pdfLink.status });
+
+    let rows;
+    try {
+      rows = await sql`
+        INSERT INTO crm_invoices (
+          crm_lead_id, crm_profile, invoice_no, description, amount, amount_pending,
+          status, pdf_path, created_by, proposal_id, pdf_attachment_id
+        ) VALUES (
+          ${leadId}, ${profile}, ${invoiceNo}, ${description}, ${amount}, ${amountPending},
+          'unpaid', ${pdfPath}, ${createdBy}, ${proposalId}, ${pdfLink.attachmentId}
+        )
+        RETURNING *
+      `;
+    } catch (err) {
+      if (pdfLink.createdAttachmentId) await sql`DELETE FROM crm_attachments WHERE id = ${pdfLink.createdAttachmentId}`;
+      throw err;
+    }
+    // No attachment supplied but a /public pdf_path was: store the durable copy now so the row is linked at create.
+    if (!rows[0].pdf_attachment_id && pdfPath) {
+      try {
+        await loadInvoicePdf(rows[0].id as number);
+        rows = await sql`SELECT * FROM crm_invoices WHERE id = ${rows[0].id as number}`;
+      } catch (e) {
+        console.error('invoice create: could not auto-link pdf_path', pdfPath, e);
+      }
+    }
     await sql`
       INSERT INTO crm_activity (crm_lead_id, activity_type, description, created_by, is_from_customer)
       VALUES (
@@ -316,6 +370,9 @@ export async function POST(request: NextRequest) {
       amount = parsed;
       amountPending = parsed === null;
     }
+    const pdfLink = await resolvePdfLink(body, existing[0].crm_lead_id as number, id);
+    if (!pdfLink.ok) return NextResponse.json({ error: pdfLink.error }, { status: pdfLink.status });
+    const pdfAttachmentId = pdfLink.attachmentId ?? existing[0].pdf_attachment_id ?? null;
     const rows = await sql`
       UPDATE crm_invoices
       SET description = ${description},
@@ -323,6 +380,7 @@ export async function POST(request: NextRequest) {
           amount = ${amount},
           amount_pending = ${amountPending},
           pdf_path = ${pdfPath},
+          pdf_attachment_id = ${pdfAttachmentId},
           updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
