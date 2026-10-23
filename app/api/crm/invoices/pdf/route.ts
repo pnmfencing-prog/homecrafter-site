@@ -132,6 +132,22 @@ export async function GET(request: NextRequest) {
   if (!rows.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const inv = rows[0] as Record<string, unknown>;
 
+  // Prefer the stored invoice PDF attachment (the exact file /api/invoices/[no] serves and Ops emails attach),
+  // so the Invoices-tab view matches what the payer receives (e.g. Bill To New Age, not the job-site customer).
+  if (inv.pdf_attachment_id && !forceGenerate) {
+    const att = await sql`SELECT file_name, mime_type, content_base64 FROM crm_attachments WHERE id = ${inv.pdf_attachment_id as number} LIMIT 1`;
+    if (att.length && String(att[0].mime_type || '').toLowerCase() === 'application/pdf') {
+      const fileName = String(att[0].file_name || `${inv.invoice_no || 'invoice'}.pdf`).replace(/["\r\n]/g, '');
+      return new NextResponse(new Uint8Array(Buffer.from(String(att[0].content_base64), 'base64')), {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `inline; filename="${fileName}"`,
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+  }
+
   const staticPath = publicPdfPath(inv.pdf_path);
   if (staticPath && !forceGenerate) {
     // Prefer handcrafted static invoice PDF/HTML when linked on the ledger row.
@@ -227,10 +243,12 @@ export async function GET(request: NextRequest) {
 <div class="grid">
   <div>
     <div class="box-title">Bill To</div>
-    <strong>${escapeHtml(inv.lead_name || 'Customer')}</strong><br>
+    ${inv.payer_name ? `<strong>${escapeHtml(inv.payer_name)}</strong><br>
+    ${inv.payer_email ? escapeHtml(inv.payer_email) + '<br>' : ''}
+    ${inv.lead_name ? '<span class="muted">Job site: ' + escapeHtml(inv.lead_name) + (addressLine ? ' · ' + addressLine : '') + '</span>' : ''}` : `<strong>${escapeHtml(inv.lead_name || 'Customer')}</strong><br>
     ${inv.lead_email ? escapeHtml(inv.lead_email) + '<br>' : ''}
     ${inv.lead_phone ? escapeHtml(inv.lead_phone) + '<br>' : ''}
-    ${addressLine || ''}
+    ${addressLine || ''}`}
   </div>
   <div>
     <div class="box-title">Invoice Details</div>
